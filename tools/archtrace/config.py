@@ -23,6 +23,7 @@ tool still runs on Python 3.9.
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from typing import Any
@@ -147,6 +148,17 @@ def _apply(block: Any, overrides: dict, section: str, seen: list,
            errors: list) -> Any:
     if not overrides:
         return block
+    # A misspelled key was silently discarded: `_apply` iterated the block's
+    # fields and simply never looked at anything else, so
+    # ARCHTRACE_CITATION_MIN_QUOTE_WORDZ=99 changed nothing, reported nothing,
+    # and left `sources` empty. A bad *value* was already refused loudly; a bad
+    # *key* was not -- which is exactly the silent fallback this module's own
+    # docstring says is worse than one that stops you.
+    known = {item.name for item in fields(block)}
+    errors.extend(
+        f"{section}.{key}: no such setting "
+        f"(known: {', '.join(sorted(known))})"
+        for key in sorted(overrides) if key not in known)
     values = {}
     for item in fields(block):
         if item.name not in overrides:
@@ -166,16 +178,40 @@ def _apply(block: Any, overrides: dict, section: str, seen: list,
                             for f in fields(block)}, **values})
 
 
-def _from_toml(path: str) -> dict:
-    """Read the optional config file, tolerating an unreadable one loudly."""
-    try:
-        import tomllib  # type: ignore[import-not-found]  # 3.11+ only
-    except ModuleNotFoundError:  # Python 3.9/3.10 — config file is optional.
-        return {}
+def _from_toml(path: str, errors: list) -> dict:
+    """Read the optional config file, refusing an unreadable one loudly.
+
+    `tomllib` is 3.11+. On 3.9/3.10 -- and 3.9 is the declared floor, tested in
+    CI -- this used to return `{}` and say nothing, so a team's `archtrace.toml`
+    was silently inert on the oldest interpreter they are told is supported.
+    Two runners on two Python versions then enforced two different policies for
+    the same repository, and `archtrace config` printed "Override with
+    archtrace.toml" -- advice that could not work there.
+
+    A *missing* file is still fine and silent: the file is optional. A file that
+    is present and cannot be honoured is an error, which is the same rule the
+    gate applies to an unknown schema version.
+    """
     if not os.path.isfile(path):
         return {}
-    with open(path, "rb") as handle:
-        return tomllib.load(handle)
+    try:
+        import tomllib  # type: ignore[import-not-found]  # 3.11+ only
+    except ModuleNotFoundError:
+        errors.append(
+            f"{os.path.basename(path)} is present but this interpreter has no "
+            f"tomllib (Python {sys.version_info[0]}.{sys.version_info[1]}; "
+            "needs 3.11+). Refusing to run with settings you wrote and this "
+            f"build would ignore -- use {ENV_PREFIX}* variables instead, or "
+            "run on 3.11+.")
+        return {}
+    try:
+        with open(path, "rb") as handle:
+            return tomllib.load(handle)
+    except (OSError, ValueError) as exc:
+        # tomllib raises TOMLDecodeError, a ValueError. Previously this escaped
+        # as a traceback at *import* time, because DEFAULT is resolved on load.
+        errors.append(f"{os.path.basename(path)} could not be read: {exc}")
+        return {}
 
 
 def _from_env(env: Mapping[str, str]) -> dict:
@@ -199,7 +235,7 @@ def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
     config = Config()
     seen: list = []
     errors: list = []
-    layers = [_from_toml(os.path.join(root, CONFIG_FILENAME)),
+    layers = [_from_toml(os.path.join(root, CONFIG_FILENAME), errors),
               _from_env(resolved_env)]
     for layer in layers:
         updates = {}

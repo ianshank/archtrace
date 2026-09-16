@@ -7,13 +7,16 @@ this gap, which is the argument for having it.
 
 from __future__ import annotations
 
+import builtins
 import dataclasses
 import io
 import logging
 import os
+import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -21,8 +24,14 @@ from archtrace import config, coverage, log
 
 
 class ConfigDefaults(unittest.TestCase):
+    def setUp(self):
+        # A directory with no archtrace.toml in it, so these assert the
+        # DEFAULTS rather than whatever the developer's CWD happens to hold.
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
     def test_defaults_are_the_documented_policy(self):
-        cfg = config.load(root=tempfile.mkdtemp(), env={})
+        cfg = config.load(root=self.tmp, env={})
         self.assertEqual(cfg.citation.min_quote_words, 8)
         self.assertEqual(cfg.citation.min_quote_chars, 40)
         self.assertEqual(cfg.baseline.max_unexplained_pct, 20)
@@ -31,14 +40,14 @@ class ConfigDefaults(unittest.TestCase):
         self.assertEqual(cfg.sources, ())
 
     def test_describe_covers_every_section(self):
-        rows = config.load(root=tempfile.mkdtemp(), env={}).describe()
+        rows = config.load(root=self.tmp, env={}).describe()
         sections = {section for section, _key, _value in rows}
         self.assertEqual(sections, {"citation", "baseline", "render", "mining",
                                     "coverage"})
         self.assertTrue(all(isinstance(key, str) for _s, key, _v in rows))
 
     def test_config_is_frozen(self):
-        cfg = config.load(root=tempfile.mkdtemp(), env={})
+        cfg = config.load(root=self.tmp, env={})
         with self.assertRaises(dataclasses.FrozenInstanceError):
             cfg.baseline.max_unexplained_pct = 99
 
@@ -46,6 +55,71 @@ class ConfigDefaults(unittest.TestCase):
 class ConfigOverrides(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
+    def _toml(self, body: str) -> None:
+        with open(os.path.join(self.tmp, config.CONFIG_FILENAME), "w",
+                  encoding="utf-8") as fh:
+            fh.write(body)
+
+    def test_a_misspelled_setting_is_refused_not_ignored(self):
+        """A bad value already stopped the run; a bad key did not.
+
+        `_apply` only ever looked at names it recognised, so a typo changed
+        nothing, recorded nothing in `sources`, and reported nothing -- the
+        silent fallback this module's docstring calls worse than a hard stop.
+        """
+        cfg = config.load(root=self.tmp,
+                          env={"ARCHTRACE_CITATION_MIN_QUOTE_WORDZ": "99"})
+        self.assertTrue(cfg.errors, "a misspelled setting must be refused")
+        self.assertIn("min_quote_wordz", cfg.errors[0])
+        self.assertIn("min_quote_words", cfg.errors[0],
+                      "the message should name the settings that do exist")
+        self.assertEqual(cfg.citation.min_quote_words, 8)
+
+    def test_a_config_file_this_interpreter_cannot_read_is_refused(self):
+        """3.9 is the declared floor and tomllib is 3.11+.
+
+        Returning {} meant an adopter's archtrace.toml was inert on the oldest
+        interpreter they are told is supported, with no warning -- so two CI
+        runners enforced two different policies for the same repository.
+        """
+        self._toml("[citation]\nmin_quote_words = 99\n")
+        real_import = builtins.__import__
+
+        def no_tomllib(name, *args, **kwargs):
+            if name == "tomllib":
+                raise ModuleNotFoundError("No module named 'tomllib'")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(builtins, "__import__", no_tomllib):
+            cfg = config.load(root=self.tmp, env={})
+        self.assertTrue(cfg.errors, "an unreadable config file must be refused")
+        self.assertIn("tomllib", cfg.errors[0])
+        self.assertEqual(cfg.citation.min_quote_words, 8)
+
+    def test_an_absent_config_file_stays_silent_on_any_interpreter(self):
+        """The file is optional. Only a file that is present and cannot be
+        honoured is an error."""
+        real_import = builtins.__import__
+
+        def no_tomllib(name, *args, **kwargs):
+            if name == "tomllib":
+                raise ModuleNotFoundError("No module named 'tomllib'")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(builtins, "__import__", no_tomllib):
+            cfg = config.load(root=self.tmp, env={})
+        self.assertEqual(cfg.errors, ())
+
+    @unittest.skipIf(sys.version_info < (3, 11), "tomllib is 3.11+")
+    def test_a_malformed_config_file_is_an_error_not_a_traceback(self):
+        """`DEFAULT` resolves at import, so this used to be a traceback raised
+        while the package was still loading."""
+        self._toml("[citation\nmin_quote_words = ")
+        cfg = config.load(root=self.tmp, env={})
+        self.assertTrue(cfg.errors)
+        self.assertIn("could not be read", cfg.errors[0])
 
     def test_environment_overrides_and_is_recorded(self):
         cfg = config.load(root=self.tmp, env={
@@ -167,6 +241,7 @@ class Logging(unittest.TestCase):
 class Coverage(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
 
     def _module(self, name, body):
         path = os.path.join(self.tmp, f"{name}.py")
@@ -179,11 +254,35 @@ class Coverage(unittest.TestCase):
                                       '    """Inner."""\n    pass\n\n\nX = 1\n')
         self.assertEqual(coverage.executable_lines(path), {4, 9})
 
-    def test_a_file_that_cannot_be_parsed_yields_no_lines(self):
+    def test_a_file_that_cannot_be_parsed_is_unmeasurable_not_empty(self):
+        """None, not an empty set.
+
+        An empty set is the right answer for a module with no statements, so
+        returning it for an unparseable one made the two indistinguishable --
+        and `percent` scores an empty module 100%. This previously asserted
+        `== set()`, which locked the defect in: it checked the mechanism and
+        never asked what the mechanism meant for the gate.
+        """
         path = self._module("broken", "def (:\n")
-        self.assertEqual(coverage.executable_lines(path), set())
+        self.assertIsNone(coverage.executable_lines(path))
+        self.assertIsNone(coverage.executable_lines(
+            os.path.join(self.tmp, "absent.py")))
         self.assertEqual(coverage.executable_lines(
-            os.path.join(self.tmp, "absent.py")), set())
+            self._module("empty", '"""Only a docstring."""\n')), set(),
+            "a genuinely empty module still reports an empty set")
+
+    def test_an_unmeasurable_module_fails_the_gate_rather_than_scoring_100(self):
+        """The whole point of the distinction above."""
+        broken = coverage.ModuleCoverage("broken", "/x", 0, 0,
+                                         unreadable="could not be parsed")
+        self.assertEqual(broken.percent, 0,
+                         "an unmeasurable module must not read as fully covered")
+        report = coverage.Report(modules=(broken,), min_total_pct=85,
+                                 min_module_pct=70)
+        failures = report.failures()
+        self.assertTrue(failures, "an unmeasurable module must fail the gate")
+        self.assertIn("broken", failures[0])
+        self.assertIn("could not be parsed", failures[0])
 
     def test_percentages_and_missing_counts(self):
         module = coverage.ModuleCoverage("m", "/x", executable=10, covered=7)
