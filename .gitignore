@@ -1,0 +1,36 @@
+# --- Evidence content -------------------------------------------------------
+# Recording content never enters git: a repository cannot satisfy a retention
+# obligation, and deleting a file does not delete the blob — it stays reachable
+# by SHA in every clone, fork and CI cache. The repo holds CLAIMS about evidence
+# (evidence/index.json); the content lives in the system of record that owns its
+# lifecycle, reached through --evidence-root.
+_evidence_root/
+**/_evidence_root/
+
+# ...with one deliberate exception. The worked example's evidence is synthetic
+# demo text invented for this repository — no recording, no retention
+# obligation, no classification. It is a TEST FIXTURE, and excluding it would
+# make `make test` fail on a fresh clone, which is worse than the rule it would
+# be enforcing. Real engagements live under engagements/ and are never exempt.
+!example/_evidence_root/
+!example/_evidence_root/**
+
+# --- Build and tooling artefacts --------------------------------------------
+__pycache__/
+*.py[cod]
+.coverage
+coverage.json
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# --- Local scratch ----------------------------------------------------------
+*.tmp
+*.log
+.DS_Store

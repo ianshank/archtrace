@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1532" height="1704" viewBox="0 0 1532 1704" font-family="Helvetica, Arial, sans-serif">
+<rect width="1532" height="1704" fill="#ffffff"/>
+<text x="30" y="30" font-size="17" font-weight="bold" fill="#16202e">archtrace — operating model</text>
+<text x="30" y="50" font-size="11.5" fill="#4a5568">Three loops · two human gates · no LLM in the critical path    |    solid = invocation, dashed = data returned</text>
+<rect x="22" y="128" width="1488" height="308" rx="6" fill="#eef4fa"/>
+<text x="32" y="145" font-size="12" font-weight="bold" fill="#4a5568">Loop 1 — after every meeting (~2 min)</text>
+<rect x="22" y="454" width="1488" height="550" rx="6" fill="#eef5ee"/>
+<text x="32" y="471" font-size="12" font-weight="bold" fill="#4a5568">Loop 2 — per batch (~30 min) · the only step that needs judgement</text>
+<rect x="22" y="1022" width="1488" height="630" rx="6" fill="#faf4ec"/>
+<text x="32" y="1039" font-size="12" font-weight="bold" fill="#4a5568">Loop 3 — before anything leaves the repo (seconds)</text>
+<line x1="118" y1="118" x2="118" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="334" y1="118" x2="334" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="550" y1="118" x2="550" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="766" y1="118" x2="766" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="982" y1="118" x2="982" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="1198" y1="118" x2="1198" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="1414" y1="118" x2="1414" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<rect x="30" y="66" width="176" height="52" rx="5" fill="#dbe4f0" stroke="#33415c" stroke-width="1.4"/>
+<text x="118" y="97" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">Stakeholders</text>
+<rect x="246" y="66" width="176" height="52" rx="5" fill="#e6e6e6" stroke="#33415c" stroke-width="1.4"/>
+<text x="334" y="90" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">System of record</text>
+<text x="334" y="105" font-size="10" font-weight="normal" text-anchor="middle" fill="#16202e">Teams · SharePoint</text>
+<rect x="462" y="66" width="176" height="52" rx="5" fill="#dbe4f0" stroke="#33415c" stroke-width="1.4"/>
+<text x="550" y="97" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">Architect</text>
+<rect x="678" y="66" width="176" height="52" rx="5" fill="#efe3c9" stroke="#33415c" stroke-width="1.4"/>
+<text x="766" y="90" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">Agents</text>
+<text x="766" y="105" font-size="10" font-weight="normal" text-anchor="middle" fill="#16202e">read-only</text>
+<rect x="894" y="66" width="176" height="52" rx="5" fill="#cfe3d8" stroke="#33415c" stroke-width="1.4"/>
+<text x="982" y="90" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">archtrace</text>
+<text x="982" y="105" font-size="10" font-weight="normal" text-anchor="middle" fill="#16202e">deterministic</text>
+<rect x="1110" y="66" width="176" height="52" rx="5" fill="#e6e6e6" stroke="#33415c" stroke-width="1.4"/>
+<text x="1198" y="97" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">Git · CI · Reviewer</text>
+<rect x="1326" y="66" width="176" height="52" rx="5" fill="#e6e6e6" stroke="#33415c" stroke-width="1.4"/>
+<text x="1414" y="90" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">Publish</text>
+<text x="1414" y="105" font-size="10" font-weight="normal" text-anchor="middle" fill="#16202e">Jira · Lucid · Word</text>
+<line x1="118" y1="168" x2="329" y2="168" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 329 163 L 334 168 L 329 173 z" fill="#33415c"/>
+<rect x="117" y="151" width="218" height="15" fill="#ffffff"/>
+<text x="226" y="162" font-size="11" text-anchor="middle" fill="#16202e">meeting recorded, consent captured</text>
+<line x1="550" y1="208" x2="339" y2="208" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 339 203 L 334 208 L 339 213 z" fill="#33415c"/>
+<rect x="384" y="191" width="116" height="15" fill="#ffffff"/>
+<text x="442" y="202" font-size="11" text-anchor="middle" fill="#16202e">export transcript</text>
+<line x1="550" y1="248" x2="977" y2="248" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 243 L 982 248 L 977 253 z" fill="#33415c"/>
+<rect x="621" y="231" width="290" height="15" fill="#ffffff"/>
+<text x="766" y="242" font-size="11" text-anchor="middle" fill="#16202e">evidence add --authority stakeholder-confirmed</text>
+<path d="M 982 280 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 294 L 982 298 L 988 302 z" fill="#33415c"/>
+<rect x="1012" y="280" width="270" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="292" font-size="11" text-anchor="start" fill="#16202e">normalise (NFKC + punctuation fold), sha256</text>
+<line x1="982" y1="328" x2="1193" y2="328" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 1193 323 L 1198 328 L 1193 333 z" fill="#33415c"/>
+<rect x="936" y="311" width="308" height="15" fill="#ffffff"/>
+<text x="1090" y="322" font-size="11" text-anchor="middle" fill="#16202e">commit MANIFEST only — id, hash, owner, retention</text>
+<rect x="274" y="356" width="984" height="68" rx="4" fill="#fffdf2" stroke="#c9be8f"/>
+<text x="286" y="371" font-size="11" fill="#4a5568">Recording content never enters git: a repository cannot satisfy a</text>
+<text x="286" y="385" font-size="11" fill="#4a5568">retention obligation, and deleting a file does not delete the blob. The</text>
+<text x="286" y="399" font-size="11" fill="#4a5568">repo holds claims about evidence; the content stays where its lifecycle is</text>
+<text x="286" y="413" font-size="11" fill="#4a5568">enforced.</text>
+<line x1="550" y1="494" x2="761" y2="494" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 761 489 L 766 494 L 761 499 z" fill="#33415c"/>
+<rect x="504" y="477" width="308" height="15" fill="#ffffff"/>
+<text x="658" y="488" font-size="11" text-anchor="middle" fill="#16202e">copilot --deny-tool=write,shell --allow-tool=read</text>
+<line x1="334" y1="534" x2="761" y2="534" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 761 529 L 766 534 L 761 539 z" fill="#33415c"/>
+<rect x="423" y="517" width="254" height="15" fill="#ffffff"/>
+<text x="550" y="528" font-size="11" text-anchor="middle" fill="#16202e">evidence text — data, never instructions</text>
+<line x1="766" y1="574" x2="977" y2="574" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 569 L 982 574 L 977 579 z" fill="#33415c"/>
+<rect x="792" y="557" width="164" height="15" fill="#ffffff"/>
+<text x="874" y="568" font-size="11" text-anchor="middle" fill="#16202e">quote EV-004 "&lt;fragment&gt;"</text>
+<line x1="982" y1="614" x2="771" y2="614" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 771 609 L 766 614 L 771 619 z" fill="#33415c"/>
+<rect x="807" y="597" width="134" height="15" fill="#ffffff"/>
+<text x="874" y="608" font-size="11" text-anchor="middle" fill="#16202e">verifiable byte span</text>
+<line x1="766" y1="654" x2="555" y2="654" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 649 L 550 654 L 555 659 z" fill="#33415c"/>
+<rect x="522" y="637" width="272" height="15" fill="#ffffff"/>
+<text x="658" y="648" font-size="11" text-anchor="middle" fill="#16202e">proposed.json — spans, speakers, statements</text>
+<rect x="706" y="682" width="336" height="40" rx="4" fill="#fffdf2" stroke="#c9be8f"/>
+<text x="718" y="697" font-size="11" fill="#4a5568">Single agent, no debate ensemble: naming consistency collapses</text>
+<text x="718" y="711" font-size="11" fill="#4a5568">60.85 → 8.24 across three collaborative rounds.</text>
+<line x1="550" y1="748" x2="977" y2="748" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 743 L 982 748 L 977 753 z" fill="#33415c"/>
+<rect x="678" y="731" width="176" height="15" fill="#ffffff"/>
+<text x="766" y="742" font-size="11" text-anchor="middle" fill="#16202e">promote REQ-014   (dry run)</text>
+<line x1="982" y1="788" x2="555" y2="788" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 783 L 550 788 L 555 793 z" fill="#33415c"/>
+<rect x="627" y="771" width="278" height="15" fill="#ffffff"/>
+<text x="766" y="782" font-size="11" text-anchor="middle" fill="#16202e">statement + quote + speaker + authority tier</text>
+<rect x="30" y="812" width="1472" height="56" rx="5" fill="#fdf0e6" stroke="#b4531f" stroke-width="1.6"/>
+<text x="44" y="830" font-size="12.5" font-weight="bold" fill="#b4531f">HUMAN GATE — does the quote actually SUPPORT the statement?</text>
+<text x="44" y="846" font-size="10.5" fill="#4a5568">The only control for a plausible-but-wrong requirement carrying a real, correctly attributed</text>
+<text x="44" y="859" font-size="10.5" fill="#4a5568">quote. No deterministic rule reaches it.</text>
+<line x1="550" y1="898" x2="977" y2="898" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 893 L 982 898 L 977 903 z" fill="#33415c"/>
+<rect x="696" y="881" width="140" height="15" fill="#ffffff"/>
+<text x="766" y="892" font-size="11" text-anchor="middle" fill="#16202e">promote REQ-014 --yes</text>
+<line x1="766" y1="938" x2="555" y2="938" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 933 L 550 938 L 555 943 z" fill="#33415c"/>
+<rect x="495" y="921" width="326" height="15" fill="#ffffff"/>
+<text x="658" y="932" font-size="11" text-anchor="middle" fill="#16202e">model.json diff — grounding kinds, not invented REQs</text>
+<line x1="550" y1="978" x2="1193" y2="978" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 1193 973 L 1198 978 L 1193 983 z" fill="#33415c"/>
+<rect x="774" y="961" width="200" height="15" fill="#ffffff"/>
+<text x="874" y="972" font-size="11" text-anchor="middle" fill="#16202e">signed commit behind CODEOWNERS</text>
+<line x1="550" y1="1062" x2="977" y2="1062" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 1057 L 982 1062 L 977 1067 z" fill="#33415c"/>
+<rect x="657" y="1045" width="218" height="15" fill="#ffffff"/>
+<text x="766" y="1056" font-size="11" text-anchor="middle" fill="#16202e">make gate   (fmt · render · check)</text>
+<path d="M 982 1094 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 1108 L 982 1112 L 988 1116 z" fill="#33415c"/>
+<rect x="1012" y="1094" width="390" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1106" font-size="11" text-anchor="start" fill="#16202e">G1 hash · G2 citation · G3 coverage · G4 grounding · G5 C4 form</text>
+<path d="M 982 1134 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 1148 L 982 1152 L 988 1156 z" fill="#33415c"/>
+<rect x="1012" y="1134" width="426" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1146" font-size="11" text-anchor="start" fill="#16202e">G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR</text>
+<line x1="982" y1="1182" x2="555" y2="1182" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 1177 L 550 1182 L 555 1187 z" fill="#33415c"/>
+<rect x="639" y="1165" width="254" height="15" fill="#ffffff"/>
+<text x="766" y="1176" font-size="11" text-anchor="middle" fill="#16202e">exit 1 + named rule and fix   /   exit 0</text>
+<rect x="682" y="1210" width="600" height="40" rx="4" fill="#fffdf2" stroke="#c9be8f"/>
+<text x="694" y="1225" font-size="11" fill="#4a5568">"Green" means grounded and internally consistent.</text>
+<text x="694" y="1239" font-size="11" fill="#4a5568">It never means correct. Correctness is still the architect's.</text>
+<line x1="766" y1="1276" x2="555" y2="1276" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 1271 L 550 1276 L 555 1281 z" fill="#33415c"/>
+<rect x="504" y="1259" width="308" height="15" fill="#ffffff"/>
+<text x="658" y="1270" font-size="11" text-anchor="middle" fill="#16202e">review/advisory.md — advisory only, always exit 0</text>
+<line x1="550" y1="1316" x2="977" y2="1316" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 1311 L 982 1316 L 977 1321 z" fill="#33415c"/>
+<rect x="663" y="1299" width="206" height="15" fill="#ffffff"/>
+<text x="766" y="1310" font-size="11" text-anchor="middle" fill="#16202e">release --approved-by … --role …</text>
+<path d="M 982 1348 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 1362 L 982 1366 L 988 1370 z" fill="#33415c"/>
+<rect x="1012" y="1348" width="288" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1360" font-size="11" text-anchor="start" fill="#16202e">refuse if the gate blocks or the tree is dirty</text>
+<line x1="982" y1="1396" x2="1193" y2="1396" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 1193 1391 L 1198 1396 L 1193 1401 z" fill="#33415c"/>
+<rect x="912" y="1379" width="356" height="15" fill="#ffffff"/>
+<text x="1090" y="1390" font-size="11" text-anchor="middle" fill="#16202e">release.json — commit + sha256 of every source and output</text>
+<path d="M 1198 1428 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 1204 1442 L 1198 1446 L 1204 1450 z" fill="#33415c"/>
+<rect x="1228" y="1428" width="282" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1232" y="1440" font-size="11" text-anchor="start" fill="#16202e">PR: model diff reviewed · render/** collapsed</text>
+<line x1="550" y1="1476" x2="977" y2="1476" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 1471 L 982 1476 L 977 1481 z" fill="#33415c"/>
+<rect x="711" y="1459" width="110" height="15" fill="#ffffff"/>
+<text x="766" y="1470" font-size="11" text-anchor="middle" fill="#16202e">release --verify</text>
+<line x1="982" y1="1516" x2="555" y2="1516" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 1511 L 550 1516 L 555 1521 z" fill="#33415c"/>
+<rect x="594" y="1499" width="344" height="15" fill="#ffffff"/>
+<text x="766" y="1510" font-size="11" text-anchor="middle" fill="#16202e">MATCH (byte-identical)   /   DRIFT (names what changed)</text>
+<rect x="30" y="1540" width="1472" height="56" rx="5" fill="#fdf0e6" stroke="#b4531f" stroke-width="1.6"/>
+<text x="44" y="1558" font-size="12.5" font-weight="bold" fill="#b4531f">PUBLISH ONLY ON MATCH</text>
+<text x="44" y="1574" font-size="10.5" fill="#4a5568">Publishing a post-approval edit under an approved-looking provenance trail is exactly the</text>
+<text x="44" y="1587" font-size="10.5" fill="#4a5568">failure this catches.</text>
+<line x1="550" y1="1626" x2="1409" y2="1626" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 1409 1621 L 1414 1626 L 1409 1631 z" fill="#33415c"/>
+<rect x="954" y="1609" width="56" height="15" fill="#ffffff"/>
+<text x="982" y="1620" font-size="11" text-anchor="middle" fill="#16202e">publish</text>
+</svg>

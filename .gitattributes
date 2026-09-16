@@ -1,0 +1,5 @@
+# Renders are build outputs. Without this, every one-line model change buries
+# the model diff -- the thing peer review is supposed to read -- under eight
+# regenerated files including a binary .docx.
+render/** linguist-generated=true
+render/** -diff

@@ -1,0 +1,30 @@
+Microsoft Teams meeting transcript
+Dailies Ingest Platform — Kickoff
+2026-09-02
+
+00:03:41  A. Stakeholder: So the short version is we're drowning in
+manual handoffs between the cart and post. Every night somebody
+copies cards by hand and every night something goes missing.
+
+00:11:07  A. Stakeholder: The thing I actually care about is that if
+the feed drops for half a day we cannot lose those events — we have
+to be able to replay them once it comes back.
+
+00:19:52  B. PM: Right, and the DIT can't be the one babysitting it.
+They need to drop a card in and walk away, the whole point is that
+the operator does not touch a console at any stage.
+
+00:24:30  A. Stakeholder: One more thing — legal will want to know
+every asset that moved and when, so we need an audit record we can
+hand over without going and reconstructing it from logs.
+
+00:31:18  B. PM: We should talk about whether this replaces the
+existing MAM or sits next to it.
+
+00:32:02  A. Stakeholder: It sits next to it. The MAM isn't going
+anywhere this year, so whatever we build has to hand off into it.
+
+00:44:15  B. PM: And can we get real-time dashboards for the ops
+floor? That'd be great to have.
+
+00:44:40  A. Stakeholder: That's a nice-to-have. Not for phase one.

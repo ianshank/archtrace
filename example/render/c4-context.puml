@@ -1,0 +1,13 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Dailies Ingest Platform — System Context
+
+Person(p_dit, "DIT / Data Wrangler", "Loads cards at the cart.")
+System(s_ingest, "Dailies Ingest Platform", "Ingests, buffers and hands off dailies.")
+System_Ext(s_mam, "Existing MAM", "Incumbent asset manager; not being replaced.")
+
+Rel(p_dit, s_ingest, "submits dailies", "HTTPS")
+Rel(s_ingest, s_mam, "hands off assets", "MAM API")
+
+@enduml

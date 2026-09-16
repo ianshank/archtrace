@@ -1,0 +1,13 @@
+element_id,element_uid,level,name,grounding_kind,grounding_ref,adr,symbol,source_locator
+p_dit,e_c3d1b4dff807,person,DIT / Data Wrangler,satisfies,REQ-002,,,
+s_ingest,e_cfc54fd25516,system,Dailies Ingest Platform,satisfies,REQ-001,,,
+s_ingest,e_cfc54fd25516,system,Dailies Ingest Platform,satisfies,REQ-003,,,
+c_edge,e_d11643342a02,container,Edge Tier,standard,STD-001,,,
+c_api,e_21debd1535f5,container,Ingest API,satisfies,REQ-002,,,
+c_queue,e_6d34328e1d42,container,Replay Buffer,satisfies,REQ-001,,,
+c_worker,e_33ff8dd4918b,container,Handoff Worker,derived,c_queue,ADR-001,,
+c_audit,e_1d6e2cc7e658,container,Audit Ledger,satisfies,REQ-003,,,
+c_telemetry,e_4fccddf4e3e6,container,Telemetry Sidecar,standard,STD-001,,,
+c_prefetch,e_00441387cbe5,container,Prefetch Cache,assumption,OQ-001,,,
+s_mam,e_068f667f9a5f,system,Existing MAM,existing,EV-001,,,
+s_mam,e_068f667f9a5f,system,Existing MAM,existing,EV-003,,sym:9d3c379feee242b7,src/service.py:1 (class UserService)

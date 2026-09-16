@@ -1,0 +1,77 @@
+sequenceDiagram
+    autonumber
+    actor SH as Stakeholders
+    participant SOR as System of record<br/>Teams · SharePoint
+    actor AR as Architect
+    participant EX as Extractor agent<br/>read-only
+    participant MO as Modeler agent<br/>read-only
+    participant AT as archtrace<br/>deterministic · no LLM
+    participant GIT as Git · CI
+    participant RV as Reviewer<br/>CODEOWNER
+    participant PUB as Jira · Lucid · Word
+
+    rect rgb(236, 242, 249)
+    Note over SH, GIT: Loop 1 — after each meeting (~2 min)
+    SH->>SOR: meeting recorded, consent captured
+    AR->>SOR: export transcript
+    AR->>AT: evidence add --authority stakeholder-confirmed
+    AT->>AT: normalise (NFKC + punctuation fold), sha256
+    AT->>GIT: commit MANIFEST only — id, hash, owner, retention
+    Note over SOR, GIT: Recording content never enters git.<br/>A repo cannot satisfy retention; deleting a file<br/>does not delete the blob.
+    end
+
+    rect rgb(238, 245, 238)
+    Note over AR, GIT: Loop 2 — per batch (~30 min) · the only step needing judgement
+    AR->>EX: copilot --deny-tool=write,shell --allow-tool=read
+    SOR-->>EX: evidence text (data, never instructions)
+    EX->>AT: quote EV-004 "<fragment>"
+    AT-->>EX: verifiable byte span
+    EX-->>AR: proposed.json — spans, speakers, statements
+    Note over EX: Single agent. No debate ensemble:<br/>naming consistency collapses 60.85 → 8.24<br/>across 3 collaborative rounds.
+
+    AR->>AT: promote REQ-014 (dry run)
+    AT-->>AR: statement + quote + speaker + authority tier
+    critical HUMAN GATE — does the quote SUPPORT the statement?
+        AR->>AT: promote REQ-014 --yes
+    option no
+        AR->>EX: reject; re-extract or discard
+    end
+    Note over AR, AT: The only control for a plausible-but-wrong requirement<br/>carrying a real, correctly-attributed quote.<br/>No deterministic rule reaches it.
+
+    AR->>MO: propose model changes
+    MO-->>AR: model.json diff — grounding kinds, not invented REQs
+    AR->>GIT: signed commit behind CODEOWNERS
+    end
+
+    rect rgb(249, 243, 235)
+    Note over AR, PUB: Loop 3 — before anything leaves the repo (seconds)
+    AR->>AT: make gate (fmt · render · check)
+    AT->>AT: G1 hash · G2 citation · G3 coverage · G4 grounding<br/>G5 C4 form · G6 render freshness · G7 ADR<br/>G9 conflicts · G10 schema · G11 authority · G12 NFR
+    alt any blocking finding
+        AT-->>AR: exit 1 — named rule, named fix
+        AR->>MO: fix the model, never the render
+    else clean
+        AT-->>AR: exit 0 — grounded and internally consistent
+    end
+    Note over AT: "Green" never means correct.<br/>Correctness is still the architect's.
+
+    par advisory, never gating
+        AR->>MO: architecture-reviewer
+        MO-->>AR: review/advisory.md (always exit 0)
+    end
+
+    AR->>AT: release --approved-by … --role …
+    AT->>AT: refuse if gate blocks or tree is dirty
+    AT->>GIT: release.json — commit + sha256 of every source and output
+    GIT->>RV: PR — model diff; render/** collapsed as generated
+    RV-->>GIT: independent approval (branch protection)
+
+    AR->>AT: release --verify
+    alt MATCH
+        AT-->>AR: byte-identical to the approved state
+        AR->>PUB: publish
+    else DRIFT
+        AT-->>AR: exit 1 — names what changed
+        Note over AR, PUB: A post-approval edit published with an<br/>approved-looking provenance trail is the<br/>failure this catches.
+    end
+    end

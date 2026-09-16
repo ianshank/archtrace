@@ -1,0 +1,84 @@
+<mxfile host="archtrace" type="device">
+  <diagram id="System Context" name="System Context">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="826">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="p_dit" value="DIT / Data Wrangler" style="rounded=1;fillColor=#dbe4f0;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_ingest" value="Dailies Ingest Platform" style="rounded=1;fillColor=#c7d7ee;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_mam" value="Existing MAM" style="rounded=1;fillColor=#e4e4e4;strokeColor=#33415c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="150" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="System Context-e0" value="submits dailies" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="p_dit" target="s_ingest">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="System Context-e1" value="hands off assets" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="s_ingest" target="s_mam">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="Containers" name="Containers">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="826">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="p_dit" value="DIT / Data Wrangler" style="rounded=1;fillColor=#dbe4f0;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_mam" value="Existing MAM" style="rounded=1;fillColor=#e4e4e4;strokeColor=#33415c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="150" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_edge" value="Edge Tier&#10;[WAF + managed load balancer]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="150" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_api" value="Ingest API&#10;[Python 3.11 / FastAPI]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="300" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_queue" value="Replay Buffer&#10;[Kafka]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="640" y="300" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_worker" value="Handoff Worker&#10;[Python]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="640" y="450" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_audit" value="Audit Ledger&#10;[PostgreSQL, append-only]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="450" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_telemetry" value="Telemetry Sidecar&#10;[OpenTelemetry collector]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="450" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_prefetch" value="Prefetch Cache&#10;[Redis]" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="300" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e0" value="submits dailies" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="p_dit" target="c_edge">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e1" value="forwards" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_edge" target="c_api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e2" value="publishes events" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_api" target="c_queue">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e3" value="writes audit record" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_api" target="c_audit">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e4" value="reads" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_api" target="c_prefetch">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e5" value="emits metrics" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_api" target="c_telemetry">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e6" value="delivers" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_queue" target="c_worker">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="Containers-e7" value="hands off assets" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="c_worker" target="s_mam">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

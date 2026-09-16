@@ -1,0 +1,12 @@
+# The gate runs before the commit, not after the review. A finding you see at
+# commit time costs seconds; the same finding in a stakeholder deck costs a
+# meeting.
+repos:
+  - repo: local
+    hooks:
+      - id: archtrace-gate
+        name: archtrace gate
+        entry: bash -c 'make gate ROOT="$ARCHTRACE_ROOT"'
+        language: system
+        pass_filenames: false
+        files: '^(engagements/.*/)?(model|requirements|evidence)/.*\.json$'

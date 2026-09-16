@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "evidence": [
+    {
+      "id": "EV-001",
+      "source": "teams-transcript",
+      "authority": "stakeholder-confirmed",
+      "source_uri": "https://stream.example.com/meetings/kickoff-2026-09-02",
+      "local_path": "EV-001-kickoff.txt",
+      "date": "2026-09-02",
+      "participants": [
+        "A. Stakeholder",
+        "B. PM",
+        "I. Cruickshank"
+      ],
+      "classification": "internal-confidential",
+      "retention_until": "2027-09-02",
+      "sha256_normalized": "1eb7df29c831a604be8ade960faa6ce87ca735fd859d4a460af8e3f44d15e560"
+    },
+    {
+      "id": "EV-002",
+      "source": "email",
+      "authority": "authoritative-document",
+      "document_owner": "C. Platform",
+      "effective_date": "2026-04-01",
+      "document_version": "PLAT-STD-014 v3",
+      "source_uri": "https://outlook.example.com/thread/plat-std-014",
+      "local_path": "EV-002-platform-standards.txt",
+      "date": "2026-09-04",
+      "participants": [
+        "C. Platform",
+        "I. Cruickshank"
+      ],
+      "classification": "internal",
+      "retention_until": "2029-09-04",
+      "sha256_normalized": "eec5ddec539c254b12619407ecadee3191ac7b5af6ab7d6fce3b2ece524273dc"
+    },
+    {
+      "id": "EV-003",
+      "source": "code-mining",
+      "content_kind": "structured",
+      "authority": "observed-implementation",
+      "commit": "4f2c9ab1d7e35608b1c0aa9e7712d43f5c8e9016",
+      "facts_schema_version": "1.0.0",
+      "source_uri": "https://github.example.com/media/mam-legacy",
+      "local_path": "EV-003-mam-facts.json",
+      "date": "2026-09-16",
+      "participants": [
+        "archmine"
+      ],
+      "classification": "internal",
+      "retention_until": "2029-09-16",
+      "sha256_normalized": "a4ece8191f148d34d634eb8af1707151a4a25deee1635e6dd9a532979360417c"
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="658" viewBox="0 0 1220 658" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#33415c"/></marker></defs>
+<rect width="1220" height="658" fill="#ffffff"/>
+<text x="40" y="26" font-size="15" font-weight="bold" fill="#16202e">Dailies Ingest Platform — Containers</text>
+<line x1="226" y1="136" x2="314" y2="178" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="430" y1="290" x2="430" y2="324" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="546" y1="382" x2="634" y2="382" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="430" y1="440" x2="430" y2="474" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="314" y1="382" x2="226" y2="382" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="314" y1="436" x2="226" y2="478" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="750" y1="440" x2="750" y2="474" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<line x1="812" y1="474" x2="1008" y2="290" stroke="#33415c" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<rect x="0" y="30" width="220" height="104" rx="6" fill="#dbe4f0" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="206" cy="44" r="7.5" fill="#2f6b4f"/>
+<text x="206" y="48" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">S</text>
+<text x="110" y="58" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">DIT / Data Wrangler</text>
+<text x="110" y="74" font-size="10" text-anchor="middle" fill="#16202e">Loads cards at the cart.</text>
+<rect x="960" y="180" width="220" height="104" rx="6" fill="#e4e4e4" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="1166" cy="194" r="7.5" fill="#5a5a5a"/>
+<text x="1166" y="198" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">E</text>
+<text x="1070" y="208" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Existing MAM</text>
+<text x="1070" y="224" font-size="10" text-anchor="middle" fill="#16202e">Incumbent asset manager;</text>
+<text x="1070" y="236" font-size="10" text-anchor="middle" fill="#16202e">not being replaced.</text>
+<rect x="320" y="180" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="526" cy="194" r="7.5" fill="#6b5a2f"/>
+<text x="526" y="198" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">T</text>
+<text x="430" y="208" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Edge Tier</text>
+<text x="430" y="224" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[WAF + managed load balancer]</text>
+<text x="430" y="238" font-size="10" text-anchor="middle" fill="#16202e">Mandated termination point</text>
+<text x="430" y="250" font-size="10" text-anchor="middle" fill="#16202e">for external traffic.</text>
+<rect x="320" y="330" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="526" cy="344" r="7.5" fill="#2f6b4f"/>
+<text x="526" y="348" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">S</text>
+<text x="430" y="358" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Ingest API</text>
+<text x="430" y="374" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[Python 3.11 / FastAPI]</text>
+<text x="430" y="388" font-size="10" text-anchor="middle" fill="#16202e">Accepts card submissions</text>
+<text x="430" y="400" font-size="10" text-anchor="middle" fill="#16202e">without operator</text>
+<text x="430" y="412" font-size="10" text-anchor="middle" fill="#16202e">interaction.</text>
+<rect x="640" y="330" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="846" cy="344" r="7.5" fill="#2f6b4f"/>
+<text x="846" y="348" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">S</text>
+<text x="750" y="358" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Replay Buffer</text>
+<text x="750" y="374" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[Kafka]</text>
+<text x="750" y="388" font-size="10" text-anchor="middle" fill="#16202e">Durable event log enabling</text>
+<text x="750" y="400" font-size="10" text-anchor="middle" fill="#16202e">replay after an outage.</text>
+<rect x="640" y="480" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="846" cy="494" r="7.5" fill="#3b5a7a"/>
+<text x="846" y="498" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">D</text>
+<text x="750" y="508" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Handoff Worker</text>
+<text x="750" y="524" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[Python]</text>
+<text x="750" y="538" font-size="10" text-anchor="middle" fill="#16202e">Drains the buffer into the</text>
+<text x="750" y="550" font-size="10" text-anchor="middle" fill="#16202e">MAM.</text>
+<rect x="320" y="480" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="526" cy="494" r="7.5" fill="#2f6b4f"/>
+<text x="526" y="498" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">S</text>
+<text x="430" y="508" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Audit Ledger</text>
+<text x="430" y="524" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[PostgreSQL, append-only]</text>
+<text x="430" y="538" font-size="10" text-anchor="middle" fill="#16202e">Durable record of every</text>
+<text x="430" y="550" font-size="10" text-anchor="middle" fill="#16202e">asset movement.</text>
+<rect x="0" y="480" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="206" cy="494" r="7.5" fill="#6b5a2f"/>
+<text x="206" y="498" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">T</text>
+<text x="110" y="508" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Telemetry Sidecar</text>
+<text x="110" y="524" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[OpenTelemetry collector]</text>
+<text x="110" y="538" font-size="10" text-anchor="middle" fill="#16202e">Emits to the central</text>
+<text x="110" y="550" font-size="10" text-anchor="middle" fill="#16202e">pipeline.</text>
+<rect x="0" y="330" width="220" height="104" rx="6" fill="#cfe3d8" stroke="#33415c" stroke-width="1.5"/>
+<circle cx="206" cy="344" r="7.5" fill="#9a4b2f"/>
+<text x="206" y="348" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">A</text>
+<text x="110" y="358" font-size="13" font-weight="bold" text-anchor="middle" fill="#16202e">Prefetch Cache</text>
+<text x="110" y="374" font-size="10" font-style="italic" text-anchor="middle" fill="#16202e">[Redis]</text>
+<text x="110" y="388" font-size="10" text-anchor="middle" fill="#16202e">Speculative: only needed</text>
+<text x="110" y="400" font-size="10" text-anchor="middle" fill="#16202e">if post requires</text>
+<text x="110" y="412" font-size="10" text-anchor="middle" fill="#16202e">sub-minute handoff.</text>
+<rect x="221" y="148" width="98" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="270" y="159" font-size="10" text-anchor="middle" fill="#16202e">submits dailies</text>
+<rect x="402" y="298" width="56" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="430" y="309" font-size="10" text-anchor="middle" fill="#16202e">forwards</text>
+<rect x="538" y="373" width="104" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="590" y="384" font-size="10" text-anchor="middle" fill="#16202e">publishes events</text>
+<rect x="369" y="448" width="122" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="430" y="459" font-size="10" text-anchor="middle" fill="#16202e">writes audit record</text>
+<rect x="251" y="373" width="38" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="270" y="384" font-size="10" text-anchor="middle" fill="#16202e">reads</text>
+<rect x="227" y="448" width="86" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="270" y="459" font-size="10" text-anchor="middle" fill="#16202e">emits metrics</text>
+<rect x="722" y="448" width="56" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="750" y="459" font-size="10" text-anchor="middle" fill="#16202e">delivers</text>
+<rect x="858" y="373" width="104" height="14" rx="3" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+<text x="910" y="384" font-size="10" text-anchor="middle" fill="#16202e">hands off assets</text>
+<text x="40" y="646" font-size="9" fill="#16202e">grounding:</text>
+<circle cx="98" cy="643" r="6.5" fill="#2f6b4f"/>
+<text x="98" y="646" font-size="8" font-weight="bold" text-anchor="middle" fill="#ffffff">S</text>
+<text x="109" y="646" font-size="9" fill="#16202e">satisfies</text>
+<circle cx="175" cy="643" r="6.5" fill="#3b5a7a"/>
+<text x="175" y="646" font-size="8" font-weight="bold" text-anchor="middle" fill="#ffffff">D</text>
+<text x="186" y="646" font-size="9" fill="#16202e">derived</text>
+<circle cx="242" cy="643" r="6.5" fill="#6b5a2f"/>
+<text x="242" y="646" font-size="8" font-weight="bold" text-anchor="middle" fill="#ffffff">T</text>
+<text x="253" y="646" font-size="9" fill="#16202e">standard</text>
+<circle cx="314" cy="643" r="6.5" fill="#5a5a5a"/>
+<text x="314" y="646" font-size="8" font-weight="bold" text-anchor="middle" fill="#ffffff">E</text>
+<text x="325" y="646" font-size="9" fill="#16202e">existing</text>
+<circle cx="386" cy="643" r="6.5" fill="#9a4b2f"/>
+<text x="386" y="646" font-size="8" font-weight="bold" text-anchor="middle" fill="#ffffff">A</text>
+<text x="397" y="646" font-size="9" fill="#16202e">assumption</text>
+</svg>

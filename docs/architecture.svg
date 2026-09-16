@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="918" viewBox="0 0 1680 918" font-family="Helvetica, Arial, sans-serif">
+<rect x="0" y="0" width="1680" height="918" rx="0" fill="#ffffff" stroke="#ffffff" stroke-width="0"/>
+<text x="30" y="46" font-size="30" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">archtrace</text>
+<text x="30" y="72" font-size="13" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Evidence-grounded architecture pipeline.</text>
+<text x="30" y="90" font-size="13" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">The model lives in git; everything downstream is a build output.</text>
+<rect x="24" y="112" width="300" height="488" rx="10" fill="#f1f8f3" stroke="#9ccbb0" stroke-width="1.4"/>
+<text x="44" y="144" font-size="17" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Input &amp; Evidence</text>
+<text x="44" y="164" font-size="11.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Untrusted. Content never enters git.</text>
+<rect x="44" y="180" width="260" height="108.0" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="68" cy="206" r="12" fill="#2f6b4f"/>
+<rect x="63" y="200" width="10" height="12" rx="1.5" fill="#ffffff"/>
+<line x1="65" y1="203" x2="71" y2="203" stroke="#2f6b4f" stroke-width="1"/>
+<line x1="65" y1="206" x2="71" y2="206" stroke="#2f6b4f" stroke-width="1"/>
+<line x1="65" y1="209" x2="71" y2="209" stroke="#2f6b4f" stroke-width="1"/>
+<text x="90" y="204" font-size="11.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Teams transcripts ·</text>
+<text x="90" y="218" font-size="11.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">SharePoint · email</text>
+<text x="60" y="242.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Manual export today — no Graph</text>
+<text x="60" y="255.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">API. Content stays in the system</text>
+<text x="60" y="269.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">of record that owns its retention;</text>
+<text x="60" y="282.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">only the manifest is committed.</text>
+<rect x="44" y="308.0" width="260" height="94.5" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="68" cy="334.0" r="12" fill="#2f6b4f"/>
+<path d="M 61 334.0 q 7 -6 14 0 q -7 6 -14 0 z" fill="#ffffff"/>
+<circle cx="68" cy="334.0" r="2.2" fill="#2f6b4f"/>
+<text x="90" y="332.0" font-size="11.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">GitHub repositories</text>
+<text x="60" y="356.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Read-only mining. Observed</text>
+<text x="60" y="369.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">implementation is evidence of what</text>
+<text x="60" y="383.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">exists, never of what is required.</text>
+<rect x="44" y="422.5" width="260" height="108.0" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="68" cy="448.5" r="12" fill="#2f6b4f"/>
+<rect x="63" y="447.5" width="10" height="8" rx="1.5" fill="#ffffff"/>
+<path d="M 65 447.5 v -3 a 3 3 0 0 1 6 0 v 3" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+<text x="90" y="446.5" font-size="11.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Stakeholder documents</text>
+<text x="60" y="470.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">SOW, standards, regulation.</text>
+<text x="60" y="484.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Authority requires a named owner</text>
+<text x="60" y="497.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">and an effective date — “the</text>
+<text x="60" y="511.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">policy says so” is not a citation.</text>
+<rect x="566" y="16" width="700" height="244" rx="10" fill="#f1f8f3" stroke="#9ccbb0" stroke-width="1.4"/>
+<text x="590" y="48" font-size="17" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Human governance</text>
+<text x="590" y="68" font-size="11.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">The only place judgement enters the pipeline</text>
+<rect x="590" y="84" width="300" height="118" rx="8" fill="#ffffff" stroke="#9ccbb0" stroke-width="1.3"/>
+<circle cx="616" cy="112" r="13" fill="#2f6b4f"/>
+<path d="M 611 112 l 3.5 3.5 l 6.5 -7" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+<text x="638" y="108" font-size="13" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Promote gate</text>
+<text x="638" y="124" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Architect confirms the quote</text>
+<text x="638" y="137" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">actually supports the statement</text>
+<rect x="606" y="152" width="268" height="22" rx="11" fill="#f1f8f3" stroke="#9ccbb0" stroke-width="1.1"/>
+<text x="740.0" y="167" font-size="10.5" fill="#2f6b4f" font-weight="bold" text-anchor="middle" font-style="normal">The one control no deterministic rule reaches</text>
+<text x="606" y="192" font-size="10" fill="#8a94a3" font-weight="normal" text-anchor="start" font-style="normal">Dry run first; --yes is a separate act.</text>
+<rect x="942" y="84" width="300" height="118" rx="8" fill="#ffffff" stroke="#9ccbb0" stroke-width="1.3"/>
+<circle cx="968" cy="112" r="13" fill="#2f6b4f"/>
+<rect x="963" y="111" width="10" height="8" rx="1.5" fill="#ffffff"/>
+<path d="M 965 111 v -3 a 3 3 0 0 1 6 0 v 3" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+<text x="990" y="108" font-size="13" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Review + release approval</text>
+<text x="990" y="124" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">CODEOWNERS, signed commits,</text>
+<text x="990" y="137" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">branch protection, named approver</text>
+<rect x="958" y="152" width="268" height="22" rx="11" fill="#f1f8f3" stroke="#9ccbb0" stroke-width="1.1"/>
+<text x="1092.0" y="167" font-size="10.5" fill="#2f6b4f" font-weight="bold" text-anchor="middle" font-style="normal">Human approval required</text>
+<text x="958" y="192" font-size="10" fill="#8a94a3" font-weight="normal" text-anchor="start" font-style="normal">Refuses a blocking gate or a dirty tree.</text>
+<rect x="590" y="216" width="258" height="22" rx="11" fill="#ffffff" stroke="#9ccbb0" stroke-width="1.1"/>
+<text x="719.0" y="231" font-size="10.5" fill="#2f6b4f" font-weight="bold" text-anchor="middle" font-style="normal">LLM review is advisory — always exit 0</text>
+<line x1="890" y1="143" x2="931.0" y2="143.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 940 143 L 931.0 148.5 L 931.0 137.5 z" fill="#1f5f9e"/>
+<rect x="380" y="292" width="886" height="350" rx="10" fill="#eef4fb" stroke="#9dbfdd" stroke-width="1.4"/>
+<text x="404" y="326" font-size="18" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">archtrace</text>
+<text x="404" y="348" font-size="11.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Deterministic core — Python standard library only. No network, no clock, no LLM.</text>
+<rect x="404" y="366" width="162" height="232" rx="9" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="485" cy="400" r="17" fill="#1f5f9e"/>
+<text x="485" y="405" font-size="14" fill="#ffffff" font-weight="bold" text-anchor="middle" font-style="normal">1</text>
+<text x="485" y="436" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Evidence manifest</text>
+<text x="485" y="459" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">Normalise (NFKC +</text>
+<text x="485" y="472" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">punctuation fold),</text>
+<text x="485" y="485" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">SHA-256 the</text>
+<text x="485" y="498" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">normalised text.</text>
+<text x="485" y="511" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">Manifest in git;</text>
+<text x="485" y="524" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">content outside it.</text>
+<line x1="570" y1="500" x2="569.0" y2="500.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 578 500 L 569.0 505.5 L 569.0 494.5 z" fill="#1f5f9e"/>
+<rect x="580" y="366" width="162" height="232" rx="9" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="661" cy="400" r="17" fill="#1f5f9e"/>
+<text x="661" y="405" font-size="14" fill="#ffffff" font-weight="bold" text-anchor="middle" font-style="normal">2</text>
+<text x="661" y="436" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Extraction agent</text>
+<text x="661" y="459" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">Single agent,</text>
+<text x="661" y="472" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">read-only by harness.</text>
+<text x="661" y="485" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">Proposes verifiable</text>
+<text x="661" y="498" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">byte spans. Never</text>
+<text x="661" y="511" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">confirms anything.</text>
+<line x1="746" y1="500" x2="745.0" y2="500.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 754 500 L 745.0 505.5 L 745.0 494.5 z" fill="#1f5f9e"/>
+<rect x="756" y="366" width="162" height="232" rx="9" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="837" cy="400" r="17" fill="#1f5f9e"/>
+<text x="837" y="405" font-size="14" fill="#ffffff" font-weight="bold" text-anchor="middle" font-style="normal">3</text>
+<text x="837" y="436" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Deterministic</text>
+<text x="837" y="451" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">gate</text>
+<text x="837" y="474" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">G1–G12, fail-closed,</text>
+<text x="837" y="487" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">exit code. Citation</text>
+<text x="837" y="500" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">integrity, grounding</text>
+<text x="837" y="513" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">kinds, coverage,</text>
+<text x="837" y="526" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">render freshness.</text>
+<line x1="922" y1="500" x2="921.0" y2="500.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 930 500 L 921.0 505.5 L 921.0 494.5 z" fill="#1f5f9e"/>
+<rect x="932" y="366" width="162" height="232" rx="9" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="1013" cy="400" r="17" fill="#1f5f9e"/>
+<text x="1013" y="405" font-size="14" fill="#ffffff" font-weight="bold" text-anchor="middle" font-style="normal">4</text>
+<text x="1013" y="436" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Renderer</text>
+<text x="1013" y="459" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">SVG · draw.io ·</text>
+<text x="1013" y="472" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">PlantUML · Mermaid ·</text>
+<text x="1013" y="485" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">docx · Jira payloads.</text>
+<text x="1013" y="498" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">A pure function of</text>
+<text x="1013" y="511" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">the model.</text>
+<line x1="1098" y1="500" x2="1097.0" y2="500.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 1106 500 L 1097.0 505.5 L 1097.0 494.5 z" fill="#1f5f9e"/>
+<rect x="1108" y="366" width="162" height="232" rx="9" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="1189" cy="400" r="17" fill="#1f5f9e"/>
+<text x="1189" y="405" font-size="14" fill="#ffffff" font-weight="bold" text-anchor="middle" font-style="normal">5</text>
+<text x="1189" y="436" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Release + verify</text>
+<text x="1189" y="459" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">Binds approver,</text>
+<text x="1189" y="472" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">commit and SHA-256 of</text>
+<text x="1189" y="485" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">every source and</text>
+<text x="1189" y="498" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">output. MATCH or</text>
+<text x="1189" y="511" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">DRIFT before publish.</text>
+<line x1="326" y1="470" x2="367.0" y2="470.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 376 470 L 367.0 475.5 L 367.0 464.5 z" fill="#1f5f9e"/>
+<rect x="323.6" y="446.0" width="54.8" height="32" fill="#ffffff"/>
+<text x="351.0" y="459.0" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">evidence</text>
+<text x="351.0" y="472.0" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">input</text>
+<line x1="1072" y1="262" x2="1072.0" y2="279.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 1072 288 L 1066.5 279.0 L 1077.5 279.0 z" fill="#1f5f9e"/>
+<rect x="1044.6" y="251.0" width="54.8" height="32" fill="#ffffff"/>
+<text x="1072.0" y="264.0" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">approved</text>
+<text x="1072.0" y="277.0" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">proposal</text>
+<rect x="1300" y="152" width="356" height="490" rx="10" fill="#fdf6ec" stroke="#dfbc8a" stroke-width="1.4"/>
+<text x="1322" y="186" font-size="17" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">External systems</text>
+<text x="1322" y="206" font-size="11.5" fill="#8a5a20" font-weight="normal" text-anchor="start" font-style="normal">NOT BUILT — every hand-off is manual</text>
+<rect x="1322" y="224" width="312" height="52" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="1348" cy="250" r="11" fill="#b8a07a"/>
+<circle cx="1348" cy="250" r="6" fill="none" stroke="#ffffff" stroke-width="2"/>
+<line x1="1344" y1="254" x2="1352" y2="246" stroke="#ffffff" stroke-width="2"/>
+<text x="1370" y="246" font-size="12" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Jira</text>
+<text x="1370" y="262" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">export JSON/CSV, import by hand</text>
+<rect x="1322" y="286" width="312" height="52" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="1348" cy="312" r="11" fill="#b8a07a"/>
+<circle cx="1348" cy="312" r="6" fill="none" stroke="#ffffff" stroke-width="2"/>
+<line x1="1344" y1="316" x2="1352" y2="308" stroke="#ffffff" stroke-width="2"/>
+<text x="1370" y="308" font-size="12" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Lucid · draw.io</text>
+<text x="1370" y="324" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">manual import; round-trip unverified</text>
+<rect x="1322" y="348" width="312" height="52" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="1348" cy="374" r="11" fill="#b8a07a"/>
+<circle cx="1348" cy="374" r="6" fill="none" stroke="#ffffff" stroke-width="2"/>
+<line x1="1344" y1="378" x2="1352" y2="370" stroke="#ffffff" stroke-width="2"/>
+<text x="1370" y="370" font-size="12" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">SharePoint publishing</text>
+<text x="1370" y="386" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">manual upload</text>
+<rect x="1322" y="410" width="312" height="52" rx="8" fill="#ffffff" stroke="#c9d6e4" stroke-width="1.2"/>
+<circle cx="1348" cy="436" r="11" fill="#b8a07a"/>
+<circle cx="1348" cy="436" r="6" fill="none" stroke="#ffffff" stroke-width="2"/>
+<line x1="1344" y1="440" x2="1352" y2="432" stroke="#ffffff" stroke-width="2"/>
+<text x="1370" y="432" font-size="12" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Microsoft Graph / Work IQ</text>
+<text x="1370" y="448" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">not provisioned — procurement track</text>
+<rect x="1322" y="478" width="312" height="150" rx="8" fill="#fcecea" stroke="#e3a9a4" stroke-width="1.4"/>
+<circle cx="1348" cy="506" r="12" fill="#a4302b"/>
+<circle cx="1348" cy="506" r="6" fill="none" stroke="#ffffff" stroke-width="2"/>
+<line x1="1344" y1="510" x2="1352" y2="502" stroke="#ffffff" stroke-width="2"/>
+<text x="1370" y="504" font-size="12.5" fill="#a4302b" font-weight="bold" text-anchor="start" font-style="normal">Absent, not disabled</text>
+<text x="1338" y="532.0" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">No adapter exists and nothing is</text>
+<text x="1338" y="545.5" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">switched off. Before one is written it</text>
+<text x="1338" y="559.0" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">must pass contract tests:</text>
+<text x="1338" y="572.5" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">least-privilege scopes, unauthorised</text>
+<text x="1338" y="586.0" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">access fails, dry-run mutates nothing,</text>
+<text x="1338" y="599.5" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">idempotency by external id, redacted</text>
+<text x="1338" y="613.0" font-size="10" fill="#a4302b" font-weight="normal" text-anchor="start" font-style="normal">logs, consistent state on failure.</text>
+<line x1="1268" y1="470" x2="1287.0" y2="470.0" stroke="#1f5f9e" stroke-width="2"/>
+<path d="M 1296 470 L 1287.0 475.5 L 1287.0 464.5 z" fill="#1f5f9e"/>
+<rect x="1246" y="444" width="72" height="15" rx="0" fill="#ffffff" stroke="#ffffff" stroke-width="0"/>
+<text x="1282" y="456" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">artifacts</text>
+<line x1="1266" y1="138" x2="1478" y2="138" stroke="#8a94a3" stroke-width="1.8" stroke-dasharray="6 5"/>
+<line x1="1478" y1="138" x2="1478" y2="148" stroke="#8a94a3" stroke-width="1.8" stroke-dasharray="6 5"/>
+<path d="M 1478 152 l -5 -7 l 10 0 z" fill="#8a94a3"/>
+<text x="1372" y="112" font-size="10" fill="#8a94a3" font-weight="normal" text-anchor="middle" font-style="normal">would require a separately</text>
+<text x="1372" y="124" font-size="10" fill="#8a94a3" font-weight="normal" text-anchor="middle" font-style="normal">scoped, contract-tested adapter</text>
+<rect x="24" y="680" width="1632" height="214" rx="10" fill="#eef4fb" stroke="#9dbfdd" stroke-width="1.4"/>
+<circle cx="760" cy="714" r="13" fill="#1f5f9e"/>
+<rect x="755" y="713" width="10" height="8" rx="1.5" fill="#ffffff"/>
+<path d="M 757 713 v -3 a 3 3 0 0 1 6 0 v 3" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+<text x="784" y="720" font-size="18" fill="#1f5f9e" font-weight="bold" text-anchor="start" font-style="normal">Trust boundary</text>
+<text x="840" y="752" font-size="14.5" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Retrieved documents and model output are evidence, not instructions.</text>
+<circle cx="76" cy="792" r="15" fill="#1f5f9e"/>
+<rect x="71" y="791" width="10" height="8" rx="1.5" fill="#ffffff"/>
+<path d="M 73 791 v -3 a 3 3 0 0 1 6 0 v 3" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+<text x="102" y="788" font-size="12.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Read-only by harness</text>
+<text x="102" y="808.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">--deny-tool=write,shell. Deny beats</text>
+<text x="102" y="821.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">allow. An agent denied write but given</text>
+<text x="102" y="835.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">shell writes files anyway; prompt text</text>
+<text x="102" y="848.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">is not a permission.</text>
+<line x1="442" y1="768" x2="442" y2="874" stroke="#9dbfdd" stroke-width="1"/>
+<circle cx="476" cy="792" r="15" fill="#1f5f9e"/>
+<circle cx="476" cy="792" r="6" fill="none" stroke="#ffffff" stroke-width="2"/>
+<line x1="472" y1="796" x2="480" y2="788" stroke="#ffffff" stroke-width="2"/>
+<text x="502" y="788" font-size="12.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">No injection detector</text>
+<text x="502" y="808.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Deliberately. It is trivially evaded and</text>
+<text x="502" y="821.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">fires on ordinary meeting speech.</text>
+<text x="502" y="835.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Shipping one would be security theatre.</text>
+<line x1="842" y1="768" x2="842" y2="874" stroke="#9dbfdd" stroke-width="1"/>
+<circle cx="876" cy="792" r="15" fill="#1f5f9e"/>
+<path d="M 871 792 l 3.5 3.5 l 6.5 -7" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+<text x="902" y="788" font-size="12.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Grounded ≠ correct</text>
+<text x="902" y="808.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Green means grounded and internally</text>
+<text x="902" y="821.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">consistent. Correctness stays with the</text>
+<text x="902" y="835.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">architect, and the tool says so in its</text>
+<text x="902" y="848.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">own output.</text>
+<line x1="1242" y1="768" x2="1242" y2="874" stroke="#9dbfdd" stroke-width="1"/>
+<circle cx="1276" cy="792" r="15" fill="#1f5f9e"/>
+<rect x="1271" y="786" width="10" height="12" rx="1.5" fill="#ffffff"/>
+<line x1="1273" y1="789" x2="1279" y2="789" stroke="#1f5f9e" stroke-width="1"/>
+<line x1="1273" y1="792" x2="1279" y2="792" stroke="#1f5f9e" stroke-width="1"/>
+<line x1="1273" y1="795" x2="1279" y2="795" stroke="#1f5f9e" stroke-width="1"/>
+<text x="1302" y="788" font-size="12.5" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">No LLM in the critical path</text>
+<text x="1302" y="808.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Every agent unavailable means you author</text>
+<text x="1302" y="821.5" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">the same JSON by hand. Gate, renders and</text>
+<text x="1302" y="835.0" font-size="10.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">traceability all still work.</text>
+</svg>

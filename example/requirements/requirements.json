@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "REQ-000",
+      "uid": "r_2c202dfbaa67",
+      "statement": "Ingest must retry failed uploads.",
+      "type": "nfr",
+      "priority": "must",
+      "status": "superseded",
+      "supersedes": null,
+      "superseded_by": "REQ-001",
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "A. Stakeholder",
+          "start": 337,
+          "end": 397,
+          "quote_cached": "if the feed drops for half a day we cannot lose those events"
+        }
+      ]
+    },
+    {
+      "id": "REQ-001",
+      "uid": "r_c7fb2bf3ca86",
+      "statement": "Ingest must replay every event after an upstream outage of at least four hours, without loss.",
+      "type": "nfr",
+      "nfr_categories": [
+        "reliability"
+      ],
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": "REQ-000",
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "A. Stakeholder",
+          "start": 337,
+          "end": 397,
+          "quote_cached": "if the feed drops for half a day we cannot lose those events"
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "uid": "r_40118dd830d1",
+      "statement": "Submission must complete unattended; no operator console interaction at any stage.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "B. PM",
+          "start": 589,
+          "end": 639,
+          "quote_cached": "the operator does not touch a console at any stage"
+        }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "uid": "r_36a486588fc1",
+      "statement": "Every asset movement must produce a durable audit record that can be handed to legal without reconstruction from logs.",
+      "type": "constraint",
+      "nfr_categories": [
+        "data-retention"
+      ],
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "A. Stakeholder",
+          "start": 743,
+          "end": 829,
+          "quote_cached": "we need an audit record we can hand over without going and reconstructing it from logs"
+        }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "uid": "r_cf0602e68e70",
+      "statement": "The platform must hand off into the existing MAM, which is not being replaced this year.",
+      "type": "constraint",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "A. Stakeholder",
+          "start": 1015,
+          "end": 1056,
+          "quote_cached": "whatever we build has to hand off into it"
+        }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "uid": "r_be0519a4bedb",
+      "statement": "Real-time operations dashboards for the ops floor.",
+      "type": "functional",
+      "priority": "could",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "B. PM",
+          "start": 1078,
+          "end": 1127,
+          "quote_cached": "can we get real-time dashboards for the ops floor"
+        }
+      ]
+    }
+  ]
+}

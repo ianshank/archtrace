@@ -1,0 +1,43 @@
+name: archtrace
+
+# No setup step, no pip install, no cache: the gate is Python standard library
+# only, so it runs on the default runner image as-is. That is deliberate -- a
+# gate with a toolchain is a gate that eventually breaks for reasons nobody can
+# diagnose, and then gets disabled.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch evidence content
+        # Evidence CONTENT is never in git (see SPEC 0.4): the repository holds
+        # claims about evidence, and the content stays in the system of record
+        # that owns its retention. Populate a git-ignored working copy here from
+        # wherever your organisation permits -- an object store with a lifecycle
+        # policy, or a classified artifact store. Without it G1 and G2 cannot
+        # verify and will block, which is the correct failure.
+        run: |
+          echo "::error::wire this step to your evidence store before enabling the gate"
+          exit 1
+
+      - name: Gate
+        run: ./archtrace --root . --evidence-root "$RUNNER_TEMP/evidence" check
+
+      - name: Self-test
+        run: python3 -m unittest discover -s tools/tests
+
+      - name: Post the model diff
+        # The model diff is what peer review is supposed to read. render/** is
+        # marked linguist-generated in .gitattributes so it collapses, but the
+        # diff that matters still deserves to be surfaced directly.
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --stat origin/${{ github.base_ref }}... -- \
+            model/ requirements/ evidence/ >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,7 @@
+C4Context
+    title Dailies Ingest Platform — System Context
+    Person(p_dit, "DIT / Data Wrangler", "Loads cards at the cart.")
+    System(s_ingest, "Dailies Ingest Platform", "Ingests, buffers and hands off dailies.")
+    System_Ext(s_mam, "Existing MAM", "Incumbent asset manager; not being replaced.")
+    Rel(p_dit, s_ingest, "submits dailies")
+    Rel(s_ingest, s_mam, "hands off assets")

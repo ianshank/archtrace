@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "tickets": [
+    {
+      "description": "Drains the buffer into the MAM.",
+      "evidence": [],
+      "external_id": "1012c2f92ca7a1d656f148ae",
+      "grounding": [
+        "derived:c_queue via ADR-001"
+      ],
+      "requirements": [],
+      "summary": "[container] Handoff Worker"
+    },
+    {
+      "description": "Speculative: only needed if post requires sub-minute handoff.",
+      "evidence": [],
+      "external_id": "11c49cc8e0fe54f906825152",
+      "grounding": [
+        "assumption:OQ-001"
+      ],
+      "requirements": [],
+      "summary": "[container] Prefetch Cache"
+    },
+    {
+      "description": "Incumbent asset manager; not being replaced.",
+      "evidence": [],
+      "external_id": "12602209c23535353c5e5644",
+      "grounding": [
+        "existing:EV-001",
+        "existing:EV-003 @sym:9d3c379feee242b7"
+      ],
+      "requirements": [],
+      "summary": "[system] Existing MAM"
+    },
+    {
+      "description": "Loads cards at the cart.",
+      "evidence": [
+        "REQ-002: \"the operator does not touch a console at any stage\" (B. PM, EV-001)"
+      ],
+      "external_id": "1567d587f21051b19e84748d",
+      "grounding": [
+        "satisfies:REQ-002"
+      ],
+      "requirements": [
+        "REQ-002"
+      ],
+      "summary": "[person] DIT / Data Wrangler"
+    },
+    {
+      "description": "Durable event log enabling replay after an outage.",
+      "evidence": [
+        "REQ-001: \"if the feed drops for half a day we cannot lose those events\" (A. Stakeholder, EV-001)"
+      ],
+      "external_id": "1c7dd5ed96e2e5f2638adfb5",
+      "grounding": [
+        "satisfies:REQ-001"
+      ],
+      "requirements": [
+        "REQ-001"
+      ],
+      "summary": "[container] Replay Buffer"
+    },
+    {
+      "description": "Accepts card submissions without operator interaction.",
+      "evidence": [
+        "REQ-002: \"the operator does not touch a console at any stage\" (B. PM, EV-001)"
+      ],
+      "external_id": "6fd0715e3a39d813a9250720",
+      "grounding": [
+        "satisfies:REQ-002"
+      ],
+      "requirements": [
+        "REQ-002"
+      ],
+      "summary": "[container] Ingest API"
+    },
+    {
+      "description": "Durable record of every asset movement.",
+      "evidence": [
+        "REQ-003: \"we need an audit record we can hand over without going and reconstructing it from logs\" (A. Stakeholder, EV-001)"
+      ],
+      "external_id": "78152e13c75c43271382b02f",
+      "grounding": [
+        "satisfies:REQ-003"
+      ],
+      "requirements": [
+        "REQ-003"
+      ],
+      "summary": "[container] Audit Ledger"
+    },
+    {
+      "description": "Emits to the central pipeline.",
+      "evidence": [],
+      "external_id": "7e13ae48a65251726a6c2bfb",
+      "grounding": [
+        "standard:STD-001"
+      ],
+      "requirements": [],
+      "summary": "[container] Telemetry Sidecar"
+    },
+    {
+      "description": "Mandated termination point for external traffic.",
+      "evidence": [],
+      "external_id": "847936ad4c0ba6cba843fc26",
+      "grounding": [
+        "standard:STD-001"
+      ],
+      "requirements": [],
+      "summary": "[container] Edge Tier"
+    },
+    {
+      "description": "Ingests, buffers and hands off dailies.",
+      "evidence": [
+        "REQ-001: \"if the feed drops for half a day we cannot lose those events\" (A. Stakeholder, EV-001)",
+        "REQ-003: \"we need an audit record we can hand over without going and reconstructing it from logs\" (A. Stakeholder, EV-001)"
+      ],
+      "external_id": "cea25c3a91afe05eb5c77db2",
+      "grounding": [
+        "satisfies:REQ-001",
+        "satisfies:REQ-003"
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-003"
+      ],
+      "summary": "[system] Dailies Ingest Platform"
+    }
+  ]
+}

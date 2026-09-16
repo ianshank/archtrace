@@ -1,0 +1,36 @@
+§9a baseline — Dailies Ingest Platform
+
+elements                                10
+  trace to a quotable statement          5    50%
+  legitimately grounded otherwise        5    50%
+      assumption                        1
+      derived                           1
+      existing                          1
+      standard                          2
+  UNEXPLAINED                            0     0%   <- the decision number
+
+confirmed requirements                   5
+  modelled or explicitly out of scope    5   100%
+
+DECISION RULES (SPEC §9a, corrected)
+  [PASS]  unexplained 0% vs <= 20%
+  [PASS]  every requirement-linked element has a real quote (5/5)
+  [PASS]  coverage 100%
+
+  Raw traceability is 50%, and that is INFORMATIONAL, not a bar.
+  v1 of this spec made it a >= 60% stop condition. Running the instrument showed
+  that is wrong: it fails a healthy infrastructure-heavy architecture, where half
+  the elements are load balancers and incumbent systems that legitimately have
+  no stakeholder requirement. The number that decides is UNEXPLAINED.
+
+  A satisfies-only rule would have rejected 5 of 10 elements.
+  Rejecting them is what pressures an architect into inventing requirements.
+
+CAVEAT
+  Two, and they matter more than the numbers.
+  1. This only means something if the model PREDATES the measurement. Scoring a
+     model and evidence authored together measures your own consistency.
+  2. 'Legitimately grounded otherwise' is SELF-CLASSIFIED. If you can rationalise
+     every box as a standard, unexplained goes to zero and this measures nothing.
+
+  verdict: proceed to §9b
