@@ -15,7 +15,7 @@ from . import canon
 
 SCHEMA_VERSION = 1
 SUPPORTED_SCHEMA_VERSIONS = frozenset({1})
-RENDERER_VERSION = "1.2.0"
+RENDERER_VERSION = "1.3.0"
 # The renderer stamps this file with the version that produced the artifacts
 # beside it. Named here, next to the version it carries, so the gate can ask
 # "which renderer wrote these?" without the renderer and the gate each

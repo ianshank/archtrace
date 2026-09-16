@@ -7,6 +7,8 @@ the intended rule fires. Standard library only; run with `python3 -m unittest`.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -716,6 +718,113 @@ class Baseline(unittest.TestCase):
         self.assertIn("UNEXPLAINED", content)
         self.assertIn("Legacy CRM", content)
         self.assertIn("that column, not the quote column, is the decision", out)
+
+
+class HostileModelText(unittest.TestCase):
+    """Ordinary punctuation in a model field must not corrupt an artifact.
+
+    A quote, a pipe and an ampersand are all things that appear in real system
+    names. Three of the text renderers emitted them raw: PlantUML and Mermaid
+    produced a C4 macro whose quoted argument was terminated early, and the
+    Markdown table gained an extra column. None of it was tested, so a mutation
+    that deletes SVG escaping entirely left the suite green.
+    """
+
+    HOSTILE = 'Dailies "Ingest" | Platform & <Co>'
+
+    def _rendered(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        root = os.path.join(tmp, "example")
+        shutil.copytree(EXAMPLE, root)
+        path = os.path.join(root, "model", "model.json")
+        doc = canon.load_json(path)
+        doc["systems"][0]["name"] = self.HOSTILE
+        doc["systems"][0]["description"] = 'a & b <c> "d"'
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(canon.canonical_json(doc))
+        return render_all(Engagement.load(root))
+
+    def test_svg_and_drawio_stay_well_formed_xml(self):
+        """Closes a surviving mutation: replacing `escape` with the identity
+        function left every test passing."""
+        import xml.etree.ElementTree as ET
+        rendered = self._rendered()
+
+        def parses(name: str) -> str:
+            try:
+                ET.fromstring(rendered[name].decode("utf-8"))
+            except ET.ParseError as exc:
+                return f"{name} is not well-formed XML: {exc}"
+            return ""
+
+        broken = [p for p in map(parses, ("c4-context.svg", "c4-container.svg",
+                                          "model.drawio")) if p]
+        self.assertEqual(broken, [])
+        # A bare `"` is legal in XML *text content* and is deliberately not
+        # escaped there; `&` and `<` are the ones that must be.
+        svg = rendered["c4-context.svg"].decode("utf-8")
+        self.assertIn("&amp;", svg)
+        self.assertIn("&lt;Co&gt;", svg)
+        self.assertNotIn("<Co>", svg)
+
+    def test_docx_stays_a_readable_zip_with_well_formed_parts(self):
+        import io
+        import xml.etree.ElementTree as ET
+        import zipfile
+        with zipfile.ZipFile(io.BytesIO(self._rendered()["architecture.docx"])) as zf:
+            self.assertIsNone(zf.testzip())
+            ET.fromstring(zf.read("word/document.xml").decode("utf-8"))
+
+    def test_c4_text_renders_do_not_terminate_their_own_arguments(self):
+        """A bare `"` inside a quoted C4 macro argument ends it early, and the
+        whole diagram stops parsing. Both formats have an entity for it, and
+        they spell it differently."""
+        rendered = self._rendered()
+        puml = rendered["c4-context.puml"].decode("utf-8")
+        line = next(ln for ln in puml.splitlines() if ln.startswith("System("))
+        self.assertEqual(line.count('"'), 4,
+                         f"a C4 macro argument was terminated early: {line}")
+        self.assertIn("&quot;", line)
+
+        mmd = rendered["c4-context.mmd"].decode("utf-8")
+        line = next(ln for ln in mmd.splitlines() if ln.strip().startswith("System("))
+        self.assertEqual(line.count('"'), 4,
+                         f"a C4 macro argument was terminated early: {line}")
+        self.assertIn("#quot;", line)
+
+    def test_markdown_tables_keep_their_column_count(self):
+        """An unescaped pipe adds a column and silently shifts every cell
+        after it, so a grounding column starts reading as a name."""
+        import re
+        body = rendered = self._rendered()["traceability.md"].decode("utf-8")
+        rows = [ln for ln in body.splitlines()
+                if ln.startswith("|") and "s_ingest" in ln]
+        self.assertTrue(rows, "expected the element row to be present")
+        for row in rows:
+            cells = len(re.split(r"(?<!\\)\|", row)) - 2
+            self.assertEqual(cells, 5, f"row has {cells} cells, not 5: {row}")
+        self.assertIn(r"\|", rendered)
+
+    def test_hostile_text_still_passes_the_gate(self):
+        """Escaping must not make the model unrenderable or the gate unhappy:
+        a rendered-then-checked engagement with hostile text is still clean."""
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        root = os.path.join(tmp, "example")
+        shutil.copytree(EXAMPLE, root)
+        path = os.path.join(root, "model", "model.json")
+        doc = canon.load_json(path)
+        doc["systems"][0]["name"] = self.HOSTILE
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(canon.canonical_json(doc))
+        from archtrace.cli import main
+        # Captured: `render` prints a line per output, and an uncaptured
+        # main() here spews into the suite's own output.
+        with contextlib.redirect_stdout(io.StringIO()):
+            main(["--root", root, "render"])
+        _findings, code = gate.run(Engagement.load(root))
+        self.assertEqual(code, 0)
 
 
 class Determinism(unittest.TestCase):
