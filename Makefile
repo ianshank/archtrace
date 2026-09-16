@@ -7,7 +7,9 @@
 ROOT ?= example
 EVIDENCE_ROOT ?= $(ROOT)/_evidence_root
 PY ?= python3
-ARCHTRACE = ./archtrace --root $(ROOT) --evidence-root $(EVIDENCE_ROOT)
+# ARCHTRACE_PYTHON threads PY through the shim, which otherwise hardcodes
+# python3 -- so `make gate PY=python3.9` really does run on 3.9.
+ARCHTRACE = ARCHTRACE_PYTHON=$(PY) ./archtrace --root $(ROOT) --evidence-root $(EVIDENCE_ROOT)
 AGENT_DIR ?= .github/agents
 
 # Every engagement in the repository, DISCOVERED rather than listed: an
@@ -69,7 +71,7 @@ fmt:      ; @$(ARCHTRACE) fmt
 report:   ; @$(ARCHTRACE) report
 baseline: ; @$(ARCHTRACE) baseline
 config:   ; @$(ARCHTRACE) config
-agents:   ; @./archtrace agents --directory "$(AGENT_DIR)"
+agents:   ; @ARCHTRACE_PYTHON=$(PY) ./archtrace agents --directory "$(AGENT_DIR)"
 gate: fmt render check
 
 engagements:
@@ -125,8 +127,10 @@ freshness:
 	@ev=; test -z "$(FRESHNESS_EVIDENCE_ROOT)" \
 	  || ev="--evidence-root $(FRESHNESS_EVIDENCE_ROOT)"; \
 	failed=; for e in $(ENGAGEMENTS); do \
-	  ./archtrace --root "$$e" $$ev check --only G6 >/dev/null 2>&1 \
-	    || { echo "STALE  $$e"; ./archtrace --root "$$e" $$ev check --only G6 \
+	  ARCHTRACE_PYTHON=$(PY) ./archtrace --root "$$e" $$ev check --only G6 \
+	      >/dev/null 2>&1 \
+	    || { echo "STALE  $$e"; ARCHTRACE_PYTHON=$(PY) ./archtrace --root "$$e" \
+	           $$ev check --only G6 \
 	           2>&1 | sed -n 's/^BLOCK/  BLOCK/p;s/^        /      /p'; \
 	         failed=1; }; \
 	done; \

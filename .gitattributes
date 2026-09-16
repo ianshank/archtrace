@@ -1,5 +1,23 @@
 # Renders are build outputs. Without this, every one-line model change buries
-# the model diff -- the thing peer review is supposed to read -- under eight
+# the model diff -- the thing peer review is supposed to read -- under eleven
 # regenerated files including a binary .docx.
-render/** linguist-generated=true
-render/** -diff
+#
+# `**/render/**`, not `render/**`. A gitattributes pattern containing a slash is
+# anchored to the directory holding this file, so `render/**` matched only a
+# top-level `render/` -- which does not exist. Every real render lives under
+# `example/render/` or `engagements/<name>/render/`, and neither got the
+# attribute: `git check-attr -a example/render/c4-context.svg` printed nothing.
+# The control this comment describes had never actually applied.
+**/render/** linguist-generated=true
+
+# NOT `-diff` on the whole tree. That marks a file binary, and
+# traceability.md, traceability.csv, the .mmd and the .puml are exactly the
+# renders a reviewer benefits from reading. Collapse them by default
+# (linguist-generated above), but keep them diffable when someone expands one.
+# Only the Word document is genuinely unreadable as text.
+**/render/*.docx binary
+*.docx binary
+
+# A CRLF checkout would not break G6 -- canon.py normalises line endings before
+# comparing -- but it would make every render diff noise.
+* text=auto eol=lf

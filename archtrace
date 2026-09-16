@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Zero-dependency entrypoint. No venv, no pip, no setup step.
+#
+# The interpreter is overridable. It used to be a hardcoded `python3`, which
+# silently defeated the Makefile's `PY` on every target except `test` and
+# `coverage` -- `make gate PY=python3.9` ran the gate on the default python3
+# and said nothing. That matters here specifically: CI runs a 3.9/3.11/3.13
+# matrix and relies entirely on setup-python shadowing `python3` on PATH, so
+# the moment it does not, the matrix tests one version three times.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 -c "import sys; sys.path.insert(0, '$here/tools'); from archtrace.cli import main; sys.exit(main())" "$@"
+exec "${ARCHTRACE_PYTHON:-python3}" -c "import sys; sys.path.insert(0, '$here/tools'); from archtrace.cli import main; sys.exit(main())" "$@"

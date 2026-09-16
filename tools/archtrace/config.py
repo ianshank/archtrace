@@ -32,6 +32,9 @@ from dataclasses import dataclass, field, fields
 from typing import Any
 
 from .log import ENV_LEVEL as LOG_ENV_VAR
+from .log import get_logger
+
+LOG = get_logger("config")
 
 CONFIG_FILENAME = "archtrace.toml"
 ENV_PREFIX = "ARCHTRACE_"
@@ -249,13 +252,24 @@ def _from_env(env: Mapping[str, str], errors: list) -> dict:
         if not key.startswith(ENV_PREFIX) or key in RESERVED_ENV:
             continue
         remainder = key[len(ENV_PREFIX):].lower()
+        # Policy variables are ARCHTRACE_<SECTION>_<KEY> and therefore always
+        # have an underscore after the prefix. A single-token name is an
+        # operational variable -- ARCHTRACE_LOG, ARCHTRACE_PYTHON -- and not
+        # ours to judge. Deciding that by SHAPE rather than by an allowlist is
+        # the difference between a rule and a game of whack-a-mole: the first
+        # version of this check rejected ARCHTRACE_LOG and bricked the CLI, and
+        # adding ARCHTRACE_PYTHON for the shim immediately hit the same trap.
+        # A misspelled SECTION still has its key, so it still has an
+        # underscore, so it is still caught.
+        if "_" not in remainder:
+            LOG.debug("ignoring operational variable %s", key)
+            continue
         section = next((s for s in sections if remainder.startswith(s + "_")), None)
         if section is None:
             errors.append(
                 f"{key}: no such configuration section "
                 f"(expected {ENV_PREFIX}<SECTION>_<KEY> with SECTION one of "
-                f"{', '.join(sorted(s.upper() for s in sections))}; "
-                f"reserved: {', '.join(sorted(RESERVED_ENV))})")
+                f"{', '.join(sorted(s.upper() for s in sections))})")
             continue
         out.setdefault(section, {})[remainder[len(section) + 1:]] = value
     return out
