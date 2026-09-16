@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "evidence": [
+    {
+      "id": "EV-001",
+      "source": "document",
+      "authority": "stakeholder-confirmed",
+      "source_uri": "https://claude.ai/project/automated-architecture#EV-001-stated-workflow",
+      "local_path": "EV-001-stated-workflow.txt",
+      "date": "2026-09-16",
+      "participants": [
+        "Ian Cruickshank"
+      ],
+      "classification": "internal",
+      "retention_until": "2029-09-16",
+      "sha256_normalized": "ba8dfb3305c915ea10831de8e7e9e804c625c587bfd06f6dce3a63f61d75dd7e"
+    },
+    {
+      "id": "EV-002",
+      "source": "document",
+      "authority": "stakeholder-confirmed",
+      "source_uri": "https://claude.ai/project/automated-architecture#EV-002-stated-constraints",
+      "local_path": "EV-002-stated-constraints.txt",
+      "date": "2026-09-16",
+      "participants": [
+        "Ian Cruickshank"
+      ],
+      "classification": "internal",
+      "retention_until": "2029-09-16",
+      "sha256_normalized": "fa870249d0bb2a35beb1438165149aed9fee85172244da971bf433eb129bda53"
+    }
+  ]
+}

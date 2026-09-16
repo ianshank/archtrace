@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Zero-dependency entrypoint. No venv, no pip, no setup step.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 -c "import sys; sys.path.insert(0, '$here/tools'); from archtrace.cli import main; sys.exit(main())" "$@"

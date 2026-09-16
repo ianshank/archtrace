@@ -1,0 +1,11 @@
+element_id,level,name,grounding_kinds,traces_to_requirement,quotable_statement,quote,speaker,evidence_id
+p_dit,person,DIT / Data Wrangler,satisfies,REQ-002,yes,the operator does not touch a console at any stage,B. PM,EV-001
+s_ingest,system,Dailies Ingest Platform,satisfies|satisfies,REQ-001,yes,if the feed drops for half a day we cannot lose those events,A. Stakeholder,EV-001
+c_edge,container,Edge Tier,standard,,no,,,
+c_api,container,Ingest API,satisfies,REQ-002,yes,the operator does not touch a console at any stage,B. PM,EV-001
+c_queue,container,Replay Buffer,satisfies,REQ-001,yes,if the feed drops for half a day we cannot lose those events,A. Stakeholder,EV-001
+c_worker,container,Handoff Worker,derived,,no,,,
+c_audit,container,Audit Ledger,satisfies,REQ-003,yes,we need an audit record we can hand over without going and reconstructing it from logs,A. Stakeholder,EV-001
+c_telemetry,container,Telemetry Sidecar,standard,,no,,,
+c_prefetch,container,Prefetch Cache,assumption,,no,,,
+s_mam,system,Existing MAM,existing,,no,,,

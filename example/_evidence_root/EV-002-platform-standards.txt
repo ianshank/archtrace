@@ -1,0 +1,12 @@
+Email thread — Platform Engineering standards
+From: C. Platform
+To: I. Cruickshank
+2026-09-04
+
+Anything that terminates external traffic in our estate has to sit
+behind the standard edge tier — that's the WAF and the managed load
+balancer, it is not optional and it is not something you get to
+design around. Reference is PLAT-STD-014.
+
+Separately: all services emit to the central telemetry pipeline via
+the standard sidecar. Same document.

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "approved_at": "2026-09-16T00:45:13+00:00",
+  "approved_by": "Ian Cruickshank",
+  "authority_role": "solution-architect",
+  "confirmed_requirements": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005"
+  ],
+  "engagement": "Dailies Ingest Platform",
+  "model_commit": null,
+  "outputs": {
+    ".manifest.json": "sha256:5f9a392987f0d9b691155d1e10c8d83c021ce00cad6cbf02dbc783b6135454c8",
+    "architecture.docx": "sha256:802312b9db501c531dda6a0bb8f881f51ccadfd9aad257513a0f89cd4bd1acde",
+    "c4-container.mmd": "sha256:64e111a3db9be888fdc3a5e746d7b3432bb9bc6b431f7a3151e6e1fe0117c7f0",
+    "c4-container.puml": "sha256:18d2bd0301e54d6c1a874e32b50825f8890ac9895589f81d6e61126d853c48e0",
+    "c4-container.svg": "sha256:9973f85be9ed70bd1a69078259c845325c7950ce7c273a8b1fae497c79ee263f",
+    "c4-context.mmd": "sha256:25c2e1ea5a63bbead18f9ab25a7b358cab5b93d83168700cffec357dbb2557d8",
+    "c4-context.puml": "sha256:937576a251843f19a12bd5f767f123a5a301487920689ece9c20b64e911ccd20",
+    "c4-context.svg": "sha256:1fc406eddd12b83bc77e95222ca8f4b5bf70dca8ff6d4bae2cc5f0a89729255a",
+    "jira-tickets.json": "sha256:101a33f478465247ffcfad0feea2bd7b13b4b2eb7da7d35412302dadcd9f8199",
+    "model.drawio": "sha256:98f386abc8303ebc2449d50f6ef9a49b42008bc3363a70584d056435f5086f8a",
+    "traceability.csv": "sha256:82b05ebeb6994b8a83ff5113b7024782aaa98716b822dd124e24a65ce5a58193",
+    "traceability.md": "sha256:d0fbcba62f86fe0e2522582989d039b85f51eddf09a7a89a07b2bf567ad868d7"
+  },
+  "renderer_version": "1.1.0",
+  "sources": {
+    "evidence/index.json": "sha256:b6e35dce8dbd46edb3176315e8c799224cb469c44e2f724be179b4a80407382c",
+    "model/model.json": "sha256:cc4b0ad13914aa0560015e36081ae721386f317b9ee276ed1c5acf84777635c1",
+    "requirements/requirements.json": "sha256:d1235a7feced8fbf7221783bbaa16cc6cf0d4445133623c03ec18e5f89a8f4f4"
+  },
+  "warnings_outstanding": [],
+  "working_tree_clean": true
+}

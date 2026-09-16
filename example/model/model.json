@@ -1,0 +1,410 @@
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "id": "ADR-001",
+      "title": "Buffer and replay rather than retry in place",
+      "status": "accepted",
+      "drivers": [
+        "REQ-001"
+      ],
+      "decision": "Events land in a durable log; a separate worker drains it, so a four-hour outage is a backlog rather than a loss.",
+      "consequences": "Introduces a worker and a buffer that no stakeholder asked for; both are grounded as derived from this decision, not as requirements."
+    }
+  ],
+  "nfr_coverage": [
+    {
+      "category": "security",
+      "status": "covered"
+    },
+    {
+      "category": "observability",
+      "status": "covered"
+    },
+    {
+      "category": "reliability",
+      "status": "covered"
+    },
+    {
+      "category": "data-retention",
+      "status": "covered"
+    },
+    {
+      "category": "privacy",
+      "status": "open",
+      "open_question": "OQ-002"
+    },
+    {
+      "category": "performance",
+      "status": "open",
+      "open_question": "OQ-001"
+    },
+    {
+      "category": "cost",
+      "status": "open",
+      "open_question": "OQ-003"
+    },
+    {
+      "category": "operability",
+      "status": "open",
+      "open_question": "OQ-004"
+    },
+    {
+      "category": "accessibility",
+      "status": "not_applicable",
+      "rationale": "No human-facing UI in phase one; submission is unattended per REQ-002",
+      "decided_by": "I. Cruickshank",
+      "date": "2026-09-09"
+    }
+  ],
+  "open_questions": [
+    {
+      "id": "OQ-001",
+      "owner": "I. Cruickshank",
+      "question": "Does post require sub-minute handoff latency? Nobody has stated a number."
+    },
+    {
+      "id": "OQ-002",
+      "owner": "I. Cruickshank",
+      "question": "Does any dailies metadata carry personal data? Not asked yet."
+    },
+    {
+      "id": "OQ-003",
+      "owner": "B. PM",
+      "question": "No budget envelope has been stated for phase one."
+    },
+    {
+      "id": "OQ-004",
+      "owner": "B. PM",
+      "question": "Who operates this after handover? Not staffed."
+    }
+  ],
+  "out_of_scope": [
+    {
+      "date": "2026-09-02",
+      "decided_by": "A. Stakeholder",
+      "rationale": "Nice-to-have, explicitly deferred past phase one",
+      "req": "REQ-005"
+    }
+  ],
+  "people": [
+    {
+      "id": "p_dit",
+      "uid": "e_c3d1b4dff807",
+      "name": "DIT / Data Wrangler",
+      "description": "Loads cards at the cart.",
+      "layout": {
+        "x": 0,
+        "y": 0
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-002"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "source": "p_dit",
+      "destination": "s_ingest",
+      "description": "submits dailies",
+      "technology": "HTTPS",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-002"
+        }
+      ]
+    },
+    {
+      "source": "s_ingest",
+      "destination": "s_mam",
+      "description": "hands off assets",
+      "technology": "MAM API",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-004"
+        }
+      ]
+    },
+    {
+      "source": "p_dit",
+      "destination": "c_edge",
+      "description": "submits dailies",
+      "technology": "HTTPS",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-002"
+        }
+      ]
+    },
+    {
+      "source": "c_edge",
+      "destination": "c_api",
+      "description": "forwards",
+      "technology": "HTTPS",
+      "grounding": [
+        {
+          "kind": "standard",
+          "standard": "STD-001"
+        }
+      ]
+    },
+    {
+      "source": "c_api",
+      "destination": "c_queue",
+      "description": "publishes events",
+      "technology": "Kafka",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-001"
+        }
+      ]
+    },
+    {
+      "source": "c_api",
+      "destination": "c_audit",
+      "description": "writes audit record",
+      "technology": "SQL",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-003"
+        }
+      ]
+    },
+    {
+      "source": "c_api",
+      "destination": "c_prefetch",
+      "description": "reads",
+      "technology": "RESP",
+      "grounding": [
+        {
+          "kind": "assumption",
+          "open_question": "OQ-001"
+        }
+      ]
+    },
+    {
+      "source": "c_api",
+      "destination": "c_telemetry",
+      "description": "emits metrics",
+      "technology": "OTLP",
+      "grounding": [
+        {
+          "kind": "standard",
+          "standard": "STD-001"
+        }
+      ]
+    },
+    {
+      "source": "c_queue",
+      "destination": "c_worker",
+      "description": "delivers",
+      "technology": "Kafka",
+      "grounding": [
+        {
+          "kind": "derived",
+          "from": "c_queue",
+          "adr": "ADR-001"
+        }
+      ]
+    },
+    {
+      "source": "c_worker",
+      "destination": "s_mam",
+      "description": "hands off assets",
+      "technology": "MAM API",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-004"
+        }
+      ]
+    }
+  ],
+  "standards": [
+    {
+      "document": "PLAT-STD-014",
+      "evidence_id": "EV-002",
+      "id": "STD-001",
+      "name": "Edge and telemetry baseline"
+    }
+  ],
+  "systems": [
+    {
+      "id": "s_ingest",
+      "uid": "e_cfc54fd25516",
+      "name": "Dailies Ingest Platform",
+      "description": "Ingests, buffers and hands off dailies.",
+      "external": false,
+      "layout": {
+        "x": 320,
+        "y": 0
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-001"
+        },
+        {
+          "kind": "satisfies",
+          "req": "REQ-003"
+        }
+      ],
+      "containers": [
+        {
+          "id": "c_edge",
+          "uid": "e_d11643342a02",
+          "name": "Edge Tier",
+          "technology": "WAF + managed load balancer",
+          "description": "Mandated termination point for external traffic.",
+          "layout": {
+            "x": 320,
+            "y": 150
+          },
+          "grounding": [
+            {
+              "kind": "standard",
+              "standard": "STD-001"
+            }
+          ]
+        },
+        {
+          "id": "c_api",
+          "uid": "e_21debd1535f5",
+          "name": "Ingest API",
+          "technology": "Python 3.11 / FastAPI",
+          "description": "Accepts card submissions without operator interaction.",
+          "layout": {
+            "x": 320,
+            "y": 300
+          },
+          "grounding": [
+            {
+              "kind": "satisfies",
+              "req": "REQ-002"
+            }
+          ]
+        },
+        {
+          "id": "c_queue",
+          "uid": "e_6d34328e1d42",
+          "name": "Replay Buffer",
+          "technology": "Kafka",
+          "description": "Durable event log enabling replay after an outage.",
+          "layout": {
+            "x": 640,
+            "y": 300
+          },
+          "grounding": [
+            {
+              "kind": "satisfies",
+              "req": "REQ-001"
+            }
+          ]
+        },
+        {
+          "id": "c_worker",
+          "uid": "e_33ff8dd4918b",
+          "name": "Handoff Worker",
+          "technology": "Python",
+          "description": "Drains the buffer into the MAM.",
+          "layout": {
+            "x": 640,
+            "y": 450
+          },
+          "grounding": [
+            {
+              "kind": "derived",
+              "from": "c_queue",
+              "adr": "ADR-001"
+            }
+          ]
+        },
+        {
+          "id": "c_audit",
+          "uid": "e_1d6e2cc7e658",
+          "name": "Audit Ledger",
+          "technology": "PostgreSQL, append-only",
+          "description": "Durable record of every asset movement.",
+          "layout": {
+            "x": 320,
+            "y": 450
+          },
+          "grounding": [
+            {
+              "kind": "satisfies",
+              "req": "REQ-003"
+            }
+          ]
+        },
+        {
+          "id": "c_telemetry",
+          "uid": "e_4fccddf4e3e6",
+          "name": "Telemetry Sidecar",
+          "technology": "OpenTelemetry collector",
+          "description": "Emits to the central pipeline.",
+          "layout": {
+            "x": 0,
+            "y": 450
+          },
+          "grounding": [
+            {
+              "kind": "standard",
+              "standard": "STD-001"
+            }
+          ]
+        },
+        {
+          "id": "c_prefetch",
+          "uid": "e_00441387cbe5",
+          "name": "Prefetch Cache",
+          "technology": "Redis",
+          "description": "Speculative: only needed if post requires sub-minute handoff.",
+          "layout": {
+            "x": 0,
+            "y": 300
+          },
+          "grounding": [
+            {
+              "kind": "assumption",
+              "open_question": "OQ-001"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_mam",
+      "uid": "e_068f667f9a5f",
+      "name": "Existing MAM",
+      "description": "Incumbent asset manager; not being replaced.",
+      "external": true,
+      "layout": {
+        "x": 960,
+        "y": 150
+      },
+      "grounding": [
+        {
+          "kind": "existing",
+          "evidence_id": "EV-001"
+        },
+        {
+          "kind": "existing",
+          "evidence_id": "EV-003",
+          "symbol": "sym:9d3c379feee242b7"
+        }
+      ]
+    }
+  ],
+  "workspace": {
+    "client": "Production Technology",
+    "name": "Dailies Ingest Platform"
+  }
+}

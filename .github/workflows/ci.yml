@@ -1,0 +1,77 @@
+name: ci
+
+# Two jobs on purpose. `gate` proves the zero-dependency invariant by installing
+# nothing at all -- if it ever needs a setup step, that is a regression, not a
+# convenience. `quality` is allowed its dev tooling.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate (no dependencies)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Prove nothing is installed
+        run: |
+          pip list --format=freeze > /tmp/before.txt
+          echo "--- packages present before the gate runs ---"
+          cat /tmp/before.txt
+      - run: make agents
+      - run: make test
+      - run: make gate
+      - name: Coverage floors
+        # One version only: the tracer's line attribution differs slightly
+        # between releases, so a matrix would compare unlike numbers.
+        if: matrix.python-version == '3.11'
+        run: make coverage
+      - name: Fail if the gate pulled in a dependency
+        run: |
+          pip list --format=freeze > /tmp/after.txt
+          diff /tmp/before.txt /tmp/after.txt || {
+            echo "::error::the gate installed something; the zero-dependency invariant is broken"
+            exit 1
+          }
+
+  quality:
+    name: lint, types, secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # gitleaks scans history, not just the tip
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: make lint
+      - run: make types
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  container:
+    name: image builds and the CLI runs in it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t archtrace:ci .
+      - run: docker run --rm archtrace:ci --help

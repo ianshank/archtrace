@@ -1,0 +1,37 @@
+title = "archtrace gitleaks policy"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+Paths and patterns that are not secrets. Everything listed here is either a
+fixture, a hash, or a deliberate example -- none of it is a credential.
+"""
+paths = [
+  # Worked-example transcripts are invented; the people in them do not exist.
+  '''example/_evidence_root/.*''',
+  # Generated build outputs are derived from committed sources.
+  '''example/render/.*''',
+]
+regexes = [
+  # Evidence integrity hashes and content-addressed ids are SHA-256 digests, not
+  # keys. Without this, every evidence record reads as a leaked secret.
+  '''"sha256_normalized":\s*"[a-f0-9]{64}"''',
+  '''sha256:[a-f0-9]{64}''',
+  '''sym:[a-f0-9]{16}''',
+  '''"commit":\s*"[a-f0-9]{7,40}"''',
+  # Example hosts, never resolvable.
+  '''https?://[^\s"']*\.(example|invalid)(\.[a-z]+)?''',
+]
+
+[[rules]]
+id = "evidence-content-in-git"
+description = """
+Recording content must never be committed. A repository cannot satisfy a
+retention obligation, and deleting a file does not delete the blob -- it stays
+reachable by SHA in every clone, fork and CI cache. The repository holds claims
+about evidence; the content stays in the system of record.
+"""
+regex = '''(?i)^\s*\d{2}:\d{2}:\d{2}\s+[A-Z]\.\s+\w+:'''
+path = '''^(?!example/).*\.(json|md|txt)$'''

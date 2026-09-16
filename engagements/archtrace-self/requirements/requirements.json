@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "uid": "r_9d2010a95ed5",
+      "statement": "Requirements are gathered from recorded stakeholder meetings together with any documents they hold.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 290,
+          "end": 389,
+          "quote_cached": "gather requirements from stakeholders in meetings, ensuring they're recorded and any docs they have"
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "uid": "r_9049fb1460bf",
+      "statement": "Relevant information is collected from email and SharePoint.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 392,
+          "end": 464,
+          "quote_cached": "use copilot 365 gather any relevant information from emails, share point"
+        }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "uid": "r_2151be19434a",
+      "statement": "GitHub repositories are mined for architecture evidence.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 519,
+          "end": 625,
+          "quote_cached": "mine the github repositories using github copilot and gather artifacts based off all data gathered earlier"
+        }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "uid": "r_e21ae617c2ee",
+      "statement": "Artifacts are presented to peers for review before delivery.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 976,
+          "end": 1022,
+          "quote_cached": "present to peers for review - revise - present"
+        }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "uid": "r_5e246f0ffd8b",
+      "statement": "The workflow must be faster than doing it by hand.",
+      "type": "nfr",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 220,
+          "end": 262,
+          "quote_cached": "if so i can i use them to expidite my work"
+        }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "uid": "r_5db9ece667bc",
+      "statement": "Repository mining is performed by a read-only architect agent.",
+      "type": "constraint",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 636,
+          "end": 684,
+          "quote_cached": "using a custom read only architect copilot agent"
+        }
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "uid": "r_86bd165c3103",
+      "statement": "Artifacts are peer reviewed against the requirements and the meeting recordings.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 773,
+          "end": 863,
+          "quote_cached": "point 365 agent at artifacts and peer review against requirements, meeting recordings etc."
+        }
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "uid": "r_8e0c3c4a2997",
+      "statement": "A final C4 draw.io, Mermaid, and Word document are produced for stakeholders.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 866,
+          "end": 942,
+          "quote_cached": "have a final c4 draw.io generated and mermaid and word docs for stakeholders"
+        }
+      ]
+    },
+    {
+      "id": "REQ-009",
+      "uid": "r_9bb06fbbaf53",
+      "statement": "Outputs reach Jira, SharePoint and Lucid.",
+      "type": "functional",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-001",
+          "speaker": "Ian Cruickshank",
+          "start": 472,
+          "end": 515,
+          "quote_cached": "distill into doc and excel then add to jira"
+        }
+      ]
+    },
+    {
+      "id": "REQ-010",
+      "uid": "r_49abec5e91d4",
+      "statement": "The build enforces code coverage gates.",
+      "type": "nfr",
+      "priority": "must",
+      "status": "confirmed",
+      "supersedes": null,
+      "superseded_by": null,
+      "conflicts_with": [],
+      "provenance": [
+        {
+          "evidence_id": "EV-002",
+          "speaker": "Ian Cruickshank",
+          "start": 768,
+          "end": 843,
+          "quote_cached": "enforce code coverage gates. implement logging and debugging where relevant"
+        }
+      ]
+    }
+  ]
+}

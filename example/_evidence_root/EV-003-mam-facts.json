@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0.0",
+  "root": "mam-legacy",
+  "commit": "4f2c9ab1d7e35608b1c0aa9e7712d43f5c8e9016",
+  "symbols": [
+    {
+      "id": "sym:d42f29d9a3d43bfc",
+      "name": "src/app.py",
+      "kind": "file",
+      "language": "python",
+      "path": "src/app.py",
+      "start_line": 1,
+      "end_line": 10,
+      "signature": "",
+      "summary": "",
+      "content_hash": "9f0dd1126714df768f71568e57f1dbafadfbbf77eba6fba2676c2fb8b4b0de09"
+    },
+    {
+      "id": "ext:c90fde443b9cdcd0",
+      "name": "from service import UserService",
+      "kind": "external",
+      "language": "python",
+      "path": "src/app.py",
+      "start_line": 1,
+      "end_line": 1,
+      "signature": "",
+      "summary": "",
+      "content_hash": ""
+    },
+    {
+      "id": "sym:896c7b7cd9250110",
+      "name": "Application",
+      "kind": "class",
+      "language": "python",
+      "path": "src/app.py",
+      "start_line": 4,
+      "end_line": 9,
+      "signature": "class Application:",
+      "summary": "",
+      "content_hash": "9f0dd1126714df768f71568e57f1dbafadfbbf77eba6fba2676c2fb8b4b0de09"
+    },
+    {
+      "id": "sym:7a8dd08a24181fa0",
+      "name": "__init__",
+      "kind": "function",
+      "language": "python",
+      "path": "src/app.py",
+      "start_line": 5,
+      "end_line": 6,
+      "signature": "def __init__(self):",
+      "summary": "",
+      "content_hash": "9f0dd1126714df768f71568e57f1dbafadfbbf77eba6fba2676c2fb8b4b0de09"
+    },
+    {
+      "id": "sym:26cda1054489ff97",
+      "name": "run",
+      "kind": "function",
+      "language": "python",
+      "path": "src/app.py",
+      "start_line": 8,
+      "end_line": 9,
+      "signature": "def run(self):",
+      "summary": "",
+      "content_hash": "9f0dd1126714df768f71568e57f1dbafadfbbf77eba6fba2676c2fb8b4b0de09"
+    },
+    {
+      "id": "sym:3042399fff5b28b4",
+      "name": "src/service.py",
+      "kind": "file",
+      "language": "python",
+      "path": "src/service.py",
+      "start_line": 1,
+      "end_line": 4,
+      "signature": "",
+      "summary": "",
+      "content_hash": "0b667bf7d12eaf29b563344aad6418beca700969a126ce91ea199dc3a2b81ec6"
+    },
+    {
+      "id": "sym:9d3c379feee242b7",
+      "name": "UserService",
+      "kind": "class",
+      "language": "python",
+      "path": "src/service.py",
+      "start_line": 1,
+      "end_line": 3,
+      "signature": "class UserService:",
+      "summary": "",
+      "content_hash": "0b667bf7d12eaf29b563344aad6418beca700969a126ce91ea199dc3a2b81ec6"
+    },
+    {
+      "id": "sym:1e583d9d96859d3d",
+      "name": "list_users",
+      "kind": "function",
+      "language": "python",
+      "path": "src/service.py",
+      "start_line": 2,
+      "end_line": 3,
+      "signature": "def list_users(self):",
+      "summary": "",
+      "content_hash": "0b667bf7d12eaf29b563344aad6418beca700969a126ce91ea199dc3a2b81ec6"
+    }
+  ],
+  "relations": [
+    {
+      "source": "sym:3042399fff5b28b4",
+      "target": "sym:9d3c379feee242b7",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "evidence": "src/service.py"
+    },
+    {
+      "source": "sym:896c7b7cd9250110",
+      "target": "sym:26cda1054489ff97",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "evidence": "src/app.py"
+    },
+    {
+      "source": "sym:896c7b7cd9250110",
+      "target": "sym:7a8dd08a24181fa0",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "evidence": "src/app.py"
+    },
+    {
+      "source": "sym:9d3c379feee242b7",
+      "target": "sym:1e583d9d96859d3d",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "evidence": "src/service.py"
+    },
+    {
+      "source": "sym:d42f29d9a3d43bfc",
+      "target": "ext:c90fde443b9cdcd0",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "evidence": "src/app.py"
+    },
+    {
+      "source": "sym:d42f29d9a3d43bfc",
+      "target": "sym:896c7b7cd9250110",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "evidence": "src/app.py"
+    }
+  ],
+  "warnings": []
+}

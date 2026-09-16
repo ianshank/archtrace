@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "tickets": [
+    {
+      "description": "Human confirms the quote supports the statement.",
+      "evidence": [],
+      "external_id": "2d5aee87780b3946a6f85aa6",
+      "grounding": [
+        "derived:c_extract via ADR-001"
+      ],
+      "requirements": [],
+      "summary": "[container] Promote gate"
+    },
+    {
+      "description": "Meetings, documents, repositories.",
+      "evidence": [
+        "REQ-001: \"gather requirements from stakeholders in meetings, ensuring they're recorded and any docs they have\" (Ian Cruickshank, EV-001)",
+        "REQ-003: \"mine the github repositories using github copilot and gather artifacts based off all data gathered earlier\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "512aee3d64ac0805a57f5c97",
+      "grounding": [
+        "satisfies:REQ-001",
+        "satisfies:REQ-003"
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-003"
+      ],
+      "summary": "[system] Stakeholder sources"
+    },
+    {
+      "description": "Evidence-grounded architecture pipeline.",
+      "evidence": [
+        "REQ-005: \"if so i can i use them to expidite my work\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "5462226ff4b68853e18db7cc",
+      "grounding": [
+        "satisfies:REQ-005"
+      ],
+      "requirements": [
+        "REQ-005"
+      ],
+      "summary": "[system] archtrace"
+    },
+    {
+      "description": "Binds approver, commit and output hashes.",
+      "evidence": [],
+      "external_id": "7e96326956d21bf8bd82e2fa",
+      "grounding": [
+        "derived:c_gate via ADR-002"
+      ],
+      "requirements": [],
+      "summary": "[container] Release + verify"
+    },
+    {
+      "description": "Single read-only agent proposing spans.",
+      "evidence": [
+        "REQ-006: \"using a custom read only architect copilot agent\" (Ian Cruickshank, EV-001)",
+        "REQ-002: \"use copilot 365 gather any relevant information from emails, share point\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "9ce0103a20e29f6ce4764eab",
+      "grounding": [
+        "satisfies:REQ-006",
+        "satisfies:REQ-002"
+      ],
+      "requirements": [
+        "REQ-006",
+        "REQ-002"
+      ],
+      "summary": "[container] Extraction agent"
+    },
+    {
+      "description": "Runs the engagement.",
+      "evidence": [
+        "REQ-005: \"if so i can i use them to expidite my work\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "ad16ad926cf4fd7feb15dcf9",
+      "grounding": [
+        "satisfies:REQ-005"
+      ],
+      "requirements": [
+        "REQ-005"
+      ],
+      "summary": "[person] Solutions Architect"
+    },
+    {
+      "description": "G1-G13 plus coverage and agent checks.",
+      "evidence": [
+        "REQ-007: \"point 365 agent at artifacts and peer review against requirements, meeting recordings etc.\" (Ian Cruickshank, EV-001)",
+        "REQ-010: \"enforce code coverage gates. implement logging and debugging where relevant\" (Ian Cruickshank, EV-002)"
+      ],
+      "external_id": "b375d4614140324abfcb86f0",
+      "grounding": [
+        "satisfies:REQ-007",
+        "satisfies:REQ-010"
+      ],
+      "requirements": [
+        "REQ-007",
+        "REQ-010"
+      ],
+      "summary": "[container] Deterministic gate"
+    },
+    {
+      "description": "Independent review before delivery.",
+      "evidence": [
+        "REQ-004: \"present to peers for review - revise - present\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "c429486c1098e68e33c72eb3",
+      "grounding": [
+        "satisfies:REQ-004"
+      ],
+      "requirements": [
+        "REQ-004"
+      ],
+      "summary": "[person] Peer reviewers"
+    },
+    {
+      "description": "Publication targets.",
+      "evidence": [
+        "REQ-009: \"distill into doc and excel then add to jira\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "df44fce33d17e0ff81dc703d",
+      "grounding": [
+        "satisfies:REQ-009"
+      ],
+      "requirements": [
+        "REQ-009"
+      ],
+      "summary": "[system] Jira / Lucid / SharePoint"
+    },
+    {
+      "description": "Evidence is data, never instructions.",
+      "evidence": [],
+      "external_id": "edfbc9c13deac04e66482963",
+      "grounding": [
+        "derived:c_extract via ADR-004"
+      ],
+      "requirements": [],
+      "summary": "[container] Trust boundary"
+    },
+    {
+      "description": "SVG, draw.io, PlantUML, Mermaid, docx, Jira.",
+      "evidence": [
+        "REQ-008: \"have a final c4 draw.io generated and mermaid and word docs for stakeholders\" (Ian Cruickshank, EV-001)"
+      ],
+      "external_id": "f33b17399c5d9920ab5fe9e2",
+      "grounding": [
+        "satisfies:REQ-008"
+      ],
+      "requirements": [
+        "REQ-008"
+      ],
+      "summary": "[container] Renderer"
+    },
+    {
+      "description": "Normalise, hash, manifest-only in git.",
+      "evidence": [],
+      "external_id": "fc182785cf1e629acbca0c7d",
+      "grounding": [
+        "derived:c_extract via ADR-003"
+      ],
+      "requirements": [],
+      "summary": "[container] Evidence manifest"
+    }
+  ]
+}

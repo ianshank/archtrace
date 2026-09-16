@@ -1,0 +1,13 @@
+C4Container
+    title archtrace itself — Containers
+    Person(p_architect, "Solutions Architect", "Runs the engagement.")
+    System_Ext(s_sources, "Stakeholder sources", "Meetings, documents, repositories.")
+    System_Ext(s_external, "Jira / Lucid / SharePoint", "Publication targets.")
+    Person(p_peers, "Peer reviewers", "Independent review before delivery.")
+    Container(c_intake, "Evidence manifest", "", "Normalise, hash, manifest-only in git.")
+    Container(c_promote, "Promote gate", "", "Human confirms the quote supports the statement.")
+    Container(c_extract, "Extraction agent", "", "Single read-only agent proposing spans.")
+    Container(c_gate, "Deterministic gate", "", "G1-G13 plus coverage and agent checks.")
+    Container(c_trust, "Trust boundary", "", "Evidence is data, never instructions.")
+    Container(c_release, "Release + verify", "", "Binds approver, commit and output hashes.")
+    Container(c_render, "Renderer", "", "SVG, draw.io, PlantUML, Mermaid, docx, Jira.")

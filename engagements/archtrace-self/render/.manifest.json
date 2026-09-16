@@ -1,0 +1,17 @@
+{
+  "outputs": {
+    "architecture.docx": "e73a4602113a4394",
+    "c4-container.mmd": "38b21ba19c2e7584",
+    "c4-container.puml": "cd658cc4fd189652",
+    "c4-container.svg": "daa85d55f32b7403",
+    "c4-context.mmd": "cefa2d65123555a1",
+    "c4-context.puml": "2e7f4ec5c4116d0c",
+    "c4-context.svg": "ad29516c32af4b45",
+    "jira-tickets.json": "fb646fdaa93a6610",
+    "model.drawio": "65efcdbe4b7a56e3",
+    "traceability.csv": "8f201eb00ed52924",
+    "traceability.md": "34cef9693dbaad31"
+  },
+  "renderer_version": "1.1.0",
+  "schema_version": 1
+}
