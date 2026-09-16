@@ -211,6 +211,55 @@ class SeededDefect(unittest.TestCase):
         self._patch(("model", "model.json"), mutate)
         self.assertFires("G6")
 
+    def _g6_messages(self):
+        _rules, _code, findings = self._rules()
+        return [f.message for f in findings if f.rule == "G6"]
+
+    def test_g6_names_toolchain_drift_as_toolchain_drift(self):
+        """The manifest has always recorded which renderer wrote these bytes.
+
+        G6 never read it, so a toolchain upgrade and a hand edit produced the
+        same message and the operator had to guess. That is not hypothetical:
+        engagements/archtrace-self sat in the tree with renders from renderer
+        1.1.0 after the renderer moved to 1.2.0.
+        """
+        from archtrace.model import RENDER_MANIFEST
+        path = self._path("render", RENDER_MANIFEST)
+        manifest = canon.load_json(path)
+        manifest["renderer_version"] = "0.0.1-ancient"
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        messages = self._g6_messages()
+        self.assertTrue(messages, "a renderer version change must still block")
+        self.assertTrue(any("toolchain drift" in m for m in messages), messages)
+        self.assertTrue(any("0.0.1-ancient" in m for m in messages),
+                        "the message should name the renderer that wrote it")
+        self.assertFalse(any("edit the model, not the artifact" in m
+                             for m in messages),
+                         "toolchain drift must not be reported as a hand edit")
+
+    def test_g6_names_a_hand_edit_as_a_hand_edit(self):
+        """The other half: same renderer, different bytes, so it WAS an edit."""
+        path = self._path("render", "traceability.md")
+        with open(path, encoding="utf-8") as fh:
+            body = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body.replace("Dailies", "Substituted"))
+        messages = self._g6_messages()
+        self.assertTrue(any("edit the model, not the artifact" in m
+                            for m in messages), messages)
+        self.assertFalse(any("toolchain drift" in m for m in messages),
+                         "the renderer did not move, so this is not drift")
+
+    def test_g6_still_blocks_when_the_manifest_cannot_be_read(self):
+        """The diagnosis is a diagnosis, never a gate of its own: an absent or
+        corrupt manifest must not make a stale render pass."""
+        from archtrace.model import RENDER_MANIFEST
+        with open(self._path("render", RENDER_MANIFEST), "w",
+                  encoding="utf-8") as fh:
+            fh.write("{not json")
+        self.assertFires("G6")
+
     def test_g6_tolerates_insignificant_xml_whitespace(self):
         """Canonical comparison, not byte comparison: a reformatted but
         equivalent XML render must not fail the build."""

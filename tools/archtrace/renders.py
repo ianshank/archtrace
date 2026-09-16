@@ -18,7 +18,13 @@ from xml.sax.saxutils import escape, quoteattr
 
 from . import canon, docx_shapes
 from .config import DEFAULT as CONFIG
-from .model import NFR_CATEGORIES, RENDERER_VERSION, Element, Engagement
+from .model import (
+    NFR_CATEGORIES,
+    RENDER_MANIFEST,
+    RENDERER_VERSION,
+    Element,
+    Engagement,
+)
 
 BOX_W, BOX_H = CONFIG.render.box_width, CONFIG.render.box_height
 MARGIN = CONFIG.render.margin
@@ -651,6 +657,6 @@ def render_all(eng: Engagement) -> dict:
         "outputs": {name: hashlib.sha256(data).hexdigest()[:16]
                     for name, data in sorted(outputs.items())},
     }
-    outputs[".manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True)
+    outputs[RENDER_MANIFEST] = (json.dumps(manifest, indent=2, sort_keys=True)
                                  + "\n").encode("utf-8")
     return outputs
