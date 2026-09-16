@@ -23,12 +23,28 @@ from typing import Any
 
 # --- text normalisation ----------------------------------------------------
 
-# NFKC does NOT fold these. Every Teams/Word/SharePoint export contains them and
-# every LLM emits the ASCII form, so without explicit folding the citation gate
-# blocks nearly every requirement.
+# Every Teams/Word/SharePoint export contains these and every LLM emits the
+# ASCII form, so without folding them the citation gate blocks nearly every
+# requirement.
+#
+# Eleven of the thirteen are invisible to NFKC -- the quotes and dashes, which
+# is the whole reason `test_nfkc_alone_is_insufficient` exists. The last two are
+# NOT: NFKC already folds the ellipsis to three dots and NBSP to a space. This
+# comment used to claim NFKC folded none of them, which was simply false, and a
+# comment nobody can trust is worse than no comment. They are kept rather than
+# removed so the table stands on its own: deleting them would make the result
+# depend on NFKC having run first, which is a coupling not worth introducing to
+# save two dict entries.
 PUNCTUATION_FOLD = {
+    # ORDER MATTERS. NFKC runs first and decomposes ″ (DOUBLE PRIME) into two
+    # PRIME characters, so by the time this table is applied there is no ″ left
+    # to match -- the entry for it was unreachable, and `6″` normalised to `6''`
+    # while `6"` normalised to `6"`, which is exactly the citation mismatch this
+    # table exists to prevent. The two-character sequence is folded BEFORE the
+    # single PRIME, or the single rule would consume both halves first.
+    "′′": '"',
     "‘": "'", "’": "'", "‛": "'", "′": "'",
-    "“": '"', "”": '"', "‟": '"', "″": '"',
+    "“": '"', "”": '"', "‟": '"',
     "–": "-", "—": "-", "−": "-",
     "…": "...",
     " ": " ",
@@ -187,6 +203,13 @@ def deterministic_zip(parts: Iterable[tuple[str, bytes]]) -> bytes:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
         for name, data in parts:
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            # Set on the ZipInfo, not only on the ZipFile. `writestr` with a
+            # ZipInfo reads compression from the INFO and ignores the archive
+            # default, so the constructor argument above -- which reads like the
+            # thing enforcing this -- enforces nothing here. It held only
+            # because a fresh ZipInfo happens to default to ZIP_STORED, which
+            # nothing stated and no test could have caught.
+            info.compress_type = zipfile.ZIP_STORED
             info.external_attr = 0o600 << 16
             info.create_system = 0
             zf.writestr(info, data)

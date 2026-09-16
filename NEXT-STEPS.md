@@ -96,12 +96,17 @@ would be embarrassing to repeat without checking. The backlog, in order:
    green gate and a MATCH. That one test kills at least nine survivors by
    itself, and `quote` — the command that exists to remove a class of mistake —
    is currently never used as the input to anything.
-4. **`canon.normalize` is under-specified by its tests.** Removing the NFKC
-   call entirely, or the curly-double-quote and ellipsis folds, leaves the suite
-   green. `test_nfkc_alone_is_insufficient` proves NFKC is not *sufficient*;
-   nothing proves it is *necessary*. Same for the two `canonical_bytes`
-   mechanisms whose docstrings say they exist to stop G6 false positives across
-   machines — zip entry ordering and the `modified` attribute strip.
+4. ~~**`canon.normalize` is under-specified by its tests**~~ — **done, and it
+   was hiding a live defect.** Removing the NFKC call entirely left the suite
+   green, as did the `stable_uid` separator, the `modified`-attribute strip and
+   zip entry ordering. Asserting the *whole* fold table rather than a sample
+   found that `″` (DOUBLE PRIME) never folded at all: NFKC decomposes it to two
+   PRIMEs before the table runs, so `6″` and `6"` normalised differently and a
+   citation using one never matched a quote using the other. Fixed, with a
+   general check for any future key NFKC decomposes. Two smaller claims were
+   also false: the table's comment about what NFKC does, and
+   `deterministic_zip`'s compression, which the line that looked load-bearing
+   did not actually control.
 5. **`release` will sign an engagement with zero confirmed requirements.**
    Reproduced: `init` a scaffold, `release`, `--verify` → MATCH, exit 0, with
    `"confirmed_requirements": []` in the manifest. `check` refuses to call that

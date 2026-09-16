@@ -1390,6 +1390,161 @@ class Normalisation(unittest.TestCase):
     def test_zero_width_characters_are_stripped(self):
         self.assertEqual(canon.normalize("audit\u200brecord"), "auditrecord")
 
+    # -- what each step of normalize() is FOR ------------------------------
+    #
+    # `test_nfkc_alone_is_insufficient` proves NFKC is not sufficient. Nothing
+    # proved it was necessary: deleting the call entirely left the suite green,
+    # as did dropping the ellipsis fold. Every step below is a documented reason
+    # the citation gate does not block a legitimate quote, so each is asserted
+    # against the export shape it exists to survive.
+
+    def test_nfkc_is_necessary_not_only_insufficient(self):
+        """Ligatures and compatibility forms come out of PDF and Word exports.
+        Without NFKC a requirement quoting "workflow" from a PDF that rendered
+        it with an fi-ligature fails G2 against the same words typed by hand."""
+        self.assertEqual(canon.normalize("the \ufb01nal \ufb02ow"),
+                         canon.normalize("the final flow"))
+        self.assertEqual(canon.normalize("\u2460 ingest"),
+                         canon.normalize("1 ingest"))
+        self.assertEqual(canon.normalize("\uff26\uff29\uff38"),
+                         canon.normalize("FIX"))
+
+    def test_the_ellipsis_folds_to_three_dots(self):
+        """Word autocorrects "..." to a single ellipsis character as you type,
+        so the transcript and the analyst's paraphrase disagree by one
+        codepoint that nobody can see.
+
+        Deleting this entry from `PUNCTUATION_FOLD` does NOT fail this test,
+        and that is correct rather than a gap: NFKC already folds the ellipsis,
+        so the entry is belt-and-braces. What matters is the property, which
+        holds either way. The table's own comment used to claim NFKC folded
+        none of its entries; it folds this one and NBSP.
+        """
+        self.assertEqual(canon.normalize("we need\u2026 eventually"),
+                         canon.normalize("we need... eventually"))
+        self.assertEqual(canon.normalize("a\u00a0b"), canon.normalize("a b"))
+
+    def test_the_fold_table_matches_its_own_comment(self):
+        """The comment explains which entries NFKC cannot handle. If someone
+        adds an entry NFKC already folds, or NFKC's tables change under us, the
+        explanation stops being true -- and this is a module whose comments are
+        the only record of why each fold exists."""
+        import unicodedata
+        redundant = {src for src, dst in canon.PUNCTUATION_FOLD.items()
+                     if unicodedata.normalize("NFKC", src) == dst}
+        self.assertEqual(
+            redundant, {"\u2026", "\u00a0"},
+            "the set of entries NFKC already folds has changed; the comment "
+            "above PUNCTUATION_FOLD names exactly these two and must be "
+            "updated with them")
+
+    def test_no_fold_key_is_destroyed_by_nfkc_before_the_table_sees_it(self):
+        """How the double-prime entry was found. NFKC runs first, so a key it
+        DECOMPOSES can never match -- the entry sits in the table looking
+        correct and does nothing. `″` decomposed to `′′`, so `6″` normalised to
+        `6\'\'` while `6"` normalised to `6"`, and a citation using one form
+        never matched a quote using the other.
+
+        A key NFKC merely *folds to its own target* is fine (redundant, checked
+        above). A key NFKC turns into something ELSE is dead."""
+        import unicodedata
+        dead = {src for src, dst in canon.PUNCTUATION_FOLD.items()
+                if len(src) == 1
+                and unicodedata.normalize("NFKC", src) not in (src, dst)}
+        self.assertEqual(
+            dead, set(),
+            "these fold keys are decomposed by NFKC before the table runs, so "
+            "they never match anything and the character they were meant to "
+            "handle is silently normalised to something else")
+
+    def test_a_double_prime_quote_matches_an_ascii_one(self):
+        """The defect the check above found, asserted on the behaviour an
+        analyst would actually hit: a transcript written with ″ and a
+        requirement quoting it with a plain double quote."""
+        self.assertEqual(canon.normalize("a 6\u2033 clearance"),
+                         canon.normalize('a 6" clearance'))
+        self.assertEqual(canon.normalize("6\u2032"), canon.normalize("6'"),
+                         "a lone prime must still fold to an apostrophe")
+
+    def test_curly_double_quotes_fold_like_single_ones(self):
+        """The single-quote case is covered above. Doubles are what a
+        transcript uses to quote a system name, and they are a different
+        codepoint range."""
+        self.assertEqual(canon.normalize("the \u201cgolden\u201d path"),
+                         canon.normalize('the "golden" path'))
+
+    def test_every_dash_folds_to_a_hyphen(self):
+        """Three separate codepoints, all rendered by Word as it decides what
+        you meant: en dash, em dash, and the true minus sign that appears when
+        a requirement quotes a number. A quote containing any of them would
+        otherwise never match the same words typed with a hyphen."""
+        for dash in ("\u2013", "\u2014", "\u2212"):
+            with self.subTest(dash=dash):
+                self.assertEqual(canon.normalize(f"four{dash}hour window"),
+                                 canon.normalize("four-hour window"))
+
+    def test_every_fold_table_entry_actually_folds(self):
+        """The table is the control; a typo'd key would sit there looking
+        correct forever. Asserting the whole table covers the entries no
+        individual test names, and fails when one stops working."""
+        for src, dst in canon.PUNCTUATION_FOLD.items():
+            with self.subTest(char=src):
+                self.assertEqual(canon.normalize(f"x{src}y"),
+                                 canon.normalize(f"x{dst}y"))
+
+    def test_stable_uid_separates_its_parts_unambiguously(self):
+        """The `\\x1f` separator is a real control, not decoration. With an
+        ordinary `-` the parts run together, so two different identities
+        collapse to one hash -- and a uid whose whole job is immutable identity
+        would silently alias two elements into one Jira ticket."""
+        self.assertNotEqual(canon.stable_uid("e", "a", "b-c"),
+                            canon.stable_uid("e", "a-b", "c"))
+        self.assertEqual(canon.stable_uid("e", "a", "b"),
+                         canon.stable_uid("e", "a", "b"),
+                         "the same parts must always give the same uid")
+
+
+class CanonicalBytes(unittest.TestCase):
+    """The G6 false-positive guards, each asserted against what it is for.
+
+    G6 compares a committed render with a fresh one. These three mechanisms are
+    the only reason that comparison does not fail on a machine that happens to
+    zip in a different order or stamp a timestamp. All three could be deleted
+    with the suite green: the renders are byte-identical on one machine, so the
+    tolerance is never exercised by comparing a render to itself.
+    """
+
+    def test_a_modified_timestamp_is_not_a_difference(self):
+        """draw.io writes `modified="..."` on every save. Two exports of one
+        unchanged diagram differ only there, and G6 must not call that a hand
+        edit."""
+        stamped = b'<mxfile modified="2026-01-01T00:00:00Z"><x/></mxfile>'
+        plain = b'<mxfile><x/></mxfile>'
+        self.assertEqual(canon.canonical_bytes("model.drawio", stamped),
+                         canon.canonical_bytes("model.drawio", plain))
+
+    def test_zip_entry_order_is_not_a_difference(self):
+        """A .docx is a zip. Entry order is not part of the document, and it is
+        not guaranteed stable between a laptop and a CI runner."""
+        parts = [("word/document.xml", b"<a/>"), ("[Content_Types].xml", b"<b/>")]
+        one = canon.deterministic_zip(parts)
+        other = canon.deterministic_zip(list(reversed(parts)))
+        self.assertEqual(canon.canonical_bytes("architecture.docx", one),
+                         canon.canonical_bytes("architecture.docx", other))
+
+    def test_deterministic_zip_stores_rather_than_deflates(self):
+        """zlib output is not guaranteed stable across builds, so a compressed
+        .docx can differ between machines for reasons nobody can diagnose.
+        These documents are a few KB of XML; compression buys nothing and costs
+        the determinism G6 depends on."""
+        import io
+        import zipfile
+        data = canon.deterministic_zip([("word/document.xml", b"<a/>" * 500)])
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            for info in zf.infolist():
+                self.assertEqual(info.compress_type, zipfile.ZIP_STORED,
+                                 f"{info.filename} is compressed")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

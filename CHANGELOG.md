@@ -127,6 +127,33 @@ one.
   stoplist should carry phrases long enough to clear the floors is a policy
   question. `test_every_stoplist_phrase_is_shorter_than_the_floors` fails if that
   relationship ever changes, so whoever changes it finds out.
+- **A fold-table entry that never ran, and the citation mismatch it left.**
+  `PUNCTUATION_FOLD` maps `″` (U+2033 DOUBLE PRIME) to `"`, but `normalize`
+  applies NFKC *first* and NFKC decomposes `″` into two PRIME characters — so by
+  the time the table ran there was no `″` left to match. The entry sat there
+  looking correct and did nothing: `6″` normalised to `6''` while `6"`
+  normalised to `6"`, so a transcript using one form and a requirement quoting
+  the other never matched, which is precisely the failure this table exists to
+  prevent. The sequence is now folded before the single PRIME, because the
+  single rule would otherwise consume both halves first.
+
+  Found by asserting the whole table rather than a sample. `test_no_fold_key_is_
+  destroyed_by_nfkc_before_the_table_sees_it` generalises it, so any future key
+  NFKC decomposes is caught rather than discovered. **Note for adopters:** this
+  changes `sha256_normalized` for evidence containing `″`. No engagement in this
+  repository contains one, so nothing here re-hashes.
+- **The comment above `PUNCTUATION_FOLD` was wrong about its own table.** It
+  said "NFKC does NOT fold these"; NFKC folds two of the thirteen (the ellipsis
+  and NBSP). Corrected, with a test asserting the comment's claim so it cannot
+  drift again. The two entries are kept rather than deleted — removing them
+  would make the result depend on NFKC having run first, which is a coupling
+  not worth introducing to save two dict entries.
+- **`deterministic_zip` did not enforce the compression it documents.**
+  `ZipFile(buf, "w", ZIP_STORED)` reads like the guarantee, but `writestr` with
+  a `ZipInfo` takes compression from the *info* and ignores the archive default.
+  It held only because a fresh `ZipInfo` happens to default to `ZIP_STORED` —
+  which nothing stated and no test could have caught. Now set on the `ZipInfo`,
+  where the docstring's claim is actually made. Output is byte-identical.
 - **Configuration came from the process working directory, not from `--root`.**
   `config.DEFAULT = load()` resolves at import with `root="."`, so the
   `archtrace.toml` that took effect was the one where the operator was standing:
@@ -180,7 +207,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **107 tests** (183 → 290) covering exactly the gaps that let the above through:
+- **119 tests** (183 → 302) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config
