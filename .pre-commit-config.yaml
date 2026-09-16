@@ -84,9 +84,14 @@ repos:
         # that actually changed.
         entry: make freshness
 
-      - id: archtrace-gate
-        name: archtrace gate
+      - id: archtrace-check
+        name: archtrace check (the bytes as committed)
         language: system
         pass_filenames: false
         files: '^(engagements/.*/)?(model|requirements|evidence)/.*\.json$'
-        entry: bash -c 'make gate ROOT="${ARCHTRACE_ROOT:-example}"'
+        # `check`, not `gate`. `make gate` is `fmt render check`: it WRITES to
+        # the working tree during a commit and regenerates every artifact
+        # before checking it, so a hand edit is overwritten rather than
+        # reported -- the exact failure `freshness` above and the CI ordering
+        # were added to close, left live in the commit hook.
+        entry: bash -c 'make check ROOT="${ARCHTRACE_ROOT:-example}"'

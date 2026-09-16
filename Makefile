@@ -43,6 +43,7 @@ help:
 	@echo "  make gate       fmt + render + check (the pre-publish loop)"
 	@echo "  make freshness  every engagement's renders match the renderer"
 	@echo "  make engagements  list the engagements discovered in this repo"
+	@echo "  make evidence-guard  no recording content is committed"
 	@echo "  make fmt        canonicalise JSON, refresh derived fields"
 	@echo "  make report     grounding mix and NFR coverage"
 	@echo "  make baseline   SPEC 9a — run this BEFORE anything else"
@@ -64,7 +65,7 @@ help:
 # --- deterministic, dependency-free ----------------------------------------
 
 .PHONY: check render fmt report baseline agents config gate test coverage \
-        freshness engagements
+        freshness engagements evidence-guard
 check:    ; @$(ARCHTRACE) check
 render:   ; @$(ARCHTRACE) render
 fmt:      ; @$(ARCHTRACE) fmt
@@ -76,6 +77,33 @@ gate: fmt render check
 
 engagements:
 	@for e in $(ENGAGEMENTS); do echo "$$e"; done
+
+# Recording content must never enter git (SPEC 0.4): a repository cannot
+# satisfy a retention obligation, and deleting a file does not delete the blob.
+#
+# There was a pre-commit hook for this and nothing else. It checks the STAGED
+# diff, and it only runs on a machine where somebody ran `pre-commit install` --
+# so the most important control in the tree ran on the honour system, and a
+# single `--no-verify` or a fresh clone bypassed it permanently. This asks the
+# same question of what is actually COMMITTED, needs nothing installed, and so
+# runs in the same CI job as the gate.
+#
+# `example/_evidence_root/` is the one deliberate exception, documented in
+# .gitignore: the worked example's evidence is synthetic, and shipping it is
+# what lets the example gate itself in CI.
+EVIDENCE_EXCEPTION ?= example/_evidence_root/
+evidence-guard:
+	@bad=$$(git ls-files -- '*_evidence_root/*' \
+	          | grep -v '^$(EVIDENCE_EXCEPTION)' || true); \
+	 test -z "$$bad" || { \
+	   echo "recording content is committed:"; \
+	   echo "$$bad" | sed 's/^/  /'; \
+	   echo ""; \
+	   echo "a repository cannot satisfy a retention obligation, and deleting"; \
+	   echo "a file does not delete the blob. Remove it from history, not just"; \
+	   echo "from the tree."; \
+	   exit 1; }
+	@echo "no recording content is committed (exception: $(EVIDENCE_EXCEPTION))"
 
 # Are the renders committed in EVERY engagement what the current renderer
 # produces? `make check` answers this for ROOT only, which defaults to
@@ -182,17 +210,18 @@ secrets:
 
 .PHONY: pre-pr
 pre-pr:
-	@echo "== 1/9 lint ==";        $(MAKE) --no-print-directory lint
-	@echo "== 2/9 types ==";       $(MAKE) --no-print-directory types
-	@echo "== 3/9 secrets ==";     $(MAKE) --no-print-directory secrets
-	@echo "== 4/9 agents ==";      $(MAKE) --no-print-directory agents
-	@echo "== 5/9 tests ==";       $(MAKE) --no-print-directory test
-	@echo "== 6/9 coverage ==";    $(MAKE) --no-print-directory coverage
+	@echo "== 1/10 lint ==";          $(MAKE) --no-print-directory lint
+	@echo "== 2/10 types ==";         $(MAKE) --no-print-directory types
+	@echo "== 3/10 secrets ==";       $(MAKE) --no-print-directory secrets
+	@echo "== 4/10 agents ==";        $(MAKE) --no-print-directory agents
+	@echo "== 5/10 evidence ==";      $(MAKE) --no-print-directory evidence-guard
+	@echo "== 6/10 tests ==";         $(MAKE) --no-print-directory test
+	@echo "== 7/10 coverage ==";      $(MAKE) --no-print-directory coverage
 	@# `check` before `gate`: `gate` regenerates the renders, so it cannot
 	@# report a hand edit. This is the step that can.
-	@echo "== 7/9 check ==";       $(MAKE) --no-print-directory check
-	@echo "== 8/9 freshness ==";   $(MAKE) --no-print-directory freshness
-	@echo "== 9/9 gate ==";        $(MAKE) --no-print-directory gate
+	@echo "== 8/10 check ==";         $(MAKE) --no-print-directory check
+	@echo "== 9/10 freshness ==";     $(MAKE) --no-print-directory freshness
+	@echo "== 10/10 gate ==";          $(MAKE) --no-print-directory gate
 	@echo ""
 	@echo "pre-pr passed. 'Green' means grounded and internally consistent."
 	@echo "It never means correct."
