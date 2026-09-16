@@ -7,7 +7,7 @@
 # compiled grammars, and putting it here would quietly make the gate's image
 # depend on it. Mining runs elsewhere and hands over a file.
 
-FROM python:3.11-slim AS gate
+FROM python:3.14-slim AS gate
 
 LABEL org.opencontainers.image.title="archtrace" \
       org.opencontainers.image.description="Evidence-grounded architecture gate" \
