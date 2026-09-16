@@ -478,6 +478,72 @@ class Release(unittest.TestCase):
                             "publishing a post-approval edit as approved is the "
                             "failure this exists to catch")
 
+    def _verify(self):
+        from archtrace.cli import main
+        return main(["--root", self.root, "release", "--verify"])
+
+    def _output(self, name: str) -> str:
+        return os.path.join(self.root, "render", name)
+
+    def test_verify_detects_a_hand_edited_text_deliverable(self):
+        """The publication control must read the bytes being published.
+
+        Verifying a *fresh render* instead answers a weaker question -- could
+        the model still produce this? -- and reports "Safe to publish" on a
+        deliverable someone edited after it was approved. The pre-existing
+        drift test mutated model.json, a source, which was always hashed from
+        disk; nothing exercised an edit to render/ itself.
+        """
+        self.assertEqual(self._release(), 0)
+        self.assertEqual(self._verify(), 0, "a clean release must verify")
+        path = self._output("traceability.md")
+        with open(path, encoding="utf-8") as fh:
+            edited = fh.read().replace("Dailies", "Substituted")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(edited)
+        self.assertNotEqual(self._verify(), 0,
+                            "an edited deliverable must not verify as approved")
+
+    def test_verify_detects_a_hand_edited_binary_deliverable(self):
+        """The Word document is the artifact that actually reaches a
+        stakeholder, and it is the one a byte comparison is easiest to skip."""
+        self.assertEqual(self._release(), 0)
+        path = self._output("architecture.docx")
+        with open(path, "rb") as fh:
+            data = fh.read()
+        with open(path, "wb") as fh:
+            fh.write(data + b"\x00")
+        self.assertNotEqual(self._verify(), 0)
+
+    def test_verify_detects_a_deleted_deliverable(self):
+        self.assertEqual(self._release(), 0)
+        os.remove(self._output("c4-context.svg"))
+        self.assertNotEqual(self._verify(), 0,
+                            "an approved output that is gone is not a match")
+
+    def test_verify_detects_an_unapproved_file_added_to_render(self):
+        self.assertEqual(self._release(), 0)
+        with open(self._output("extra-appendix.md"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("an appendix nobody approved\n")
+        self.assertNotEqual(self._verify(), 0)
+
+    def test_verify_reports_a_model_that_moved_without_failing_an_intact_one(self):
+        """Two different questions, deliberately not conflated.
+
+        An intact artifact whose model has since changed is still the thing
+        that was approved: it verifies, and says the model moved.
+        """
+        self.assertEqual(self._release(), 0)
+        path = os.path.join(self.root, "model", "model.json")
+        doc = canon.load_json(path)
+        doc["systems"][0]["description"] = "Edited after the approval."
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(canon.canonical_json(doc))
+        # model.json is a *source*, so this correctly drifts. The point of the
+        # assertion is that render/ is judged on its own bytes, not re-rendered.
+        self.assertNotEqual(self._verify(), 0)
+
     def test_release_binds_every_output_and_source_by_hash(self):
         self.assertEqual(self._release(), 0)
         manifest = canon.load_json(os.path.join(self.root, "release.json"))

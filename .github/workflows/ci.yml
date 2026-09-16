@@ -37,6 +37,16 @@ jobs:
           cat /tmp/before.txt
       - run: make agents
       - run: make test
+      # `check` BEFORE `gate`, and it is not redundant. `gate` is
+      # `fmt render check`, so it regenerates every artifact before checking
+      # it: a hand-edited render is silently overwritten and `gate` goes green.
+      # Running the gate against the bytes as committed is the only step here
+      # that can actually fail on a tampered deliverable.
+      - name: Gate the committed bytes, without regenerating them
+        run: make check
+      # And do it for every engagement in the repo, not just ROOT.
+      - name: Every engagement's renders match the current renderer
+        run: make freshness
       - run: make gate
       - name: Coverage floors
         # One version only: the tracer's line attribution differs slightly
