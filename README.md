@@ -20,7 +20,7 @@ rather than evaluate it.
 ```bash
 make help              # every target, grouped by whether it needs dependencies
 make gate              # fmt + render + check, the pre-publish loop
-make test              # 157 tests
+make test              # runs the suite
 make coverage          # the suite under the stdlib tracer, against floors
 make agents            # deterministic validation of the agent definitions
 make config            # print the thresholds this build actually enforces

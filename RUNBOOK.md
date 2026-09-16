@@ -36,7 +36,7 @@ hold it.
 ```bash
 tar xzf archtrace-scaffold.tar.gz
 cd archtrace
-make test                       # 88 tests; confirms the toolchain
+make test                       # confirms the toolchain
 git init && git add -A && git commit -m "archtrace scaffold"
 ```
 

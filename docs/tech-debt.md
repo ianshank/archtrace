@@ -111,7 +111,7 @@ subprocess case — and that one invokes `python -m` rather than the shim.
 
 | Pattern | Status |
 |---|---|
-| God file | **Was present** — `cli.py` at 1,008 lines. Fixed; largest module is now 312. |
+| God file | **Was present** — `cli.py` at 1,008 lines. Fixed; largest module was 598 lines at this point (not 312, corrected — see code-quality-plan.md, which also has the current figure: it has grown since). |
 | Magic numbers | **Was present** — the §9a decision thresholds lived inside a print statement. Now in `config`, printable via `archtrace config`. |
 | Hidden global state | Config is a frozen dataclass resolved once; no mutable module globals. |
 | Swallowed exceptions | One found (defect 1), fixed. `agents._safe_load` returns `(value, error)` rather than raising inside a loop. |

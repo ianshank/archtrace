@@ -1,17 +1,23 @@
-# Code quality and tech-debt remediation plan — v3
+# Code quality and tech-debt remediation plan — v4
 
-Written 2026-09-16 against `e34727e`; revised the same day against `b9e5eb1`
-after Copilot and CodeRabbit's independent review of the pull request
-surfaced two genuine defects in v2's own proposed fixes (§1.6–§1.7). A finding
-tagged **[Certain]** was verified by running something; the command is named
-in the [appendix](#appendix--how-each-finding-was-produced). A finding tagged
-**[Likely]** is reasoned from the code rather than executed, and
-**[Guessing]** is judgement — say which a finding is, and do not let "every
-[Certain] finding was verified" imply more than that about the others.
+Written 2026-09-16 against `e34727e`; revised against `b9e5eb1` after
+Copilot/CodeRabbit review of the pull request (§1.6–§1.7); revised again
+against `6e9983a` after an 11-dimension adversarial audit — 93 agents, real
+execution against the live repository, every finding above low severity
+independently refute-checked — found 37 further confirmed defects (§12) and
+re-verified every open finding in §2 still reproduces exactly as described.
+A finding tagged **[Certain]** was verified by running something; the
+command is named in the [appendix](#appendix--how-each-finding-was-produced).
+A finding tagged **[Likely]** is reasoned from the code rather than
+executed, and **[Guessing]** is judgement — say which a finding is, and do
+not let "every [Certain] finding was verified" imply more than that about
+the others.
 
 Supersedes the ranked list in [`tech-debt.md`](tech-debt.md), supersedes v1 of
-this document (§1.1–§1.5 is that correction), and supersedes v2's own T1 and
-T2/T3 fix designs (§1.6–§1.7, folded into §3 and §4.3 below).
+this document (§1.1–§1.5 is that correction), supersedes v2's own T1 and
+T2/T3 fix designs (§1.6–§1.7, folded into §3 and §4.3 below), and adds §12,
+which materially changes T1's fix (see §12.1) without invalidating anything
+else already here.
 
 ---
 
@@ -137,18 +143,27 @@ demonstrated the fix for an input chosen to not need it. **Corrected in
 | **T2** | Every stakeholder quote in every deliverable is casefolded, not verbatim | **High** | open |
 | **T3** | Citation offsets cannot be mapped back to the source document by hand | **High** | open |
 | **T4** | The coverage gate is blind to any new subpackage | **High** | open |
-| **T5** | Malformed JSON produces a Python traceback, not a refusal | **Medium** | open |
-| **T6** | The agent authority check is a five-phrase substring tripwire | **Medium** | open |
-| **F1** | `make lint`/`types`/`secrets` exited 0 when the tool failed | Critical | **fixed** |
-| **F2/F2b** | gitleaks config uncompilable; then `GITHUB_TOKEN` missing | Critical | **fixed** |
-| **F3** | `archtrace.yml` red by construction | High | **fixed** |
-| **F4** | 8 lint violations masked by F1 | High | **fixed** |
+| **T5** | Malformed JSON produces a Python traceback, not a refusal — 8 call sites, expanded §12.7 | **Medium→High** | open |
+| **T6** | The agent authority check is a five-phrase substring tripwire — 2 sibling checks share it, §12.6 | **Medium→Critical** | open |
+| **T7** | `release.json` has no integrity of its own; T1's fix alone doesn't close it | **Critical** | open |
+| **T8** | `git()` treats a failed dirty-query as a clean tree | **High** | open |
+| **T9** | G13 verifies a cited symbol exists, never that it's relevant | **Critical** | open |
+| **T10** | `content_kind` is self-declared and never checked against the bytes | **Critical** | open |
+| **T11** | Auto-generated evidence ids silently destroy hand-assigned records | **High** | open |
+| **T12** | Agent read-only enforcement (A5) is a body-wide substring search | **Critical** | open |
+| **F1–F4** | Gate/CI defects from rounds 1–2 | Critical/High | **fixed** |
 
 T1–T3 share a root cause worth naming: **the tool is rigorous about the
 representation it controls and casual at the boundary where that representation
 meets a human.** Hashes, spans and canonical forms are handled with real care.
 What a stakeholder actually reads — the quote in the Word document, the file
-about to be emailed — is where all three defects live.
+about to be emailed — is where all three defects live. §12's round found the
+same pattern one layer down, in the tool's own trust machinery: T7 and T12 are
+both cases where the *check* is rigorous about existence and casual about
+whether the thing that exists is the thing that was meant. T5's expansion and
+T8/T9/T10/T11 share a second pattern — every one is a place this codebase's
+own stated design principle (refuse loudly, verify the claim, never guess)
+was written down once and not carried to every call site that needed it.
 
 ---
 
@@ -595,42 +610,74 @@ holding the `shell=True` path.
 
 ## 10. Sequencing
 
-Reordered from v1. The dependency that v1 got wrong is **§5.1 before §6.1**.
+Reordered from v1, then again from v3. The dependency v1 got wrong was
+**§5.1 before §6.1**; §12's round adds six more phases and one deliberate
+non-inclusion (T7, below the table).
 
 | Phase | Work | Depends on | Effort | Risk | Status |
 |---|---|---|---|---|---|
 | **0** | F2, F2b — gitleaks config and token | — | 10 min | none | **done** |
 | **1** | F1 + F4 — gates can fail; pin ruff/mypy | — | 2 h | low | **done** |
 | **2** | F3 — `archtrace.yml` manual-only; `permissions`/`concurrency` | — | 1 h | low | **done** |
-| **3** | **T1** — `--verify` runs the gate | — | 2 h | low | **next** |
-| **4** | **T4** — recursive coverage walk + shrink detection | — | 3 h | low | |
-| **5** | T5 — typed refusal for malformed JSON (revives `ConfigError`) | — | 2 h | low | |
-| **6** | §9.2 — test the docs generators; `make docs`; freshness check | 4 | 4 h | low | |
-| **7** | §7.3–7.5 — dead code, enum binding, small redundancies | — | 3 h | low | |
-| **8** | **§6.1** — split `renders.py`, byte-identical | **4** | 1 d | low, verifiable | |
-| **9** | §7.1, §7.2 — palette, `wrap`, macro tables, ref chain | 8 | 4 h | low | |
-| **10** | **T2 + T3** — case-preserving normalisation **+ migration** | 3, 4 | 1 d | **medium — breaking** | |
-| **11** | T6 — reclassify A7; §8.1 `shell=False` | — | 4 h | medium | |
-| **12** | §6.2, §8.2, §8.3 — test split, pinning, compliance | — | 4 h | none | |
+| **2b** | §12.8 config fixes (gitleaks `(?m)`, `.dockerignore`, `RETAIN`) + §12.11 doc-accuracy (6 items) | — | — | none | **done** |
+| **3** | **T8** — `git()` distinguishes a failed query from a clean tree | — | 1 h | low | next |
+| **4** | **T1** — `--verify` calls `g6_render_freshness` alone | 3 | 2 h | low | |
+| **5** | **T11** — evidence-id collision; §12.8's path-traversal item | — | 3 h | low | |
+| **6** | **T5, expanded** — one typed `CanonError`, 8 call sites, broaden `main()`'s except | — | 4 h | low | |
+| **7** | **T4** — recursive coverage walk + shrink detection | — | 3 h | low | |
+| **8** | **T9 + T10** — G13 relevance signal; validate `content_kind` against bytes; G1 and/or mutation-gap test | 6 | 1 d | medium | |
+| **9** | §9.2 — test the docs generators; `make docs`; freshness check | 7 | 4 h | low | |
+| **10** | §7.3–7.5 + §12.10 — dead code, enum binding, redundancies, and the six more duplication/drift items §12 found | — | 1 d | low | |
+| **11** | **§6.1** — split `renders.py`, byte-identical; `_boundary` geometry test; coverage-floor boundary test | 7 | 1 d | low, verifiable | |
+| **12** | §7.1, §7.2 — palette, `wrap`, macro tables, ref chain | 11 | 4 h | low | |
+| **13** | **T2 + T3** — case-preserving normalisation **+ migration** | 4, 8 | 1 d | **medium — breaking** | |
+| **14** | **T6 + T12** — reclassify/strengthen all three substring checks (A5, A6, A7) together; §8.1 `shell=False` | — | 1 d | medium | |
+| **15** | §6.2, §8.2, §8.3 — test split, remaining pinning, compliance; release AND/OR + G2-speaker mutation-gap tests | — | 4 h | none | |
 
-Three ordering constraints, each for a reason:
+Five ordering constraints, each for a reason:
 
-- **T1 first among the open work.** It is the only finding where the tool
-  actively certifies something false. Everything else degrades quality; this one
-  manufactures unwarranted confidence.
-- **T4 before §6.1 and before §9.2.** Both create or move modules. Measuring
-  them with a gate that cannot see subpackages is how the largest module leaves
-  coverage without a sound.
-- **T2/T3 late, and last among the behavioural fixes.** It is the only breaking
-  change, it needs the migration path in §4.3, and it rewrites `quote_cached`
-  across every engagement — which is far safer once `--verify` actually verifies
-  (phase 3) and coverage is trustworthy (phase 4).
+- **T8 first among the open work, not T1.** T8 is tiny, and both T1's fix
+  (phase 4) and T7 (below) touch `release.py`; fixing the shared `git()`
+  helper first means neither later change inherits a known-bad dependency.
+- **T1 stays early** — it is still the fix that matters most for the common
+  case (someone edits `render/` without also touching `release.json`), even
+  though §12.1 shows it is not sufficient against a more capable attacker.
+  Do not wait for T7 to ship it.
+- **T9/T10 before T2/T3, both before §6.1.** T9 and T10 harden the same
+  citation-integrity subsystem T2/T3's breaking migration touches; doing
+  that hardening first means the migration lands on a subsystem that is
+  already coherent, not one with two more known holes in it. §6.1 still
+  needs T4 first, for the same reason v1 got wrong the first time (§1.3):
+  measuring a split module requires a coverage gate that can see it.
+- **T2/T3 stays last among the behavioural fixes.** It is the only breaking
+  change, needs the migration path in §4.3, and rewrites `quote_cached`
+  across every engagement — far safer once `--verify` actually verifies
+  (phase 4), evidence integrity is hardened (phases 5, 8), and coverage is
+  trustworthy (phase 7).
+- **T6, T12 and A5/A6 move together, late.** All three are the identical
+  bypassable-substring pattern in the same file; fixing them once, together,
+  after the higher-severity citation/release work, avoids three separate
+  reviews of the same design question ("how much structure should an agent
+  governance check actually parse?").
+
+**T7 (release.json signing) is deliberately not in this table.** It is the
+single highest-severity open item, and it is also the one genuinely
+architectural decision here — who holds the signing key, and whether the
+manifest should live outside the repository the same way evidence content
+already does. That is a decision for whoever owns this tool's deployment
+model, not something to default into a phase number. Until it is designed,
+consider a cheap interim mitigation alongside phase 4: have `--verify` print
+a standing warning that `release.json`'s own integrity is not yet
+cryptographically enforced, so the gap is visible rather than implied.
 
 **Expect newly-visible findings, not regressions.** F1 masked lint, types and
 secrets for the repository's entire life, and fixing F2 immediately revealed
-F2b beneath it. A gate that has never been able to fail has never been telling
-you anything. Treat the first output of a newly-honest gate as backlog that was
-always there.
+F2b beneath it. §12's round found 37 more this way, at ten times the depth,
+because it actually ran things instead of only reading them (§1.1's lesson,
+one round further in). A gate — or an audit — that has never been able to
+fail has never been telling you anything. Treat each round's output as
+backlog that was always there, not as regressions introduced by looking
+harder.
 
 ---
 
@@ -669,6 +716,437 @@ always there.
 10. A new member of `EVIDENCE_AUTHORITY` is accepted by the CLI with no CLI
     edit, and a test fails if that stops being true.
 11. `tech-debt.md`'s line-count figures are generated, or absent.
+12. `release.json` is signed (or stored write-once outside the repository);
+    `--verify` refuses before trusting any field in it, `approved_by`
+    included, if the signature does not match — proven by a test that
+    tampers with the manifest itself, not only with `render/`.
+13. `git()` distinguishes a failed dirty-query from a clean tree; a test
+    simulates the query failing (not merely a clean or dirty result) and
+    asserts `release`/`mine` refuse rather than proceed.
+14. G13 rejects a real, existing symbol id cited for an element/relationship
+    it has no relationship to, proven by a seeded-defect test parallel to
+    every other G-rule's.
+15. A record whose declared `content_kind` does not match its actual bytes
+    (structured content labelled prose, or the reverse) is rejected by G1,
+    not silently accepted under whichever validation path the label happens
+    to route it through.
+16. Registering evidence with an id that collides with an existing record
+    refuses (or requires an explicit confirm), rather than silently deleting
+    the older record — proven by a test that registers, then re-registers
+    with no `--id`, and asserts the first record still exists.
+17. An `.agent.md` file whose actual invocation keeps `shell` open (via
+    `--allow-tool=shell` after a `--deny-tool=write,shell` appearing
+    elsewhere in the file) is rejected by `archtrace agents`.
+
+---
+
+## 12. Deep audit — round 3 (11-dimension adversarial sweep)
+
+Rounds 1 and 2 (§1) were single-pass reads, with or without execution. This
+round was different in kind: 11 parallel agents each audited one dimension of
+the live repository — executing real commands, mutating source in isolated
+scratch copies (never touching the working tree), and building the Docker
+image — and every finding above low severity then went to one to three
+independent skeptics instructed to *refute* it, defaulting to refuted unless
+they could not. 93 agents, ~7.1M tokens, zero agent errors. 45 findings were
+raised; 37 survived adversarial verification; 1 was refuted outright
+(`errors="replace"` silently substituting undecodable bytes — three skeptics
+agreed the corruption is real but does not compound into a citation-integrity
+failure the way the claim argued); 7 were low-severity and not independently
+verified beyond the originating agent's own reproduction.
+
+Six of the 37 are summarised here directly, chosen for severity or for
+correcting something this document itself already got wrong (§1.6/§1.7's
+pattern, one level deeper). The rest are grouped by theme in §12.7–§12.12,
+in the same compact format as §7 and §8. Three of the six — T7 (release.json
+integrity), the gitleaks `(?m)` gap, and the evidence-id collision — were
+independently re-verified by me, not just by the workflow's own skeptics,
+before being written up here.
+
+This round also re-ran T1–T6 and F1–F4 against the current HEAD (`6e9983a`).
+All six T-findings reproduce exactly as §3–§5 describe; all four F-fixes hold.
+Nothing in this document needed correcting on that count — see the appendix.
+
+### 12.1 T7 — `release.json` has no integrity of its own; T1's fix is necessary but not sufficient [Certain]
+
+**Severity: critical.** §3's fix (call `gate.g6_render_freshness` instead of
+the full gate) is still correct and still needed — but it assumed the
+*comparison* was the weak point. It is not the only one. `release.json`
+itself is a plain, unsigned JSON file, and `_verify_release` trusts every
+field in it, including the very hashes it checks against:
+
+```python
+manifest = canon.load_json(path)          # release.py:127 — no signature check
+...
+if "sha256:" + hashlib.sha256(data).hexdigest() != expected:   # expected comes from the file itself
+```
+
+Anyone with the repository write access needed to tamper a source document in
+the first place has exactly the access needed to also edit `release.json` so
+its stored hashes match the tampered content — and, separately, to run the
+ordinary `archtrace render` command so `render/` on disk is internally
+consistent with the tampered model. At that point §3's fix finds nothing:
+`gate.g6_render_freshness` compares disk against a fresh render of the
+model, and both now agree, because both are tampered together.
+
+**Reproduction.** In an isolated scratch copy: ran a genuine
+`archtrace release --approved-by "Real Approver" --role architect`; as the
+attacker, appended an unreviewed line to `model/model.json`'s content; hand-
+edited `release.json`'s `sources["model/model.json"]` hash to match the
+tampered file, hand-edited every `outputs` entry to the hash of a fresh
+`render_all(eng)` of the tampered model (exactly what `archtrace render`
+would produce), and set `approved_by` to `"Fabricated CISO Signoff"`. Ran
+`archtrace release --verify`:
+
+```
+release.json  approved by Fabricated CISO Signoff (ciso) at ...
+              commit 2485717...
+MATCH — every source and output is byte-identical to what was approved. Safe to publish.
+```
+
+Exit 0. Confirmed independently: `_verify_release` (`release.py:113-160`)
+performs no HMAC, signature, or any other check on `manifest` before trusting
+it.
+
+**Fix.** §3's `g6_render_freshness` change is still the right first step —
+it closes the case where only `render/` drifts from a still-honest
+`release.json`. It does not close this one. `release.json`'s trust value
+depends on being harder to forge than the thing it certifies:
+
+1. Sign the manifest — HMAC with a key not stored in the repository, or a
+   detached signature — and have `--verify` refuse before trusting *any*
+   field, `approved_by`/`authority_role` included, if the signature does not
+   match.
+2. A signature alone leaves the reference value and the tampered value
+   colocated and equally writable. Storing the manifest (or its signature)
+   outside the repository, or in a write-once location, is what actually
+   separates "can tamper the deliverable" from "can also rewrite the ledger
+   checked against it."
+
+### 12.2 T8 — the git() helper turns "the query failed" into "the tree is clean" [Certain]
+
+**Severity: high.** `commands/_shared.py`'s `git()` helper returns `None` for
+*any* non-zero exit from the subprocess — not only "not a git repository."
+Both `cmd_release` and `cmd_mine` treat a falsy `dirty` as "clean":
+
+```python
+dirty = git(root, "status", "--porcelain")     # None if the query itself failed
+...
+elif dirty and not args.allow_dirty:           # None is falsy — silently passes
+```
+
+**Reproduction.** In a scratch git repo: added a genuinely untracked file
+(`?? SNEAKY_UNTRACKED.txt`, a real dirty tree), then corrupted `.git/index`
+(`printf 'GARBAGE' > .git/index`) so `git status --porcelain` fails (exit
+128) while `git rev-parse HEAD` still succeeds. Ran
+`archtrace release --approved-by Tester --role architect` with **no**
+`--allow-dirty`: exit 0, `release.json` written with
+`"working_tree_clean": true` bound to a real commit hash, zero warning.
+Reproduced the identical bypass in `cmd_mine` — a real uncommitted edit plus
+the same corrupted index produced a dry-run print with no `(DIRTY)` marker
+and no `--allow-dirty` requirement.
+
+**Fix.** Have `git()` distinguish "ran and reported clean" from "the query
+itself failed" — a typed error or a sentinel other than the empty-string
+case — and have `cmd_release`/`cmd_mine` treat a failed dirty-query as a hard
+refusal, not an implicit pass.
+
+### 12.3 T9 — G13 verifies a symbol exists; it never checks the citation is *about* that symbol [Certain]
+
+**Severity: critical.** G13 is documented as "G2 for code evidence" — the
+control that makes "grounded in the repository" a checkable claim rather
+than an assertion. Its entire check is:
+
+```python
+if facts.symbol(symbol) is None:     # gate.py:567 — existence only
+    yield Finding("G13", BLOCK, ...)
+```
+
+**Reproduction.** Grounded `c_telemetry` ("Telemetry Sidecar") as `existing`
+against a real evidence record, citing a real symbol id — which actually
+names `list_users`, an unrelated method with no connection to telemetry.
+`archtrace check` produced zero G13 findings.
+
+**Fix.** At minimum, cross-check the cited symbol's own name or file path
+against the element/relationship it is attached to for a plausibility
+signal (not a semantic guarantee, but better than none); at most, require
+the citing model entry to name which fact record field it is grounded on
+(name, kind, or file) and validate that field matches, the way G4 validates
+a grounding kind's *shape* rather than only its existence.
+
+### 12.4 T10 — `content_kind` is a self-declared label, never checked against the bytes it describes [Certain]
+
+**Severity: critical.** G1 only runs format validation (`parse_facts`) when
+`content_kind == "structured"`. A record mislabeled — or defaulted — to
+`prose` skips that validation entirely, and G2/G11 then treat its raw bytes
+as quotable stakeholder speech with independently self-declared authority.
+
+**Reproduction.** Registered a byte-identical copy of a real code-facts JSON
+file with `content_kind` omitted (defaults to prose) and
+`authority=stakeholder-confirmed`. Cited 150 bytes of raw JSON syntax as a
+stakeholder's quote backing a confirmed requirement. `archtrace check`
+produced zero findings — defeating G11's entire stated purpose (observed
+implementation can never carry a requirement) via one omitted field.
+
+**Fix.** Validate `content_kind` against the bytes themselves — attempt
+`parse_facts` regardless of the declared kind and flag a mismatch either
+direction (declared prose that parses as structured facts, or declared
+structured that doesn't parse) — rather than trusting the label to gate
+which validation runs.
+
+### 12.5 T11 — auto-generated evidence ids collide with, and silently destroy, hand-assigned records [Certain — confirmed independently by two separate dimension agents]
+
+**Severity: high.** Both evidence-registration entry points derive a new id
+from `len(index['evidence']) + 1` — a record-count sequence, not a
+collision check. `--id` is a fully documented flag on `evidence add`,
+`evidence add-facts`, and `mine`, so an out-of-sequence id is ordinary usage.
+Both intake paths then do delete-then-append before writing:
+
+```python
+"id": args.id or f"EV-{len(index['evidence']) + 1:03d}",   # evidence.py:275
+...
+index["evidence"] = [e for e in index["evidence"] if e["id"] != record["id"]]
+index["evidence"].append(record)
+```
+
+**Reproduction.** Two ordinary CLI calls, no hand-edited JSON: registered an
+authoritative-document record as `EV-002` explicitly. Registered a second,
+unrelated interview transcript with **no** `--id` — the index then has one
+record, so the auto-id computes `EV-002` again. Output: `registered EV-002`,
+no error. The index afterward contains exactly one record, `EV-002`, and
+every field is the *second* transcript's; the first record is gone with no
+trace. G1's duplicate-id check can never fire — by the time the gate runs,
+the collision has already resolved itself by destroying the older record
+before it was ever written to disk.
+
+**Fix.** Derive the next id from the maximum existing numeric suffix, not
+list length (still not collision-proof against hand-assigned ids, but
+strictly better); in all cases, refuse a same-id write whose existing
+record's content differs from what is being written, unless the operator
+explicitly confirms a replace.
+
+### 12.6 T12 — the substring-check pattern behind the already-documented T6 is not confined to A7 [Certain]
+
+**Severity: critical for A5, high for A6.** T6 named `A7-no-authority-claims`
+as five hardcoded substrings. Two more checks in the same module share the
+identical design, and one of them is more consequential than A7 — it's the
+control that decides whether an agent can actually reach a shell.
+
+**A5-read-only-invocation** (`agents.py:195-203`) only checks whether the
+literal string `--deny-tool=write,shell` appears *anywhere* in the body — not
+that it governs the agent's actual invocation, and not for a contradicting
+`--allow-tool=shell` elsewhere. A file whose real, documented command is
+`--deny-tool=write --allow-tool=read,shell` (shell explicitly re-enabled)
+passes with zero findings as long as the fully-compliant string also appears
+somewhere else in the prose — reproduced with a "historical note" section
+citing the old, correct string after the real command overrides it.
+`archtrace agents`: `0 finding(s)`, exit 0. This is the exact capability the
+module's own top-of-file docstring warns about: an agent denied `write` but
+not `shell` writes files with `sh -c 'cat > file'`.
+
+**A6-evidence-is-not-instruction** (`agents.py:206-214`) has the same shape:
+it passes if the literal phrases `"evidence is data"` or
+`"never instructions"` appear anywhere, with no check of what they assert.
+Reproduced with a body that explicitly describes obeying instructions found
+inside retrieved documents, while the required phrase appears in a sentence
+*describing that it does not do that*. Zero findings.
+
+**Fix.** Same remediation family as T6: stop matching prose, start matching
+structure. For A5, extract the agent's actual invocation (the fenced/
+indented command block) and validate *that*, plus flag any `--allow-tool=`
+naming write or shell anywhere in the file. For A6, require the phrase
+inside a recognisable section rather than a bare substring anywhere.
+
+### 12.7 The missing-refusal pattern is systemic, not confined to model.json — T5, expanded [Certain]
+
+T5 named one call site (`Engagement.load`'s `json.load`). The sweep found
+seven more, several worse in kind because no fix to `Engagement.load` would
+touch them:
+
+- **`archtrace.toml` crashes at *import* time**, before `main()`'s
+  `try/except` exists to run at all. `config.py`'s `_from_toml` has no
+  exception handling around `tomllib.load`, and `DEFAULT = load()` executes
+  at module import (`config.py:218`). A syntax slip in `archtrace.toml`
+  crashes `--help` and `config` — the commands someone would run to diagnose
+  it — with a traceback, before reaching `Config.errors`, the mechanism this
+  codebase built specifically for this. **This one needs its fix outside
+  `main()` entirely**: wrap `tomllib.load` in `_from_toml` and route into the
+  same `errors` list `_apply()` already populates.
+- **`agents._safe_load`'s own docstring guarantee is false.**
+  `except (AgentError, OSError)` does not catch `UnicodeDecodeError` (a
+  `ValueError` subclass), so one non-UTF-8 `.agent.md` file crashes the whole
+  `agents` command instead of being reported as one bad file among many — the
+  exact guarantee `_safe_load`'s docstring makes ("one unparseable file must
+  not hide the findings in every other file").
+- **`evidence add` / `evidence add-facts`** open the user-supplied `FILE`
+  with no existence, permission, or encoding guard — reproduced crashing on a
+  missing file, a non-UTF-8 file, and a permission-denied file, none guarded
+  the way `cmd_mine`'s own `--repo` check already is in the same file.
+- **`release --verify` crashes on a corrupted `release.json`** — a second,
+  independent failure mode in the same function T7/T1 already flag as
+  unsound. `canon.load_json(path)` has no guard; a truncated or bad-merge
+  manifest crashes instead of refusing.
+- **`promote`** crashes on malformed `requirements/proposed.json` — a fourth
+  file loaded through a `canon.load_json` call site a narrow fix to
+  `Engagement.load` alone would not reach.
+- **`baseline --elements <file>`** crashes on a missing file — notable
+  because `baseline` is documented as "run this BEFORE anything else," the
+  first command a new user runs.
+- **`main()`'s except clause is confirmed incomplete.** Every reproduction
+  above escapes `args.fn(args)` uncaught and exits via Python's default (1),
+  never this codebase's own `EXIT_USAGE`/`EXIT_BLOCKED` conventions.
+
+**Fix, once, at the root:** give `canon.load_json` itself a
+`try/except json.JSONDecodeError` that raises a typed `CanonError` (the same
+role `config.ConfigError` should already be playing, §5.2), and have every
+direct caller catch that one type consistently rather than patching each
+call site ad hoc. Broaden `main()`'s except clause as a last-resort net
+beneath the specific fixes, and move `archtrace.toml`'s error surface into
+`Config.errors` as its own, separate change (§5.2's `ConfigError` revival is
+the natural home for this too).
+
+### 12.8 Security & supply chain — additional findings
+
+Four found; three fixed directly in this pass — each config-only, no
+application logic touched, and (for the first two) independently verified by
+me, not only by the audit's own skeptics:
+
+- **The gitleaks rule this PR already fixed once still didn't detect
+  anything — fixed. [Certain]** Its regex anchored `^` with no `(?m)` flag,
+  so in RE2 (as in every standard regex engine — confirmed against Python's
+  `re`, which follows the identical convention) `^` matches only the
+  absolute start of the scanned content, not each line. Built and ran the
+  exact pinned gitleaks binary (v8.21.2): the rule fired on a synthetic
+  3-line transcript's first line only; lines 2 and 3, identical in shape,
+  were silently missed. The repo's own real fixture transcript — which has
+  header lines before the first turn, like every real transcript — was
+  **not detected at all**. `(?m)` added.
+- **`.dockerignore`'s cache-exclusion patterns didn't match nested paths —
+  fixed. [Certain]** Lines 7-18 were bare (`__pycache__/`, `*.py[cod]`, …)
+  while line 3 (`**/_evidence_root/`) was correctly prefixed. Docker's
+  ignore matcher is not implicitly recursive the way `.gitignore`'s is.
+  Built the image from a working tree with real `__pycache__` directories
+  under `tools/` (exactly where `make test` writes them): 20 stale `.pyc`
+  files landed in the image, undermining the Dockerfile's own stated
+  purpose ("reproducible"). Every pattern now prefixed with `**/`.
+- **`make mine`'s `RETAIN ?= 2029-01-01` silently satisfied the CLI's
+  required `--retention-until` — fixed. [Certain]** `archtrace mine`'s flag
+  is `required=True` specifically so an operator cannot register evidence
+  without consciously choosing a date; the Makefile wrapper always supplied
+  one, so the CLI's own check could never fire through this entry point.
+  `RETAIN` is now required explicitly, mirroring `REPO`/`URI`; verified
+  `make mine-dry` with no `RETAIN` now refuses (exit 2) and with one
+  supplied proceeds past the check into the mine logic unchanged.
+- **`mine --local-name`/`--id` allow path traversal. [Certain, still open —
+  application-logic change, not config]** Neither is validated against
+  escaping `--evidence-root`; `os.path.join` with an absolute `--local-name`
+  discards the base path entirely. Reproduced writing a file two directories
+  above the evidence root, and — via `evidence add` + `quote` — reading back
+  the contents of a file entirely outside `--evidence-root` (a fake secret
+  string) as if it were legitimate, citable evidence. **Resolve both the
+  write target and the stored `local_path` with `os.path.realpath` and
+  reject anything outside `--evidence-root`.**
+
+### 12.9 Test-suite mutation-resistance gaps [Certain]
+
+Five real assertion gaps, each demonstrated by mutating a real line of
+production code in a scratch copy and showing the named test(s) still pass:
+
+- `release.py`'s `--approved-by and --role` check mutated to `or` (release
+  proceeds with only one flag supplied) — **zero test failures anywhere in
+  the 182-test suite.**
+- G1's code-evidence commit check (`gate.py:139`, an `and` — blocks only when
+  *both* the record and the facts file lack a commit) mutated to `or` — 182
+  tests still green, **and** produces a real false-positive block against
+  the legitimate, fully-supported "miner didn't set a commit but `--commit`
+  was passed" case. `evidence add-facts` has no direct test coverage at all.
+- `coverage.Report.failures()`'s `<` mutated to `<=` at the exact
+  configured floor — no test uses a boundary-equal value, so an off-by-one
+  changing "at the floor" from pass to fail is invisible.
+- `renders._boundary` (the real connector-clipping geometry) mutated to
+  point away from its target instead of toward it — `test_docx_shapes.py`'s
+  21 tests, all passing, never call the real function; they inject a stub
+  that does no clipping at all. Only caught incidentally, at the whole-suite
+  level, by G6 comparing regenerated SVGs against the committed ones.
+- `test_g2_speaker_not_in_the_room` passes for the wrong reason when the
+  speaker check (`gate.py:171`) is inverted: the inversion also mis-fires on
+  four unrelated, legitimate provenance entries, and `assertFires` only
+  checks that G2 fired *somewhere*, not on the seeded record.
+
+**Fix pattern common to all five:** add the missing boundary/partial-input
+test case per item above; for `test_g2_speaker_not_in_the_room` specifically,
+assert on the finding's `where`, not merely that the rule id appears.
+
+### 12.10 Additional duplication, dead code and drift [Certain]
+
+- **`archtrace baseline`'s citation-quality metric silently diverges from
+  G2's actual gate.** `cmd_baseline` counts a quote as sufficient on
+  non-emptiness alone, never applying `MIN_QUOTE_WORDS`/`MIN_QUOTE_CHARS`/
+  `GENERIC_PHRASES`. A two-word quote scores 100% "citation-backed" in
+  `baseline` and then G2 immediately BLOCKs the identical citation under
+  `check` — the instrument that decides whether the programme is worth
+  running gives a false PASS. **Import the same thresholds `gate.py` uses.**
+- The grounding-reference `or`-chain (§7.5) is not the only place a
+  canonical lookup got re-derived by hand: `_grounding_text` and
+  `_traceability_csv` both bypass `GROUNDING_KINDS`'s kind→field mapping
+  that `gate.py` uses correctly, so an entry with a stray leftover field from
+  a prior edit can resolve to a different reference in the traceability
+  deliverables than the one G4 actually validated.
+- The "decline requires rationale+decided_by+date" policy (G3, G12n) is
+  hardcoded as an identical literal tuple in two places in `gate.py` with no
+  shared constant — an organisational policy this codebase otherwise always
+  centralises.
+- The SVG legend hardcodes a *third* independent copy of the five grounding
+  kinds, alongside `FILL`/`_DRAWIO_STYLE` (§7.2) and `GROUNDING_BADGE`
+  itself — never derived from `model.GROUNDING_KINDS`.
+- `model.LEVELS` — meant to be the canonical four-level enumeration — is
+  dead code with zero references; every consumer hardcodes its own copy
+  instead (the exact duplication §7.2 already flags).
+- `renders.py:395` compares `content_kind` against the bare string
+  `"structured"` instead of importing `mining.CONTENT_STRUCTURED`, unlike
+  every other consumer of that constant.
+
+### 12.11 Documentation accuracy — fixed directly in this pass [Certain]
+
+Six drifted or fabricated claims, found and corrected without waiting for a
+future phase, since each was mechanical and low-risk:
+
+- README.md and RUNBOOK.md each hardcoded a test count (157, 88) that
+  disagreed with each other and with reality (182). Both now say "runs the
+  suite" / "confirms the toolchain" instead of a number that will drift
+  again.
+- CHANGELOG.md's 0.3.0 entry said `cli.py` reached 215 lines and 155 tests;
+  the commit it describes (`4839c10`) actually produced 248 lines and 157
+  tests, confirmed via `git show <commit>:file | wc -l` against that exact
+  commit — wrong on arrival, not drifted since. Corrected to 248 / 157.
+- CHANGELOG.md and `docs/tech-debt.md` both stated the post-refactor largest
+  module was "312" lines — a figure that matches no file at any inspected
+  commit, and directly contradicts `tech-debt.md`'s *own* item 1, three
+  paragraphs earlier, which says 598. Corrected to the verified true figure
+  (601 lines at that commit; `renders.py` is 656 today, already the figure
+  §1.2 of this document uses).
+- `docs/example-baseline.txt`, the artifact README.md cites as proof the
+  worked example scores 50% traceability, no longer matched a fresh run of
+  the same command (`existing: 1` committed vs `2` live — `example/model.json`
+  gained a second `existing`-kind grounding entry since the file was
+  committed, and nothing regenerates this artifact). Regenerated from the
+  live tool.
+
+None of these affected a top-line number (the 50%/0%-unexplained figures
+were unaffected throughout) — but a repository whose thesis is "verified by
+running it" should not fail that standard on its own worked example.
+
+### 12.12 Live CI/CD state — confirmed clean [Certain]
+
+A full static sweep of both workflow files at the current HEAD, specifically
+for the F1 defect class (a shell idiom that swallows failure, a stray
+`continue-on-error: true`, output piped through something that discards an
+exit code): **none found.** `make lint`/`make types` run as bare steps and
+correctly propagate failure; the gitleaks step has `GITHUB_TOKEN` and scoped
+`pull-requests: read`; `archtrace.yml`'s `workflow_dispatch`-only trigger
+means its intentional placeholder `exit 1` no longer runs on any PR or push.
+This is a negative finding worth recording: the specific defect class that
+produced F1 has not reappeared elsewhere.
 
 ---
 
@@ -692,9 +1170,18 @@ always there.
 | §7.4 | `python3 -c` comparing `model` constants to `cli.py` choice lists |
 | pin consistency | `which ruff mypy gitleaks`; `git ls-remote --tags` against astral-sh/ruff-pre-commit and pre-commit/mirrors-mypy to find real tags in the pinned ranges |
 | PATH-isolation fix | `make lint` invoked directly (absolute `make` path) with `PATH` restricted to a scratch bindir only, for each of: no stub, a failing stub, a clean stub — confirmed skip/fail/pass all still work with no `/usr/bin` or `/bin` on `PATH` |
+| §12 (all) | a `Workflow` run: 11 parallel agents, each executing real commands against a scratch copy of the repository (never the working tree directly); every finding above low severity independently re-checked by 1–3 skeptic agents instructed to default to refuted; 93 agents total, 0 errors, 45 findings raised, 37 confirmed, 1 refuted, 7 low-severity and not independently re-checked. Full transcript: `wf_78854115-8b9` |
+| T7 (my own check) | read `release.py:113-160`'s `_verify_release`, confirmed `canon.load_json(path)` performs no signature/HMAC check before trusting `manifest` |
+| gitleaks `(?m)` (my own check) | `python3 -c` comparing `re.search` with and without `re.MULTILINE` against a multi-line transcript-shaped string — RE2 follows the identical `^`-anchoring convention |
+| T11 (my own check) | reproduced the id collision directly with two ordinary `archtrace evidence add` calls in a scratch engagement — no hand-edited JSON |
+| reverify (§12, all of T1–T6, F1–F4) | every reproduction in §3–§5 and §1 re-run against `6e9983a` inside the same Workflow run, as its own dimension; all ten still reproduce exactly as described |
 
 Two rounds of external review (Copilot and CodeRabbit, both against `b9e5eb1`
 on [PR #2](https://github.com/ianshank/archtrace/pull/2)) are folded into
 §1.6, §1.7, §6.1, §7.5, and acceptance criteria 1–3 and 9 above. Every claim
 either bot made was independently re-derived against the code before being
-accepted — none was taken on the bot's word alone.
+accepted — none was taken on the bot's word alone. §12's findings carry the
+same standard: three of its six full-treatment findings (T7, the gitleaks
+`(?m)` gap, T11) were independently re-verified by me before being written
+up, beyond the adversarial verification already performed inside the
+Workflow run.

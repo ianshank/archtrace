@@ -106,11 +106,17 @@ REPO ?=
 ID ?=
 URI ?=
 CLASS ?= internal
-RETAIN ?= 2029-01-01
+# No default: `archtrace mine` makes --retention-until required=True
+# specifically so a retention date is a conscious choice, never a default
+# nobody chose. RETAIN ?= 2029-01-01 here used to silently satisfy that flag
+# on every `make mine` call -- the CLI's own required-argument check could
+# never fire through this entry point. See docs/code-quality-plan.md §12.8.
+RETAIN ?=
 .PHONY: mine mine-dry
 mine mine-dry:
 	@test -n "$(REPO)" || { echo "set REPO=/path/to/repository"; exit 2; }
 	@test -n "$(URI)"  || { echo "set URI=<repository URL for the record>"; exit 2; }
+	@test -n "$(RETAIN)" || { echo "set RETAIN=<retention date, e.g. 2029-01-01>"; exit 2; }
 	@$(ARCHTRACE) mine --repo "$(REPO)" $(if $(ID),--id "$(ID)",) \
 	  --source-uri "$(URI)" --date "$$(date -u +%Y-%m-%d)" \
 	  --classification "$(CLASS)" --retention-until "$(RETAIN)" \

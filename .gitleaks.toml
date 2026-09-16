@@ -33,7 +33,14 @@ retention obligation, and deleting a file does not delete the blob -- it stays
 reachable by SHA in every clone, fork and CI cache. The repository holds claims
 about evidence; the content stays in the system of record.
 """
-regex = '''(?i)^\s*\d{2}:\d{2}:\d{2}\s+[A-Z]\.\s+\w+:'''
+regex = '''(?im)^\s*\d{2}:\d{2}:\d{2}\s+[A-Z]\.\s+\w+:'''
+# (?m) is required: RE2, like every standard regex engine, anchors ^
+# to the start of the whole scanned content without it -- so without
+# (?m) this rule can only ever match a transcript's literal first byte,
+# which no real transcript is (they all have a header line before the
+# first turn). Confirmed by building the pinned gitleaks binary and
+# running it: the rule missed this repo's own committed example
+# fixture entirely before this fix.
 # Go's regex engine (RE2) has no lookahead, and gitleaks panics rather than
 # warning when a config asks for one -- it produces no report at all, so the
 # rule silently stops running AND the job fails on the missing artifact. The
