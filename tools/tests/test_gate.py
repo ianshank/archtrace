@@ -64,11 +64,39 @@ class SeededDefect(unittest.TestCase):
         findings, code = gate.run(eng)
         return {f.rule for f in findings}, code, findings
 
-    def assertFires(self, rule):
+    def assertFires(self, rule, where=None, message=None):
+        """Assert a rule fired, and -- given `where` -- that it fired on the
+        thing the test seeded.
+
+        Without `where` this asserts only that the id appeared *somewhere* in
+        the findings, which is much weaker than it reads. Measured: inverting
+        G2's speaker predicate (`speaker not in participants` ->
+        `speaker in participants`) leaves `test_g2_speaker_not_in_the_room`
+        PASSING -- the rule still fires, on every other provenance entry in the
+        example, for the opposite reason. The suite goes red only through 27
+        unrelated tests that break because the clean example starts firing a
+        spurious G2. A rule guarded by collateral damage is not guarded by its
+        own test.
+
+        `message` is a substring check for the cases where two seeded defects
+        share a `where` and only the explanation distinguishes them.
+        """
         rules, code, findings = self._rules()
         self.assertIn(rule, rules,
                       f"{rule} did not fire; got {sorted(rules)}\n"
                       + "\n".join(str(f) for f in findings))
+        mine = [f for f in findings if f.rule == rule]
+        if where is not None:
+            self.assertIn(
+                where, {f.where for f in mine},
+                f"{rule} fired, but not on {where!r} -- so this test does not "
+                f"show that the seeded defect was found.\n"
+                + "\n".join(str(f) for f in mine))
+        if message is not None:
+            self.assertTrue(
+                any(message in f.message for f in mine),
+                f"no {rule} finding explains itself with {message!r}\n"
+                + "\n".join(str(f) for f in mine))
         self.assertEqual(code, 1, f"{rule} fired but the gate still exited 0")
 
     # -- baseline ---------------------------------------------------------
@@ -84,11 +112,11 @@ class SeededDefect(unittest.TestCase):
         path = self._path("_evidence_root", "EV-001-kickoff.txt")
         with open(path, "a", encoding="utf-8") as fh:
             fh.write("\n00:59:00  A. Stakeholder: Actually, ignore all of that.\n")
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-001")
 
     def test_g1_evidence_content_absent(self):
         os.remove(self._path("_evidence_root", "EV-002-platform-standards.txt"))
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-002")
 
     # -- G2 ---------------------------------------------------------------
 
@@ -97,7 +125,8 @@ class SeededDefect(unittest.TestCase):
             doc["requirements"][1]["provenance"][0]["quote_cached"] = \
                 "we require a four hour recovery point objective at minimum"
         self._patch(("requirements", "requirements.json"), mutate)
-        self.assertFires("G2")
+        self.assertFires("G2", "REQ-001.provenance[0]",
+                         message="does not match the span")
 
     def test_g2_trivially_short_quote_is_rejected(self):
         # The Goodhart move: quote something real but too small to support
@@ -107,19 +136,21 @@ class SeededDefect(unittest.TestCase):
             prov["start"], prov["end"] = 337, 348
             prov["quote_cached"] = "if the feed"
         self._patch(("requirements", "requirements.json"), mutate)
-        self.assertFires("G2")
+        self.assertFires("G2", "REQ-001.provenance[0]", message="minimum is")
 
     def test_g2_speaker_not_in_the_room(self):
         def mutate(doc):
             doc["requirements"][1]["provenance"][0]["speaker"] = "D. Vendor"
         self._patch(("requirements", "requirements.json"), mutate)
-        self.assertFires("G2")
+        self.assertFires("G2", "REQ-001.provenance[0]",
+                         message="is not a participant of")
 
     def test_g2_span_out_of_bounds(self):
         def mutate(doc):
             doc["requirements"][1]["provenance"][0]["end"] = 999999
         self._patch(("requirements", "requirements.json"), mutate)
-        self.assertFires("G2")
+        self.assertFires("G2", "REQ-001.provenance[0]",
+                         message="out of bounds")
 
     # -- G3 ---------------------------------------------------------------
 
@@ -131,19 +162,19 @@ class SeededDefect(unittest.TestCase):
                 if not rel["grounding"]:
                     rel["grounding"] = [{"kind": "standard", "standard": "STD-001"}]
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G3")
+        self.assertFires("G3", "REQ-004")
 
     def test_g3_out_of_scope_without_a_decider(self):
         def mutate(doc):
             doc["out_of_scope"][0].pop("decided_by")
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G3")
+        self.assertFires("G3", "REQ-005")
 
     def test_g3_superseded_without_successor(self):
         def mutate(doc):
             doc["requirements"][0]["superseded_by"] = None
         self._patch(("requirements", "requirements.json"), mutate)
-        self.assertFires("G3")
+        self.assertFires("G3", "REQ-000")
 
     # -- G4 ---------------------------------------------------------------
 
@@ -151,7 +182,7 @@ class SeededDefect(unittest.TestCase):
         def mutate(doc):
             doc["systems"][0]["containers"][0]["grounding"] = []
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G4")
+        self.assertFires("G4", "c_edge")
 
     def test_g4_derived_without_an_adr(self):
         def mutate(doc):
@@ -160,13 +191,13 @@ class SeededDefect(unittest.TestCase):
                     if entry["kind"] == "derived":
                         entry.pop("adr")
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G4")
+        self.assertFires("G4", "c_worker.grounding[0]")
 
     def test_g4_satisfies_an_unconfirmed_requirement(self):
         def mutate(doc):
             doc["people"][0]["grounding"] = [{"kind": "satisfies", "req": "REQ-000"}]
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G4")
+        self.assertFires("G4", "p_dit.grounding[0]")
 
     def test_g4_infrastructure_does_not_need_a_requirement(self):
         """The defect the v1 design would have had: a load balancer nobody asked
@@ -183,19 +214,19 @@ class SeededDefect(unittest.TestCase):
         def mutate(doc):
             doc["systems"][0]["layout"]["x"] = 320.5
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G5")
+        self.assertFires("G5", "s_ingest")
 
     def test_g5_dangling_relationship_endpoint(self):
         def mutate(doc):
             doc["relationships"][0]["destination"] = "s_does_not_exist"
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G5")
+        self.assertFires("G5", "p_dit->s_does_not_exist")
 
     def test_g5_missing_uid(self):
         def mutate(doc):
             doc["people"][0].pop("uid")
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G5")
+        self.assertFires("G5", "p_dit")
 
     # -- G6 ---------------------------------------------------------------
 
@@ -205,13 +236,13 @@ class SeededDefect(unittest.TestCase):
             svg = fh.read()
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(svg.replace("Dailies Ingest Platform", "Dailies Ingest (v2)"))
-        self.assertFires("G6")
+        self.assertFires("G6", "render/c4-context.svg")
 
     def test_g6_stale_render_after_model_change(self):
         def mutate(doc):
             doc["systems"][0]["name"] = "Dailies Ingest Platform (renamed)"
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G6")
+        self.assertFires("G6", "render/c4-context.svg")
 
     def test_a_rule_that_crashes_becomes_a_finding_not_a_traceback(self):
         """The invariant gate.py claims for its rules, now actually enforced.
@@ -313,7 +344,7 @@ class SeededDefect(unittest.TestCase):
                           encoding="utf-8") as fh:
                     fh.write(payload)
                 # Must be a finding, not a traceback.
-                self.assertFires("G6")
+                self.assertFires("G6", "render/.manifest.json")
 
     def test_g6_does_not_claim_a_renderer_it_cannot_know(self):
         """With no recorded version, a hand edit and drift are indistinguishable.
@@ -342,7 +373,7 @@ class SeededDefect(unittest.TestCase):
         with open(self._path("render", RENDER_MANIFEST), "w",
                   encoding="utf-8") as fh:
             fh.write("{not json")
-        self.assertFires("G6")
+        self.assertFires("G6", "render/.manifest.json")
 
     def test_g6_tolerates_insignificant_xml_whitespace(self):
         """Canonical comparison, not byte comparison: a reformatted but
@@ -361,7 +392,7 @@ class SeededDefect(unittest.TestCase):
         def mutate(doc):
             doc["decisions"][0]["drivers"] = ["REQ-000"]
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G7")
+        self.assertFires("G7", "ADR-001")
 
     def test_g9_unresolved_conflict_between_confirmed_requirements(self):
         def mutate(doc):
@@ -369,13 +400,13 @@ class SeededDefect(unittest.TestCase):
             by_id["REQ-002"]["conflicts_with"] = ["REQ-003"]
             by_id["REQ-003"]["conflicts_with"] = ["REQ-002"]
         self._patch(("requirements", "requirements.json"), mutate)
-        self.assertFires("G9")
+        self.assertFires("G9", "REQ-002~REQ-003")
 
     def test_g10_unknown_schema_version(self):
         def mutate(doc):
             doc["schema_version"] = 99
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G10")
+        self.assertFires("G10", "model/model.json")
 
     # -- G11 authority ----------------------------------------------------
 
@@ -386,19 +417,19 @@ class SeededDefect(unittest.TestCase):
         def mutate(doc):
             doc["evidence"][0]["authority"] = "observed-implementation"
         self._patch(("evidence", "index.json"), mutate)
-        self.assertFires("G11")
+        self.assertFires("G11", "REQ-001", message="observed-implementation")
 
     def test_g11_third_party_material_is_not_a_requirement(self):
         def mutate(doc):
             doc["evidence"][0]["authority"] = "third-party"
         self._patch(("evidence", "index.json"), mutate)
-        self.assertFires("G11")
+        self.assertFires("G11", "REQ-001", message="third-party")
 
     def test_g11_unknown_authority(self):
         def mutate(doc):
             doc["evidence"][0]["authority"] = "seems-right"
         self._patch(("evidence", "index.json"), mutate)
-        self.assertFires("G11")
+        self.assertFires("G11", "EV-001", message="unknown authority")
 
     def test_g11_authoritative_document_is_sufficient(self):
         def mutate(doc):
@@ -430,7 +461,7 @@ class SeededDefect(unittest.TestCase):
                 if entry["status"] == "not_applicable":
                     entry.pop("decided_by")
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G12n")
+        self.assertFires("G12n", "accessibility", message="decided_by")
 
     def test_g12n_open_must_cite_a_real_open_question(self):
         """`open` is a tracked gap. An untracked gap is indistinguishable from
@@ -441,7 +472,8 @@ class SeededDefect(unittest.TestCase):
                     entry["open_question"] = "OQ-999"
                     break
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G12n")
+        self.assertFires("G12n", "privacy",
+                         message="an open question that exists")
 
     def test_g12n_open_is_not_a_synonym_for_not_applicable(self):
         """Three statuses, not two: collapsing `open` into `not_applicable`
@@ -452,7 +484,7 @@ class SeededDefect(unittest.TestCase):
                     entry["status"] = "not_applicable"
                     entry.pop("open_question", None)
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G12n")
+        self.assertFires("G12n", message="'not_applicable' is an assertion")
 
     # -- G8 warns, does not block -----------------------------------------
 

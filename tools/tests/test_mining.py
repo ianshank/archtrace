@@ -98,10 +98,25 @@ class StructuredEvidence(unittest.TestCase):
             with open(os.path.join(self.root, "render", name), "wb") as fh:
                 fh.write(data)
 
-    def assertFires(self, rule):
+    def assertFires(self, rule, where=None, message=None):
+        """Same contract as `test_gate.SeededDefect.assertFires`; see the note
+        there for why `where` is the part that makes this an assertion about
+        the seeded defect rather than about the example at large."""
         rules, code, findings = self._rules()
         self.assertIn(rule, rules, f"{rule} did not fire; got {sorted(rules)}\n"
                       + "\n".join(str(f) for f in findings))
+        mine = [f for f in findings if f.rule == rule]
+        if where is not None:
+            self.assertIn(
+                where, {f.where for f in mine},
+                f"{rule} fired, but not on {where!r} -- so this test does not "
+                f"show that the seeded defect was found.\n"
+                + "\n".join(str(f) for f in mine))
+        if message is not None:
+            self.assertTrue(
+                any(message in f.message for f in mine),
+                f"no {rule} finding explains itself with {message!r}\n"
+                + "\n".join(str(f) for f in mine))
         self.assertEqual(code, 1)
 
     # -- the example carries code evidence and stays green ----------------
@@ -122,7 +137,7 @@ class StructuredEvidence(unittest.TestCase):
         doc["symbols"][0]["name"] += "X"
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(doc, fh, indent=2)
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-003")
 
     def test_code_evidence_without_a_commit_blocks(self):
         def mutate(doc):
@@ -143,7 +158,7 @@ class StructuredEvidence(unittest.TestCase):
                 if record["id"] == "EV-003":
                     record["sha256_normalized"] = mining.sha256_bytes(body.encode())
         self._patch(("evidence", "index.json"), rehash)
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-003")
 
     def test_unknown_content_kind_blocks(self):
         def mutate(doc):
@@ -151,7 +166,7 @@ class StructuredEvidence(unittest.TestCase):
                 if record["id"] == "EV-003":
                     record["content_kind"] = "spreadsheet"
         self._patch(("evidence", "index.json"), mutate)
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-003")
 
     # -- G13 symbol citation integrity ------------------------------------
 
@@ -161,7 +176,7 @@ class StructuredEvidence(unittest.TestCase):
                 if system["id"] == "s_mam":
                     system["grounding"][1]["symbol"] = "sym:deadbeefdeadbeef"
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "s_mam.grounding[1]")
 
     def test_a_symbol_citing_prose_evidence_blocks(self):
         def mutate(doc):
@@ -169,7 +184,7 @@ class StructuredEvidence(unittest.TestCase):
                 if system["id"] == "s_mam":
                     system["grounding"][1]["evidence_id"] = "EV-001"
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "s_mam.grounding[1]")
 
     def test_a_symbol_on_a_satisfies_grounding_blocks(self):
         """Code cannot satisfy a requirement, so a symbol there is a category
@@ -178,7 +193,7 @@ class StructuredEvidence(unittest.TestCase):
             doc["people"][0]["grounding"] = [
                 {"kind": "satisfies", "req": "REQ-002", "symbol": "sym:1"}]
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "p_dit.grounding[0]")
 
     def test_a_symbol_without_an_evidence_id_blocks(self):
         def mutate(doc):
@@ -186,7 +201,7 @@ class StructuredEvidence(unittest.TestCase):
                 if system["id"] == "s_mam":
                     system["grounding"][1].pop("evidence_id")
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "s_mam.grounding[1]")
 
     # -- the authority boundary -------------------------------------------
 
