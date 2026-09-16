@@ -29,7 +29,7 @@ dependencies = []                      # deliberately empty; see the note above
 # .pre-commit-config.yaml's ruff/mypy revs in the same minor line as these,
 # or a clean commit hook and a failing CI quality job (or the reverse)
 # become possible for the same tree.
-dev = ["ruff>=0.15,<0.16", "mypy>=1.19,<1.20"]
+dev = ["ruff>=0.15,<0.17", "mypy>=1.19,<2.4"]
 
 [project.scripts]
 archtrace = "archtrace.cli:main"
