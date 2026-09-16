@@ -71,6 +71,19 @@ engagements:
 # and it needs no evidence content -- so it works on engagements whose evidence
 # lives outside the repository.
 freshness:
+	@# Refuse to judge a tree that is already modified. This target RE-RENDERS,
+	@# which overwrites an uncommitted hand edit before the diff can see it --
+	@# the same trap `make gate` falls into. Rendering over a dirty tree would
+	@# therefore report "fresh" on an edit it had just destroyed. An uncommitted
+	@# edit is `make check`'s job; this target answers the other question,
+	@# whether the COMMITTED bytes are what the renderer produces.
+	@git diff --quiet HEAD -- $(ENGAGEMENTS) || { \
+	  echo "engagement files are already modified, so re-rendering would"; \
+	  echo "overwrite them and this check would be meaningless."; \
+	  echo "Commit or stash them first, then re-run. To gate an uncommitted"; \
+	  echo "edit instead, run 'make check'."; \
+	  git --no-pager diff --stat HEAD -- $(ENGAGEMENTS); \
+	  exit 1; }
 	@for e in $(ENGAGEMENTS); do \
 	  ./archtrace --root "$$e" render >/dev/null || exit 1; \
 	done
