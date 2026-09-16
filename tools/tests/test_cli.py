@@ -105,6 +105,29 @@ class Verbs(CliCase):
         with open(target, encoding="utf-8") as fh:
             self.assertIn("quotable_statement", fh.readline())
 
+    def test_baseline_kind_breakdown_sums_to_its_own_subtotal(self):
+        """Regression for a real bug CodeRabbit caught in the regenerated
+        docs/example-baseline.txt: the example model's `s_mam` carries two
+        `existing`-kind grounding entries (two distinct, independently
+        gate-checked citations -- legitimate), and the breakdown used to tally
+        every ENTRY while the subtotal above it tallied every ELEMENT, so a
+        double-cited element inflated the child rows past their own parent
+        total. Generic over the model's actual numbers: parses the printed
+        breakdown and asserts the invariant that must always hold, rather than
+        pinning today's counts."""
+        import re
+
+        code, out, _err = self.run_cli("baseline")
+        self.assertEqual(code, 0)
+        subtotal = int(re.search(
+            r"legitimately grounded otherwise\s+(\d+)", out).group(1))
+        child_sum = sum(int(n) for n in re.findall(
+            r"^ {6}\w[\w-]*\s+(\d+)\s*$", out, re.MULTILINE))
+        self.assertEqual(
+            child_sum, subtotal,
+            "the grounding-kind breakdown must sum to the subtotal it "
+            "explains, regardless of how many entries any one element has")
+
     def test_baseline_blank_worksheet_needs_no_model(self):
         listing = os.path.join(self.tmp, "elements.txt")
         with open(listing, "w", encoding="utf-8") as fh:

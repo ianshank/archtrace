@@ -41,7 +41,9 @@ BOX_LINE_EMU = 19050    # 1.5pt
 
 
 def _px(value: float) -> int:
-    return int(round(value * EMU_PER_PX))
+    # `round` already returns an int for a single-argument call; the extra
+    # `int()` said nothing and hid that.
+    return round(value * EMU_PER_PX)
 
 
 def _rgb(colour: str) -> str:
@@ -198,16 +200,16 @@ def diagram(nodes, edges, *, box_w: int, box_h: int, margin: int,
 
     for element, kind in nodes:
         x, y = element.layout.get("x", 0), element.layout.get("y", 0)
-        paragraphs = []
-        for line in wrap(element.name, title_chars)[:2]:
-            paragraphs.append(_para(_run(line, size_pt=10, bold=True)))
+        paragraphs = [_para(_run(line, size_pt=10, bold=True))
+                      for line in wrap(element.name, title_chars)[:2]]
         technology = element.data.get("technology")
         if technology:
             paragraphs.append(
                 _para(_run(f"[{technology}]", size_pt=8, italic=True)))
-        for line in wrap(element.data.get("description", ""),
-                         chars_per_line)[:3]:
-            paragraphs.append(_para(_run(line, size_pt=8)))
+        paragraphs.extend(
+            _para(_run(line, size_pt=8))
+            for line in wrap(element.data.get("description", ""),
+                             chars_per_line)[:3])
         shape_id += 1
         shapes.append(_shape(
             shape_id, element.id, "roundRect",

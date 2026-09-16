@@ -79,8 +79,18 @@ def cmd_baseline(args) -> int:
     by_kind: dict = {}
     for element in elements:
         kinds = [g.get("kind") for g in element.grounding]
-        for kind in kinds:
-            by_kind[kind] = by_kind.get(kind, 0) + 1
+        # `by_kind` breaks down the SAME bucket `otherwise` counts below, so it
+        # must tally exactly the elements `otherwise` does (no `satisfies`
+        # present), once each, regardless of how many grounding entries an
+        # element carries. Counting every entry double-counts an element that
+        # cites two pieces of evidence for the same kind (both real; each
+        # entry is independently gate-checked), and would also count an entry
+        # belonging to an element that DOES have `satisfies` and so is not in
+        # this bucket at all. Either way the per-kind rows would no longer sum
+        # to the subtotal printed above them.
+        if kinds and "satisfies" not in kinds:
+            for kind in set(kinds):
+                by_kind[kind] = by_kind.get(kind, 0) + 1
         quote = speaker = evidence_id = req_id = ""
         for entry in element.grounding:
             if entry.get("kind") != "satisfies":

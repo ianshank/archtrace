@@ -231,5 +231,87 @@ class Coverage(unittest.TestCase):
         self.assertLess(used.percent, 100, "the unused function must show")
 
 
+class MakefileGates(unittest.TestCase):
+    """The gates that guard the other gates.
+
+    `make lint`, `types` and `secrets` once used `tool && run || echo`, where
+    `||` fires when the tool is ABSENT *or* when it ran and found violations —
+    the `echo` then exited 0. All three reported green on findings they had just
+    printed, so `ci / quality` could not go red on lint or types at all.
+
+    Nothing caught it because nothing tested the Makefile. These tests drive the
+    real recipes with a stubbed tool, so the three states stay distinguishable:
+    violations fail, a clean run passes, an absent tool skips.
+
+    Deliberately free of ruff/mypy/gitleaks: the `gate` CI job runs `make test`
+    with nothing installed, and a test that needed the dev extras would silently
+    stop running exactly where this defect lived.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    # (target, the executable its recipe looks for)
+    RECIPES = (("lint", "ruff"), ("types", "mypy"), ("secrets", "gitleaks"))
+
+    def _make(self, target: str, stub: str | None, exit_code: int = 0):
+        """Run `make <target>` with `stub` first on PATH, or with no stub."""
+        import shutil
+        import subprocess
+
+        bindir = tempfile.mkdtemp()
+        if stub is not None:
+            path = os.path.join(bindir, stub)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(f"#!/bin/sh\nexit {exit_code}\n")
+            os.chmod(path, 0o755)  # noqa: S103
+        # PATH is ONLY the scratch bindir -- no /usr/bin, no /bin. A real
+        # ruff/mypy/gitleaks living in either (a normal outcome of a
+        # system-wide "pip install -e .[dev]") would otherwise get discovered
+        # for the "absent tool" cases below, silently defeating the isolation
+        # those tests exist to guarantee. `make` itself is resolved to an
+        # absolute path above, so it needs no PATH lookup to launch.
+        env = dict(os.environ, PATH=bindir)
+        try:
+            return subprocess.run([shutil.which("make") or "make", "-C",
+                                   self.REPO, target], env=env,
+                                  capture_output=True, text=True, check=False)
+        finally:
+            shutil.rmtree(bindir, ignore_errors=True)
+
+    def test_a_tool_that_reports_violations_fails_the_build(self):
+        for target, tool in self.RECIPES:
+            with self.subTest(target=target):
+                result = self._make(target, stub=tool, exit_code=1)
+                self.assertNotEqual(
+                    result.returncode, 0,
+                    f"`make {target}` exited 0 while {tool} reported "
+                    "violations. A gate that cannot go red is not a gate.")
+
+    def test_a_failing_tool_is_not_reported_as_a_missing_one(self):
+        for target, tool in self.RECIPES:
+            with self.subTest(target=target):
+                result = self._make(target, stub=tool, exit_code=1)
+                self.assertNotIn(
+                    "SKIP", result.stdout,
+                    f"`make {target}` called a failing {tool} 'not installed'. "
+                    "That message sent people looking for the wrong problem.")
+
+    def test_an_absent_tool_skips_without_failing(self):
+        for target, tool in self.RECIPES:
+            with self.subTest(target=target):
+                result = self._make(target, stub=None)
+                self.assertEqual(result.returncode, 0,
+                                 f"`make {target}` must tolerate a missing "
+                                 f"{tool}; the gate runs without dev extras")
+                self.assertIn("SKIP", result.stdout)
+
+    def test_a_clean_tool_run_passes(self):
+        for target, tool in self.RECIPES:
+            with self.subTest(target=target):
+                result = self._make(target, stub=tool, exit_code=0)
+                self.assertEqual(result.returncode, 0)
+                self.assertNotIn("SKIP", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -4,18 +4,25 @@ _evidence_root/
 
 .git/
 .github/
-__pycache__/
-*.py[cod]
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.coverage
-htmlcov/
+# **/ prefix is load-bearing: unlike .gitignore, Docker's ignore matcher does
+# NOT treat a bare pattern as implicitly recursive, and the only COPY in the
+# Dockerfile ships tools/ wholesale -- a bare `__pycache__/` here misses every
+# tools/**/__pycache__ that `make test`/`make coverage` actually write,
+# baking stale .pyc files into the image the Dockerfile's own header comment
+# calls "reproducible". Confirmed by building the image from a tree with real
+# cache artifacts under tools/ and finding them inside the exported image.
+**/__pycache__/
+**/*.py[cod]
+**/.mypy_cache/
+**/.ruff_cache/
+**/.pytest_cache/
+**/.coverage
+**/htmlcov/
 build/
 dist/
-*.egg-info/
-.venv/
-venv/
+**/*.egg-info/
+**/.venv/
+**/venv/
 docs/patches/
 *.zip
 *.tar.gz

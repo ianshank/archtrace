@@ -88,7 +88,7 @@ much of the tool is verified and how much of its policy is visible.
 
 ### Changed
 
-- **`cli.py` decomposed from 1,008 lines to 215.** Verbs moved into
+- **`cli.py` decomposed from 1,008 lines to 248.** Verbs moved into
   `archtrace.commands.{setup,evidence,requirements,build,verify,release}` with
   shared helpers in `_shared.py`. Adding a command now touches one module
   instead of a switchboard.
@@ -117,11 +117,11 @@ much of the tool is verified and how much of its policy is visible.
 
 | | before | after |
 |---|---|---|
-| tests | 88 | 155 |
+| tests | 88 | 157 |
 | line coverage | not measured | 94% (floor 85%, per-module 70%) |
 | ruff findings | 129 | 0 |
 | mypy errors | 12 | 0 |
-| largest module | 1,008 lines | 312 |
+| largest module | 1,008 lines | 601 (`renders.py`) |
 
 ## [0.2.0] — 2026-09-16
 

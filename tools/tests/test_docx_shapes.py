@@ -66,9 +66,9 @@ FILLS = {"person": "#dbe4f0", "system": "#c7d7ee", "container": "#cfe3d8"}
 
 
 def _diagram(nodes, edges, **overrides):
-    kwargs = dict(box_w=180, box_h=90, margin=30, fill_by_kind=FILLS,
-                  stroke="#33415c", badge_by_kind=BADGES, wrap=_wrap,
-                  title_chars=22, chars_per_line=30, boundary=_boundary)
+    kwargs = {"box_w": 180, "box_h": 90, "margin": 30, "fill_by_kind": FILLS,
+              "stroke": "#33415c", "badge_by_kind": BADGES, "wrap": _wrap,
+              "title_chars": 22, "chars_per_line": 30, "boundary": _boundary}
     kwargs.update(overrides)
     return docx_shapes.diagram(nodes, edges, **kwargs)
 
@@ -146,9 +146,9 @@ class EmitterGeometry(unittest.TestCase):
                  (_Element("B", "Beta", 0, 0), "system")]
         edges = [{"source": "A", "destination": "B"}]
         root = _parse(_diagram(nodes, edges))
-        connector = [w for w in root.findall(".//wps:wsp", NS)
-                     if w.find(".//a:prstGeom", NS).get("prst")
-                     == "straightConnector1"][0]
+        connector = next(w for w in root.findall(".//wps:wsp", NS)
+                         if w.find(".//a:prstGeom", NS).get("prst")
+                         == "straightConnector1")
         xfrm = connector.find(".//a:xfrm", NS)
         self.assertEqual(xfrm.get("flipH"), "1")
         self.assertEqual(xfrm.get("flipV"), "1")

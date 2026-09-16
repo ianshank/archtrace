@@ -22,7 +22,14 @@ dependencies = []                      # deliberately empty; see the note above
 [project.optional-dependencies]
 # Developer tooling only. `make gate`, `make test` and `make coverage` all run
 # without any of this installed.
-dev = ["ruff>=0.6,<1", "mypy>=1.11,<2"]
+# Both pinned to a minor range, not an open upper bound. Ruff and mypy both
+# ship new rules in minor releases, so an open range means the build's
+# ruleset changes on someone else's schedule rather than a repository change.
+# Bump deliberately, with the new findings in the same commit -- and keep
+# .pre-commit-config.yaml's ruff/mypy revs in the same minor line as these,
+# or a clean commit hook and a failing CI quality job (or the reverse)
+# become possible for the same tree.
+dev = ["ruff>=0.15,<0.16", "mypy>=1.19,<1.20"]
 
 [project.scripts]
 archtrace = "archtrace.cli:main"
@@ -72,9 +79,11 @@ ignore = [
 "tools/archtrace/cli.py" = ["E501"]
 "tools/coverage_gate.py" = ["E501"]
 # Tests deliberately import inside methods to exercise fresh module state, and
-# assert on private helpers.
-"tools/tests/*" = ["S101", "SLF001", "ARG002", "PLR2004", "S108", "TRY301",
-                   "S314", "SIM115", "PERF401", "E501"]
+# assert on private helpers. ARG001 covers test doubles: a stub that stands in
+# for `renders._boundary` must carry the real signature to be substitutable, so
+# its unused parameters are the point rather than an oversight.
+"tools/tests/*" = ["S101", "SLF001", "ARG001", "ARG002", "PLR2004", "S108",
+                   "TRY301", "S314", "SIM115", "PERF401", "E501"]
 # Diagram generators are presentation code: long literal strings and a module
 # level render pipeline are clearer than a class here.
 "docs/gen_*.py" = ["E501", "PLR0915", "C901", "PERF401", "B007"]
