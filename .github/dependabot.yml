@@ -1,0 +1,62 @@
+# Dependabot for a repository with NO runtime dependencies.
+#
+# That invariant is load-bearing (pyproject.toml's note, and
+# tools/tests/test_mining.py::DependencyBoundary), so nothing here can or
+# should update a runtime package -- there are none. What it does cover is the
+# three places this repo takes an outside version anyway, each of which can
+# change the build's behaviour on somebody else's schedule:
+#
+#   github-actions  the workflows pin by tag (actions/checkout@v4), so the
+#                   commit behind the tag moves without a repository change.
+#   pip             the `dev` extra pins ruff and mypy to a minor range. Both
+#                   ship new rules in minor releases, which is exactly why
+#                   pyproject bounds them rather than leaving an open range --
+#                   a PR here is how that bound gets raised deliberately, with
+#                   the new findings in the same commit.
+#   docker          the Dockerfile's base image is tag-pinned, and the image is
+#                   described as "a pinned interpreter where the gate's
+#                   behaviour is reproducible".
+#
+# Grouped so a quiet week produces one PR rather than five: each one has to go
+# through the full gate, and a queue of single-bump PRs is how a repository
+# learns to merge them without reading them.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(actions)"
+    labels: ["dependencies", "github-actions"]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-tooling:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(dev-deps)"
+    labels: ["dependencies", "tooling"]
+    # A major bump to ruff or mypy is a ruleset change, not a dependency bump:
+    # it belongs in a deliberate commit that carries the new findings, not in
+    # an automated PR that turns the quality job red for reasons nobody chose.
+    ignore:
+      - dependency-name: "ruff"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mypy"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(docker)"
+    labels: ["dependencies", "docker"]

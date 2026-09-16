@@ -30,6 +30,14 @@ dist/
 .venv/
 venv/
 
+# --- Agent harness ----------------------------------------------------------
+# `.claude/settings.json` and `.claude/hooks/` ARE committed: the SessionStart
+# hook is what makes `make lint` and `make types` capable of running in a
+# hosted session rather than silently skipping, and that belongs to the
+# repository rather than to whoever happened to clone it.
+# `settings.local.json` is the per-developer override and does not.
+.claude/settings.local.json
+
 # --- Local scratch ----------------------------------------------------------
 *.tmp
 *.log
