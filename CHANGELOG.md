@@ -127,6 +127,18 @@ one.
   stoplist should carry phrases long enough to clear the floors is a policy
   question. `test_every_stoplist_phrase_is_shorter_than_the_floors` fails if that
   relationship ever changes, so whoever changes it finds out.
+- **`make pre-pr` ran one interpreter while CI runs three.** Not theoretical:
+  the configuration tests added in this release were written against `tomllib`,
+  passed locally on 3.11, and failed the 3.9 job — because this tool
+  deliberately *refuses* a present config file on an interpreter that cannot
+  read it, which is a fix from this same release. Green on a laptop said nothing
+  about the floor the project claims to support. `make test-matrix` runs the
+  suite on every interpreter installed and **names the ones it did not run**,
+  because "tested on 3.9" when 3.9 was absent is the false green this repository
+  is about. It is not a `pre-pr` step (it runs the suite once per interpreter);
+  `pre-pr` now closes by saying which interpreter it used and pointing at it.
+  The tests themselves were split so 3.9 still exercises the new path-resolution
+  logic and skips only the part that genuinely needs `tomllib`.
 - **A fold-table entry that never ran, and the citation mismatch it left.**
   `PUNCTUATION_FOLD` maps `″` (U+2033 DOUBLE PRIME) to `"`, but `normalize`
   applies NFKC *first* and NFKC decomposes `″` into two PRIME characters — so by
@@ -207,7 +219,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **119 tests** (183 → 302) covering exactly the gaps that let the above through:
+- **121 tests** (183 → 304) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

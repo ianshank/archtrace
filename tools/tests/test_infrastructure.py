@@ -884,11 +884,25 @@ class ConfigurationRoot(unittest.TestCase):
         with open(os.path.join(self.repo, "archtrace.toml"), "w",
                   encoding="utf-8") as fh:
             fh.write("[citation]\nmin_quote_words = 42\n")
+        # A marker with NO config file, for the assertions driven through the
+        # environment layer. `self.repo` carries a toml, and on 3.9/3.10 a
+        # PRESENT config file is refused by design -- so pointing an env-driven
+        # test at it fails there for a reason that has nothing to do with what
+        # the test is about.
+        self.plain = os.path.join(self.tmp, "plain")
+        os.makedirs(os.path.join(self.plain, ".git"))
 
-    def test_a_subdirectory_is_governed_by_the_repository_root(self):
+    # Two mechanisms, and only one of them needs `tomllib`. Resolving WHICH
+    # directory governs is pure path handling and must be exercised on 3.9, the
+    # declared floor; reading a value out of the file cannot be, because this
+    # tool deliberately REFUSES a present-but-unreadable config there rather
+    # than ignoring it. Splitting them keeps 3.9 covering the new logic instead
+    # of skipping the whole class -- which is what a blanket skip would have
+    # done, and what CI caught me doing.
+
+    def test_a_subdirectory_resolves_to_the_repository_root(self):
         deep = os.path.join(self.repo, "engagements", "aurora")
         self.assertEqual(config.find_config_root(deep), self.repo)
-        self.assertEqual(config.load(deep).citation.min_quote_words, 42)
 
     def test_the_repository_root_is_governed_by_itself(self):
         self.assertEqual(config.find_config_root(self.repo), self.repo)
@@ -901,35 +915,67 @@ class ConfigurationRoot(unittest.TestCase):
         os.makedirs(bare)
         self.assertEqual(config.find_config_root(bare), os.path.abspath(bare))
 
-    def test_an_unrelated_config_where_the_operator_stands_is_not_used(self):
-        """The sharp one. `--root` names the project being gated, so its policy
-        wins over the directory the operator happens to be in."""
+    def test_where_the_operator_stands_does_not_change_the_resolution(self):
+        """The sharp one, in the half that runs on every interpreter. `--root`
+        names the project being gated, so its root wins over the directory the
+        operator happens to be in -- even when that directory is itself a
+        repository with its own configuration."""
         elsewhere = os.path.join(self.tmp, "elsewhere")
         os.makedirs(os.path.join(elsewhere, ".git"))
         with open(os.path.join(elsewhere, "archtrace.toml"), "w",
                   encoding="utf-8") as fh:
             fh.write("[citation]\nmin_quote_words = 99\n")
-        deep = os.path.join(self.repo, "engagements", "aurora")
         cwd = os.getcwd()
         os.chdir(elsewhere)
         self.addCleanup(os.chdir, cwd)
-        self.assertEqual(config.load(deep).citation.min_quote_words, 42,
-                         "the policy came from where the operator stood, not "
-                         "from the project named by --root")
+        deep = os.path.join(self.repo, "engagements", "aurora")
+        self.assertEqual(config.find_config_root(deep), self.repo)
+        self.assertNotEqual(config.find_config_root(deep), elsewhere)
 
     def test_the_gate_enforces_the_policy_the_cli_resolved(self):
-        """`apply_config` is what makes the resolution reach the rules rather
-        than only the printout. A tool that reports one threshold and enforces
-        another is the failure `archtrace config` exists to prevent."""
+        """`apply_config` is what makes resolution reach the rules rather than
+        only the printout. A tool that reports one threshold and enforces
+        another is the failure `archtrace config` exists to prevent.
+
+        Driven through the environment layer rather than the file, so this runs
+        on 3.9 too -- `ARCHTRACE_*` is exactly what `config.py` tells 3.9 and
+        3.10 users to use instead of a TOML file.
+        """
         from archtrace import gate
-        original = (gate.MIN_QUOTE_WORDS, gate.MIN_QUOTE_CHARS)
         self.addCleanup(gate.apply_config, config.Config())
-        gate.apply_config(config.load(
-            os.path.join(self.repo, "engagements", "aurora")))
+        resolved = config.load(
+            self.plain, env={"ARCHTRACE_CITATION_MIN_QUOTE_WORDS": "42"})
+        self.assertFalse(resolved.errors, resolved.errors)
+        gate.apply_config(resolved)
         self.assertEqual(gate.MIN_QUOTE_WORDS, 42)
-        self.assertNotEqual(gate.MIN_QUOTE_WORDS, original[0],
+        self.assertNotEqual(gate.MIN_QUOTE_WORDS,
+                            config.CitationPolicy().min_quote_words,
                             "the fixture must differ from the default, or this "
                             "asserts nothing")
+
+    @unittest.skipIf(sys.version_info < (3, 11), "tomllib is 3.11+")
+    def test_the_value_at_the_repository_root_is_the_one_applied(self):
+        """The other half: the file at the resolved root is actually read.
+        Needs `tomllib`, so 3.9 and 3.10 skip it -- there a present config file
+        is refused by design, which `ConfigDefaults` asserts separately."""
+        deep = os.path.join(self.repo, "engagements", "aurora")
+        self.assertEqual(config.load(deep, env={}).citation.min_quote_words, 42)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "tomllib is 3.11+")
+    def test_an_unrelated_config_where_the_operator_stands_is_not_read(self):
+        elsewhere = os.path.join(self.tmp, "elsewhere")
+        os.makedirs(os.path.join(elsewhere, ".git"))
+        with open(os.path.join(elsewhere, "archtrace.toml"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("[citation]\nmin_quote_words = 99\n")
+        cwd = os.getcwd()
+        os.chdir(elsewhere)
+        self.addCleanup(os.chdir, cwd)
+        deep = os.path.join(self.repo, "engagements", "aurora")
+        self.assertEqual(
+            config.load(deep, env={}).citation.min_quote_words, 42,
+            "the policy came from where the operator stood, not from the "
+            "project named by --root")
 
     def test_the_suite_asserts_against_the_default_policy_not_the_repo_s(self):
         """A repository may legitimately configure its own gate. When archtrace

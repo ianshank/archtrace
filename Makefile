@@ -50,6 +50,7 @@ help:
 	@echo "  make agents     deterministic validation of agent definitions"
 	@echo "  make config     print the thresholds this build enforces"
 	@echo "  make test       full test suite"
+	@echo "  make test-matrix  the suite on every interpreter installed"
 	@echo "  make coverage   test suite under the stdlib tracer + floors"
 	@echo "  make docs       regenerate the documentation diagrams"
 	@echo "  make docs-fresh the committed diagrams match their generators"
@@ -183,6 +184,43 @@ freshness:
 	@echo "renders are fresh in: $(ENGAGEMENTS)"
 test:
 	@$(PY) -m unittest discover -s tools/tests -t tools
+
+# CI runs the suite on 3.9, 3.11 and 3.13; `make test` runs it on one. That gap
+# is not theoretical: a config test written against `tomllib` passed locally on
+# 3.11 and failed the 3.9 job, because this tool deliberately REFUSES a present
+# config file on an interpreter that cannot read it. Green on your laptop meant
+# nothing about the floor it claims to support.
+#
+# Runs on whatever interpreters are installed and SAYS WHICH. It does not fail
+# for an interpreter that is absent -- that would be a gate nobody can pass
+# locally -- but it never reports a matrix it did not run, because "tested on
+# 3.9" when 3.9 was not present is the false green this repository is about.
+PYTHONS ?= python3.9 python3.10 python3.11 python3.12 python3.13
+.PHONY: test-matrix
+test-matrix:
+	@# Each interpreter runs the suite ONCE. Piping to `tail` for the summary
+	@# line would report the exit status of `tail`, which always succeeds, so
+	@# the output is captured to a temp file and the status read directly --
+	@# the same "a gate that cannot go red" trap as the `||` idiom below.
+	@tmp=$$(mktemp) || exit 1; \
+	trap 'rm -f "$$tmp"' EXIT INT TERM; \
+	found=; failed=; \
+	for py in $(PYTHONS); do \
+	  command -v "$$py" >/dev/null 2>&1 || continue; \
+	  found="$$found $$py"; \
+	  printf '%-14s ' "$$py"; \
+	  if "$$py" -m unittest discover -s tools/tests -t tools >"$$tmp" 2>&1; \
+	  then tail -1 "$$tmp"; \
+	  else tail -1 "$$tmp"; failed="$$failed $$py"; fi; \
+	done; \
+	test -n "$$found" || { echo "no interpreter from PYTHONS is installed"; \
+	  echo "nothing was run, so this is a failure, not a pass."; exit 1; }; \
+	echo ""; \
+	echo "ran on:$$found"; \
+	for py in $(PYTHONS); do \
+	  command -v "$$py" >/dev/null 2>&1 || echo "NOT INSTALLED, not tested: $$py"; \
+	done; \
+	test -z "$$failed" || { echo ""; echo "failed on:$$failed"; exit 1; }
 coverage:
 	@$(PY) tools/coverage_gate.py
 facts:
@@ -277,6 +315,15 @@ pre-pr:
 	@echo ""
 	@echo "pre-pr passed. 'Green' means grounded and internally consistent."
 	@echo "It never means correct."
+	@echo ""
+	@# CI runs 3.9/3.11/3.13; this ran one. That gap has already cost a red
+	@# build -- a config test written against tomllib passed here and failed
+	@# the 3.9 job. Not a pre-pr step because it runs the suite once per
+	@# interpreter, but it is the thing to run before pushing anything that
+	@# touches stdlib behaviour.
+	@echo "This ran on $$($(PY) --version 2>&1)."
+	@echo "CI runs 3.9, 3.11 and 3.13 -- run 'make test-matrix' if this change"
+	@echo "could behave differently on another interpreter."
 
 # --- mining (third-party toolchain; deliberately outside the gate) ----------
 
