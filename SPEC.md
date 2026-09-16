@@ -193,8 +193,32 @@ Treat as a presentation surface only; re-import each time. **Unverified and need
 | **G8** | Evidence records cited by zero requirements | warn |
 | **G9** | Two confirmed REQs declaring `conflicts_with` each other without a resolving ADR | block |
 | **G10** | `schema_version` known in all three files | block |
+| **G5e** | An external system declaring containers | warn |
+| **G11** | *Authority*: a confirmed REQ resting only on `observed-implementation` or `third-party`; an `authoritative-document` record without `document_owner` + `effective_date` | block |
+| **G12** | An NFR category with no confirmed NFR and no declared position | warn |
+| **G12n** | A declared NFR position that is malformed: unknown category, bad status, `open` without a real open question, `not_applicable` without rationale + decided_by + date | block |
+| **G13** | *Code-fact citation integrity*: a cited symbol must exist in the structured evidence it claims to come from | block |
 
-`--strict` promotes warnings. G5's "external systems have no containers" is a **warn**, not a block — showing an external system's containers is legitimate C4 when you integrate at that level.
+`--strict` promotes warnings. G5e — an external system declaring containers — is a **warn**, not a block: showing an external system's containers is legitimate C4 when you integrate at that level.
+
+**These ids are the argument to `archtrace check --only RULE…`**, which runs a
+subset for callers that can answer one question but not another. An unknown id
+is a usage error (exit 2) and the message lists the known set. A subset run
+prints a SUBSET verdict, reports any warnings outstanding, and never prints the
+whole-gate claim — a rule that did not run has said nothing.
+
+### 7.0 Exit codes
+
+The tool's contract with CI. Defined once, in `commands/_shared.py`.
+
+| code | meaning |
+|---|---|
+| 0 | the command did its job. For `check --only`, this means *the selected rules* passed and nothing else |
+| 1 | a deterministic refusal: a blocking finding, `release` refusing a failing state, `--verify` reporting DRIFT, a breached coverage floor |
+| 2 | usage: a missing required argument, an unknown `--only` rule id, a bad `archtrace.toml` or `ARCHTRACE_*` name, a dirty tree at `release` without `--allow-dirty`, no `release.json` to verify |
+
+1 and 2 are deliberately distinct. CI should retry neither, but a human reading
+a red build needs to know whether the *artifact* failed or the *invocation* did.
 
 ### 7.1 What G2 actually buys, stated honestly
 **G2 is a citation-integrity check, not an anti-hallucination control.** [Certain] It proves the quote was not invented. It proves nothing about whether the quote *supports* the inference drawn from it, whether the speaker had authority, or whether the next sentence retracted it. Without the length floor and stoplist, an agent optimizing to pass G2 learns to quote short, high-frequency, trivially-safe fragments — `"data loss"`, `"Correct."` — and every one passes. The floor raises the cost of that strategy; it does not eliminate it.

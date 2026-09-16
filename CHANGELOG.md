@@ -102,7 +102,7 @@ one.
   warnings outstanding, and never prints the whole-gate claim.
 - The pre-commit hook now runs `freshness` as well as `gate`, and fires on
   `render/` — editing a build output previously triggered no hook at all.
-- **36 tests** (183 → 219) covering exactly the gaps that let the above through:
+- **43 tests** (183 → 226) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config
@@ -126,6 +126,25 @@ one.
   plain byte comparison, so the diagnosis can never make a stale render pass.
 - `pyproject.toml` version was 0.3.0 while this file was already at 0.4.0.
   Aligned at 0.5.0.
+
+### Documentation
+
+- **`SPEC.md`'s rule table stopped at G10** while the registry shipped fifteen
+  ids. That was untidy until `check --only RULE…` made those ids something a
+  user types, at which point an undocumented id is a usability defect. G5e,
+  G11, G12, G12n and G13 are documented, and a test now asserts the table and
+  the registry agree in both directions — the last three releases each added a
+  rule and none updated the table.
+- **Exit codes are documented** (SPEC §7.0). They were defined in
+  `commands/_shared.py` under a docstring calling them "the tool's contract
+  with CI" and appeared in no document.
+- **`RUNBOOK.md` prescribed `make gate`** as the pre-publish loop — the one
+  command that cannot report a hand-edited render. Loops 2 and 3 now run
+  `check` first and say why. `README.md` likewise.
+- **The documented `make mine` examples exited 2**: `RETAIN` became a required
+  argument and neither example passed it.
+- A test asserts `pyproject.toml` and the newest `CHANGELOG.md` heading agree
+  on the version. They disagreed for a whole release with nothing to notice.
 
 ### Test hygiene
 

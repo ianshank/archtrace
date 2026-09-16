@@ -13,6 +13,7 @@ import dataclasses
 import io
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -639,6 +640,54 @@ class RuleSubset(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("G99", out)
         self.assertIn("G6", out, "the message should list the real rule ids")
+
+
+class DocumentedContract(unittest.TestCase):
+    """The documents that promise a contract must match the code that keeps it.
+
+    SPEC.md's rule table stopped at G10 while the registry shipped fifteen ids.
+    That was untidy until `check --only RULE...` made those ids something a
+    user has to type, at which point an undocumented id is a usability defect.
+    Asserting it here is the only version of this that stays true: the last
+    three releases each added a rule and none updated the table.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+
+    def test_spec_documents_every_registered_rule(self):
+        from archtrace import gate
+        with open(os.path.join(self.REPO, "SPEC.md"), encoding="utf-8") as fh:
+            spec = fh.read()
+        documented = set(re.findall(r"\*\*(G\d+[a-z]?)\*\*", spec))
+        registered = {rid for rid, _severity, _fn in gate.RULES}
+        self.assertEqual(
+            registered - documented, set(),
+            "these rule ids exist in the registry and appear in no SPEC.md "
+            "table row; `check --only` makes them user-facing")
+
+    def test_spec_does_not_document_rules_that_do_not_exist(self):
+        """The other direction: a removed rule leaves a promise behind."""
+        from archtrace import gate
+        with open(os.path.join(self.REPO, "SPEC.md"), encoding="utf-8") as fh:
+            spec = fh.read()
+        documented = set(re.findall(r"\*\*(G\d+[a-z]?)\*\*", spec))
+        registered = {rid for rid, _severity, _fn in gate.RULES}
+        self.assertEqual(documented - registered, set(),
+                         "SPEC.md documents rule ids the gate does not run")
+
+    def test_the_changelog_and_the_package_agree_on_the_version(self):
+        """They disagreed for a whole release (0.3.0 vs 0.4.0) with nothing
+        to notice. Regex both -- tomllib is 3.11+ and 3.9 is the floor."""
+        with open(os.path.join(self.REPO, "pyproject.toml"), encoding="utf-8") as fh:
+            packaged = re.search(r'(?m)^version\s*=\s*"([^"]+)"', fh.read())
+        with open(os.path.join(self.REPO, "CHANGELOG.md"), encoding="utf-8") as fh:
+            released = re.search(r"(?m)^## \[([^\]]+)\]", fh.read())
+        self.assertIsNotNone(packaged, "no version in pyproject.toml")
+        self.assertIsNotNone(released, "no release heading in CHANGELOG.md")
+        self.assertEqual(packaged.group(1), released.group(1),
+                         "pyproject.toml and the newest CHANGELOG heading "
+                         "disagree about what version this is")
 
 
 if __name__ == "__main__":
