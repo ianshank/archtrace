@@ -127,6 +127,23 @@ one.
   stoplist should carry phrases long enough to clear the floors is a policy
   question. `test_every_stoplist_phrase_is_shorter_than_the_floors` fails if that
   relationship ever changes, so whoever changes it finds out.
+- **Configuration came from the process working directory, not from `--root`.**
+  `config.DEFAULT = load()` resolves at import with `root="."`, so the
+  `archtrace.toml` that took effect was the one where the operator was standing:
+  `cd engagements/aurora && archtrace check` read none at all, and
+  `cd ~ && archtrace --root /work/proj check` enforced `~/archtrace.toml`. The
+  sharpest consequence was that **a repository legitimately configuring archtrace
+  could not run archtrace's own suite** — a plausible `[citation]` block at this
+  repo's root turned 26 of its own tests red, which made those assertions
+  statements about the developer's working directory rather than about the gate.
+  `find_config_root` now walks up to the nearest `.git`/`.hg`/`pyproject.toml`,
+  `cli.main` re-resolves from `--root` after argparse and applies it to the gate,
+  and `archtrace config` resolves the same way and prints the root it used. The
+  suite pins the policy it asserts against, which it must now do for a second
+  reason as well: `apply_config` rebinds module constants, so test *ordering*
+  would otherwise decide the thresholds. Deliberately *not* changed:
+  configuration is still one repository, one policy — per-engagement policy is a
+  separate API decision, recorded in `docs/tech-debt.md` §0.
 - **Twenty-nine blocking gate branches had never fired in a test run.** A
   mutation audit (208 mutations, 104 survivors) found 29 `Finding` branches that
   could each be replaced with `if False:` with the suite still green — G1's
@@ -163,7 +180,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **101 tests** (183 → 284) covering exactly the gaps that let the above through:
+- **107 tests** (183 → 290) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

@@ -21,7 +21,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from archtrace import canon, gate, mining
+from archtrace import canon, config, gate, mining
 from archtrace.model import Engagement
 
 EXAMPLE = os.path.join(
@@ -77,6 +77,10 @@ class StructuredEvidence(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # See the note in test_gate.SeededDefect.setUp: pin the policy these
+        # assertions describe rather than inheriting whatever the repository
+        # configures or a previously-run CLI test left rebound.
+        gate.apply_config(config.Config())
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -296,6 +300,10 @@ class BackwardsCompatibility(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # See the note in test_gate.SeededDefect.setUp: pin the policy these
+        # assertions describe rather than inheriting whatever the repository
+        # configures or a previously-run CLI test left rebound.
+        gate.apply_config(config.Config())
         # Strip every trace of the mining integration.
         path = os.path.join(self.root, "evidence", "index.json")
         doc = canon.load_json(path)
@@ -361,6 +369,10 @@ class Mine(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # See the note in test_gate.SeededDefect.setUp: pin the policy these
+        # assertions describe rather than inheriting whatever the repository
+        # configures or a previously-run CLI test left rebound.
+        gate.apply_config(config.Config())
         self.repo = os.path.join(self.tmp, "repo")
         os.makedirs(self.repo)
         with open(os.path.join(self.repo, "src.py"), "w") as fh:

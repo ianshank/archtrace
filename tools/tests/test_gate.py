@@ -18,7 +18,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from archtrace import canon, gate
+from archtrace import canon, config, gate
 from archtrace.model import NFR_CATEGORIES, Engagement
 from archtrace.renders import render_all
 
@@ -32,6 +32,14 @@ class SeededDefect(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # Pin the citation policy to the DEFAULTS these assertions describe.
+        # Two things otherwise decide it: an `archtrace.toml` at the repository
+        # root (legitimate -- a repo may configure its own gate, and then its
+        # own suite fails, which is a test defect not a config one), and test
+        # ordering, because `cli.main` rebinds these module constants from
+        # `--root` and any test that drives the CLI leaves them rebound. A test
+        # asserting "this quote is too short" must say which floor it means.
+        gate.apply_config(config.Config())
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -904,6 +912,14 @@ class Release(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # Pin the citation policy to the DEFAULTS these assertions describe.
+        # Two things otherwise decide it: an `archtrace.toml` at the repository
+        # root (legitimate -- a repo may configure its own gate, and then its
+        # own suite fails, which is a test defect not a config one), and test
+        # ordering, because `cli.main` rebinds these module constants from
+        # `--root` and any test that drives the CLI leaves them rebound. A test
+        # asserting "this quote is too short" must say which floor it means.
+        gate.apply_config(config.Config())
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -1105,6 +1121,14 @@ class AuthoritativeDocument(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # Pin the citation policy to the DEFAULTS these assertions describe.
+        # Two things otherwise decide it: an `archtrace.toml` at the repository
+        # root (legitimate -- a repo may configure its own gate, and then its
+        # own suite fails, which is a test defect not a config one), and test
+        # ordering, because `cli.main` rebinds these module constants from
+        # `--root` and any test that drives the CLI leaves them rebound. A test
+        # asserting "this quote is too short" must say which floor it means.
+        gate.apply_config(config.Config())
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -1129,6 +1153,14 @@ class Baseline(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # Pin the citation policy to the DEFAULTS these assertions describe.
+        # Two things otherwise decide it: an `archtrace.toml` at the repository
+        # root (legitimate -- a repo may configure its own gate, and then its
+        # own suite fails, which is a test defect not a config one), and test
+        # ordering, because `cli.main` rebinds these module constants from
+        # `--root` and any test that drives the CLI leaves them rebound. A test
+        # asserting "this quote is too short" must say which floor it means.
+        gate.apply_config(config.Config())
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)

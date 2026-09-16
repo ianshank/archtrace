@@ -865,6 +865,90 @@ class DocsFreshness(unittest.TestCase):
         self.assertIn(list(gen_sequence.RULE_LABELS)[-1], str(caught.exception))
 
 
+class ConfigurationRoot(unittest.TestCase):
+    """`archtrace.toml` governs the repository, not the current directory.
+
+    Reproduced before the fix, both of these: `cd engagements/aurora &&
+    archtrace check` read no configuration at all, and `cd ~ && archtrace --root
+    /work/proj check` enforced whatever `~/archtrace.toml` said. The policy came
+    from where the operator was standing rather than from the project being
+    gated, and nothing said so.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.repo = os.path.join(self.tmp, "proj")
+        os.makedirs(os.path.join(self.repo, ".git"))
+        os.makedirs(os.path.join(self.repo, "engagements", "aurora"))
+        with open(os.path.join(self.repo, "archtrace.toml"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("[citation]\nmin_quote_words = 42\n")
+
+    def test_a_subdirectory_is_governed_by_the_repository_root(self):
+        deep = os.path.join(self.repo, "engagements", "aurora")
+        self.assertEqual(config.find_config_root(deep), self.repo)
+        self.assertEqual(config.load(deep).citation.min_quote_words, 42)
+
+    def test_the_repository_root_is_governed_by_itself(self):
+        self.assertEqual(config.find_config_root(self.repo), self.repo)
+
+    def test_a_directory_with_no_marker_above_it_governs_itself(self):
+        """The fallback must be the starting directory, not a walk to `/`.
+        Walking past a non-repository into someone's home directory is how the
+        second defect above happened; finding nothing is the safer answer."""
+        bare = os.path.join(self.tmp, "bare")
+        os.makedirs(bare)
+        self.assertEqual(config.find_config_root(bare), os.path.abspath(bare))
+
+    def test_an_unrelated_config_where_the_operator_stands_is_not_used(self):
+        """The sharp one. `--root` names the project being gated, so its policy
+        wins over the directory the operator happens to be in."""
+        elsewhere = os.path.join(self.tmp, "elsewhere")
+        os.makedirs(os.path.join(elsewhere, ".git"))
+        with open(os.path.join(elsewhere, "archtrace.toml"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("[citation]\nmin_quote_words = 99\n")
+        deep = os.path.join(self.repo, "engagements", "aurora")
+        cwd = os.getcwd()
+        os.chdir(elsewhere)
+        self.addCleanup(os.chdir, cwd)
+        self.assertEqual(config.load(deep).citation.min_quote_words, 42,
+                         "the policy came from where the operator stood, not "
+                         "from the project named by --root")
+
+    def test_the_gate_enforces_the_policy_the_cli_resolved(self):
+        """`apply_config` is what makes the resolution reach the rules rather
+        than only the printout. A tool that reports one threshold and enforces
+        another is the failure `archtrace config` exists to prevent."""
+        from archtrace import gate
+        original = (gate.MIN_QUOTE_WORDS, gate.MIN_QUOTE_CHARS)
+        self.addCleanup(gate.apply_config, config.Config())
+        gate.apply_config(config.load(
+            os.path.join(self.repo, "engagements", "aurora")))
+        self.assertEqual(gate.MIN_QUOTE_WORDS, 42)
+        self.assertNotEqual(gate.MIN_QUOTE_WORDS, original[0],
+                            "the fixture must differ from the default, or this "
+                            "asserts nothing")
+
+    def test_the_suite_asserts_against_the_default_policy_not_the_repo_s(self):
+        """A repository may legitimately configure its own gate. When archtrace
+        does that to itself, its own suite must still pass -- these tests assert
+        what the DEFAULT policy does, so they pin it rather than inheriting it.
+
+        Before the tests pinned it, a plausible `archtrace.toml` at this repo's
+        root turned 26 of its own tests red, which made those assertions
+        statements about the developer's working directory rather than about
+        the gate.
+        """
+        from archtrace import gate
+        self.assertEqual(
+            (gate.MIN_QUOTE_WORDS, gate.MIN_QUOTE_CHARS),
+            (config.CitationPolicy().min_quote_words,
+             config.CitationPolicy().min_quote_chars),
+            "a gate test ran without pinning the policy it asserts against")
+
+
 class CountedClaims(unittest.TestCase):
     """Numbers the documents state about this repository, checked against it.
 

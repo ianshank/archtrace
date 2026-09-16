@@ -54,6 +54,32 @@ MIN_QUOTE_CHARS = CONFIG.citation.min_quote_chars
 GENERIC_PHRASES = frozenset(CONFIG.citation.generic_phrases)
 
 
+def apply_config(resolved) -> None:
+    """Rebind the citation thresholds from a `config.Config`.
+
+    These are bound at import from `config.DEFAULT`, which resolves before
+    argparse has seen `--root`. So `cd ~ && archtrace --root /work/proj check`
+    enforced whatever `~/archtrace.toml` said: the policy came from where the
+    operator was standing rather than from the project being gated, silently.
+
+    `cli.main` calls this once, after parsing, with the config resolved from
+    `--root`. It is a deliberate rebind rather than threading a `Config` through
+    fifteen rule signatures -- the rules read policy, they do not carry it, and
+    a module constant is where `archtrace config` can still print it.
+    """
+    # PLW0603: a deliberate rebind, and the alternative is worse. These are
+    # read by one rule and printed by `archtrace config`; threading a Config
+    # through fifteen rule signatures to avoid one `global` would move the
+    # policy somewhere less visible, not more. The tests pin it explicitly
+    # rather than inheriting it, which is what makes the rebind safe.
+    global MIN_QUOTE_WORDS, MIN_QUOTE_CHARS, GENERIC_PHRASES  # noqa: PLW0603
+    MIN_QUOTE_WORDS = resolved.citation.min_quote_words
+    MIN_QUOTE_CHARS = resolved.citation.min_quote_chars
+    GENERIC_PHRASES = frozenset(resolved.citation.generic_phrases)
+    LOG.debug("citation policy: >=%s words / >=%s chars, %s stoplist phrases",
+              MIN_QUOTE_WORDS, MIN_QUOTE_CHARS, len(GENERIC_PHRASES))
+
+
 @dataclass(frozen=True)
 class Finding:
     rule: str

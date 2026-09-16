@@ -14,17 +14,20 @@ codebase:
    prints the live values and where each came from, so nobody has to read source
    to learn what the build is actually checking.
 
-Precedence, lowest to highest: defaults here, then `archtrace.toml` in the
-**process working directory**, then `ARCHTRACE_*` environment variables.
+Precedence, lowest to highest: defaults here, then `archtrace.toml` at the
+**repository root**, then `ARCHTRACE_*` environment variables.
 
-This docstring said "at the repository root", which is the intent and is true
-only because `make` and CI always run from there. `DEFAULT = load()` resolves at
-import with `root="."`, so the file that is actually read is the one where the
-operator is standing: `cd engagements/aurora && archtrace check` reads no
-configuration at all, and `cd ~ && archtrace --root /work/proj check` applies
-whatever `~/archtrace.toml` happens to say. `--root` does not reach this layer.
-Threading a `Config` through `gate.run` and its rules is the fix and is a change
-of its own; see `docs/tech-debt.md`. Describing it accurately costs nothing.
+"Repository root" is now resolved rather than assumed. This used to read the
+file in the *process working directory*, which was the same thing only because
+`make` and CI always run from the top: `cd engagements/aurora && archtrace
+check` read no configuration at all, and `cd ~ && archtrace --root /work/proj
+check` applied whatever `~/archtrace.toml` happened to say. `find_config_root`
+walks up to the nearest `.git`, `.hg` or `pyproject.toml` and stops there.
+
+One thing this deliberately does NOT do is make configuration per-engagement.
+One repository, one policy. Per-engagement policy is a larger question --
+whether citation floors and render geometry are even the same kind of setting --
+and is recorded in `docs/tech-debt.md` rather than decided here.
 
 Standard library
 only; TOML is read with `tomllib`, which is 3.11+. On 3.9/3.10 a config file
@@ -297,13 +300,50 @@ def _from_env(env: Mapping[str, str], errors: list) -> dict:
     return out
 
 
+# What marks the top of a project. `.git` first because it is the honest
+# answer for this tool's audience; the others cover a worktree exported without
+# history, or a subdirectory of a monorepo that is its own package.
+REPO_MARKERS = (".git", ".hg", "pyproject.toml")
+
+
+def find_config_root(start: str = ".") -> str:
+    """The directory whose `archtrace.toml` governs `start`.
+
+    Walks up to the nearest repository marker. Without this the file that took
+    effect was the one in the process working directory, so
+    `cd engagements/aurora && archtrace check` read no configuration at all and
+    `cd ~ && archtrace --root /work/proj check` applied `~/archtrace.toml` --
+    which is not what "at the repository root" meant, and not what anyone
+    setting a citation floor for their organisation intends.
+
+    Falls back to `start` when no marker is found, which keeps the previous
+    behaviour for a bare directory that is not a repository at all. That is a
+    deliberate floor rather than a search of the whole filesystem: walking past
+    a non-repository into the user's home directory is how the second defect
+    above happened, and finding nothing is the safer answer.
+    """
+    current = os.path.abspath(start)
+    while True:
+        if any(os.path.exists(os.path.join(current, marker))
+               for marker in REPO_MARKERS):
+            LOG.debug("configuration root for %s is %s", start, current)
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            LOG.debug("no repository marker above %s; using it as the "
+                      "configuration root", start)
+            return os.path.abspath(start)
+        current = parent
+
+
 def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
     """Resolve configuration: defaults, then file, then environment."""
     resolved_env: Mapping[str, str] = os.environ if env is None else env
     config = Config()
     seen: list = []
     errors: list = []
-    layers = [_from_toml(os.path.join(root, CONFIG_FILENAME), errors),
+    config_root = find_config_root(root)
+    layers = [_from_toml(os.path.join(config_root, CONFIG_FILENAME), errors),
               _from_env(resolved_env, errors)]
     known = _policy_sections()
     for layer in layers:

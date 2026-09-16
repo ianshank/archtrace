@@ -31,28 +31,37 @@ import contextlib
 import os
 import sys
 
-from . import commands
+from . import commands, gate
 from .commands._shared import EXIT_BLOCKED, EXIT_OK, EXIT_USAGE
 from .config import CONFIG_FILENAME, ENV_PREFIX
-from .config import DEFAULT as CONFIG
+from .config import find_config_root as config_root
+from .config import load as config_load
 from .log import configure as configure_logging
 from .log import get_logger
 
 LOG = get_logger("cli")
 
 
-def cmd_config(_args) -> int:
+def cmd_config(args) -> int:
     """Print the effective configuration and where each value came from.
 
     A gate whose thresholds can only be learned by reading source is a gate
     nobody can audit. `sources` lists the keys an override actually changed, so
     a surprising build result can be traced to a config file or an environment
     variable rather than guessed at.
+
+    Resolved from `--root`, like the gate itself. Printing the import-time
+    configuration here would mean `archtrace config` describing one policy while
+    `archtrace check` enforced another -- a tool lying about its own thresholds,
+    which is the failure this command exists to prevent.
     """
-    overridden = set(CONFIG.sources)
-    print(f"effective configuration (defaults < {CONFIG_FILENAME} < {ENV_PREFIX}*)\n")
+    resolved = config_load(getattr(args, "root", "."))
+    overridden = set(resolved.sources)
+    root = config_root(getattr(args, "root", "."))
+    print(f"effective configuration (defaults < {CONFIG_FILENAME} < {ENV_PREFIX}*)")
+    print(f"configuration root: {root}\n")
     section = None
-    for name, key, value in CONFIG.describe():
+    for name, key, value in resolved.describe():
         if name != section:
             section = name
             print(f"[{section}]")
@@ -225,11 +234,18 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     configure_logging(getattr(args, "log", None))
-    if CONFIG.errors:
+    # Re-resolve from --root now that we know it. The import-time CONFIG was
+    # resolved before argparse ran, so it describes wherever the operator is
+    # standing; the policy that should govern this run is the one at the root of
+    # the project being gated. `cd ~ && archtrace --root /work/proj check` was
+    # otherwise enforcing ~/archtrace.toml, silently.
+    resolved = config_load(getattr(args, "root", "."))
+    gate.apply_config(resolved)
+    if resolved.errors:
         # Refuse rather than silently using a default the operator did not
         # choose. A config typo that is quietly ignored is worse than one that
         # stops you -- the same rule the gate applies to an unknown schema.
-        for problem in CONFIG.errors:
+        for problem in resolved.errors:
             print(f"archtrace: bad configuration -- {problem}", file=sys.stderr)
         return EXIT_USAGE
     if args.evidence_root is None:

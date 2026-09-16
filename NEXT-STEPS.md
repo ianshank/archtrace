@@ -23,6 +23,16 @@ hold the content; something has to.
 
 ## Known gaps, in priority order
 
+**2b. Configuration resolved from the process working directory, not from
+`--root`** — **fixed.** `cd engagements/aurora && archtrace check` read no
+configuration; `cd ~ && archtrace --root /work/proj check` applied
+`~/archtrace.toml`; and a legitimate `archtrace.toml` at this repository's root
+turned 26 of its own tests red. Config now resolves to the nearest repository
+marker, `cli.main` re-resolves from `--root` after argparse, and the suite pins
+the policy it asserts against rather than inheriting the ambient one. See
+`docs/tech-debt.md` §0 for what deliberately stays open: configuration is still
+one-repository-one-policy, not per-engagement.
+
 **2a. The test suite has a 50% mutation score, and the survivors are not
 random.** Measured, not estimated: 208 single-line mutations applied to a frozen
 tree, each run against the full suite. 104 survived. The distribution is what
@@ -53,8 +63,8 @@ would be embarrassing to repeat without checking. The backlog, in order:
 2. **`tools/tests/support.py`.** `sys.path.insert` is copied 7 times,
    `mkdtemp` 20, `copytree(EXAMPLE)` 12, and `run_cli` exists in five divergent
    variants. The duplication is not the cost; the drift is — two copies of
-   `assertFires` have already diverged. A shared fixture layer is also where
-   the `ARCHTRACE_*` and CWD scrub belongs (see `docs/tech-debt.md` §0).
+   `assertFires` have already diverged, and the policy pin added for
+   `docs/tech-debt.md` §0 is now a third thing copied into four `setUp`s.
 2a. ~~**The 29 dead gate branches**~~ — **27 of them done.** Each has a
    seeded-defect test, each verified by re-seeding the branch it guards: 27 of
    27 killed, coverage 94% → 95%.

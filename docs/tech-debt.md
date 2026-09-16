@@ -31,77 +31,53 @@ plain that they existed at all.
 
 ## Open tech debt, ranked
 
-### 0. Configuration resolves from the process CWD, not from `--root` [Certain]
+### 0. ~~Configuration resolved from the process CWD~~ — fixed [Certain]
 
-`config.DEFAULT = load()` runs at import with `root="."`, and `gate.py` binds
-`MIN_QUOTE_WORDS`, `MIN_QUOTE_CHARS` and `GENERIC_PHRASES` from it at import
-too. So the `archtrace.toml` that takes effect is the one in the directory the
-operator is standing in, and `--root` never reaches this layer.
-
-Two consequences, both reproduced:
+`config.DEFAULT = load()` resolved at import with `root="."`, so the
+`archtrace.toml` that took effect was the one in the directory the operator was
+standing in. `--root` never reached this layer at all. Both consequences were
+reproduced:
 
 ```
-$ cd engagements/aurora && archtrace check      # reads NO configuration
-$ cd ~ && archtrace --root /work/proj check     # applies ~/archtrace.toml
+$ cd engagements/aurora && archtrace check      # read NO configuration
+$ cd ~ && archtrace --root /work/proj check     # applied ~/archtrace.toml
 ```
 
 ```
 $ printf '[citation]\nmin_quote_words = 99\n' > archtrace.toml
 $ make test
 FAILED (failures=26)
-  BLOCK G2 REQ-001.provenance[0]
-    quote is 13 words / 60 chars; minimum is 99 / 500
 ```
 
-That second one is the sharper statement of the problem: **a repository that
-legitimately configures archtrace cannot run archtrace's own test suite.** The
-suite is green today only because this repo has no `archtrace.toml` and `make`
-runs from the root. Twenty-six assertions depend on the developer's working
-directory, which makes them assertions about the environment rather than about
-the gate. `ARCHTRACE_CITATION_MIN_QUOTE_WORDS=99 make test` fails identically —
-nothing scrubs `ARCHTRACE_*` from the environment either.
+That last one is the sharpest statement: **a repository that legitimately
+configured archtrace could not run archtrace's own test suite.** Twenty-six
+assertions depended on the developer's working directory, which made them
+statements about the environment rather than about the gate.
 
-It reaches the renders too. A stray `[render] box_width = 300` in the working
-directory is picked up (`archtrace config` confirms `<- overridden`) and
-changes **2 of the 12 committed outputs** — `architecture.docx` by 3 bytes and
-the manifest that records its hash. G6 does block afterwards, so this cannot
-publish silently; but two developers on one engagement, one standing in a
-directory with a config and one without, produce different deliverables and
-disagree about whether the repository is clean.
+**Fixed in two halves.** `config.find_config_root` walks up to the nearest
+`.git`, `.hg` or `pyproject.toml` and reads the file there, falling back to the
+starting directory when there is no marker — deliberately, rather than walking
+on into someone's home directory, which is how the second defect happened.
+`cli.main` then re-resolves from `--root` after argparse and calls
+`gate.apply_config`, so the policy reaching the rules is the project's and not
+the operator's. `archtrace config` resolves the same way and prints the
+configuration root it used, because a tool that reports one threshold while
+enforcing another is the failure that command exists to prevent.
 
-**Measured scope, replacing an earlier estimate here that was wrong.** That
-estimate said the fix meant threading a `Config` through all fifteen rules.
-It does not:
+The suite pins its own policy in `setUp` rather than inheriting the ambient one.
+That is now necessary for a second reason as well as the first: `apply_config`
+rebinds module constants, so any test driving the CLI leaves them rebound and
+test *ordering* would otherwise decide the thresholds. `ConfigurationRoot`
+asserts both directions, and the full suite passes with and without a
+`[citation] min_quote_words = 99` at this repository's root.
 
-| Consumer | Surface | Cost |
-|---|---|---|
-| `gate.py` | 3 constants (`MIN_QUOTE_WORDS`, `MIN_QUOTE_CHARS`, `GENERIC_PHRASES`), used in **one rule** (G2) | small |
-| `renders.py` | 6 constants, **25 usages** across `_wrap`, `_svg`, `_boundary`, `_diagram` — none of which take an `Engagement` | wide, and inside G6-byte-locked code |
-| `coverage.py` | 2 floors | leave: it measures the repository you are standing in, so process scope is correct |
-
-**The design.** `Engagement.load(root)` already knows the root, so it should
-resolve config from it and expose `eng.config`. Rules keep their
-`(eng) -> Iterator[Finding]` signature untouched — G2 reads
-`eng.config.citation.*` instead of a module constant. That is a genuinely small
-change and fully backwards compatible.
-
-**Why it was not done in this pass.** The renders half hides a decision that is
-not a maintainer's to make quietly, because it changes what `archtrace.toml`
-*means*: are gate thresholds and render geometry the same kind of setting?
-Citation floors are **policy** — "what does this organisation accept as
-evidence?" — and belong to an engagement. Box widths are **house style** and
-belong to a toolchain. If they split, one file configures two scopes and that
-has to be documented and defended, not discovered. Splitting them is right, but
-it is a deliberate API decision rather than a bug fix, and bundling it into a
-quality pass would be deciding it by stealth.
-
-The `config.py` docstring now describes what the code does rather than what was
-intended, which was the part that cost nothing.
-
-**Risk of leaving it:** moderate, and it is the highest-ranked item here for a
-reason. It is a correctness defect for anyone running from a subdirectory, and
-a reproducibility defect for the suite. It has not bitten yet because every
-entry point happens to run from the repository root.
+**Still open, and deliberately:** this does not make configuration
+per-engagement. One repository, one policy. `renders.py` still binds six
+constants at import across 25 usages in helpers that take no `Engagement`, and
+a stray `[render] box_width` does change two of the twelve committed outputs
+(G6 blocks afterwards, so it cannot publish silently). Splitting citation policy
+from render house style would mean one file configuring two scopes, which
+changes what `archtrace.toml` means — a deliberate API decision, not a bug fix.
 
 ### 1. `renders.py` is now the largest module at 598 lines [Certain]
 
