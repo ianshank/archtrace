@@ -245,3 +245,51 @@ artifact hash, not simply to an earlier commit." So:
 Adapter contract tests before Graph, Jira, SharePoint or Lucid adapters exist.
 Nothing to implement until there is an adapter; recorded so it is not
 rediscovered later.
+
+---
+
+# Review log — DrawingML diagrams in `architecture.docx` (2026-09-16)
+
+Self-review of the change, written before the commit rather than after.
+
+## What the tests caught that reading the code did not
+
+**A name containing a double quote produced a document Word would call
+corrupt.** Shape names land in an XML *attribute* (`wps:cNvPr name="…"`), and the
+emitter reached for `escape()`, which escapes `<`, `>` and `&` and deliberately
+leaves `"` alone because it is written for element *content*. `quoteattr` is the
+right tool and the two are not interchangeable. An element called
+`the "golden" path` is not an exotic input; this would have shipped and failed on
+a real engagement, not on a fixture.
+
+The general lesson is narrower than "write tests": **a malformed shape does not
+raise.** Nothing in the pipeline fails. The gate goes green, `release --verify`
+reports MATCH, and the defect surfaces when a stakeholder double-clicks the file.
+Any renderer whose failure mode is silent needs assertions on the bytes that
+ship, not on the function that produced them.
+
+## What looking at the output caught that the tests did not
+
+The grounding badges rendered as solid dots with no letter. Every test passed:
+the ellipse was present, the `w:t` contained `S`, the XML parsed. It was only
+visible by converting the document with LibreOffice and looking at the page at
+300dpi. A 15px circle cannot give up ~3px of text inset on each side.
+
+This is the second time in this project that rasterising the output and *looking*
+at it found defects that a green suite did not. Worth treating as a standing step
+for any visual renderer rather than as a one-off.
+
+## What this does not claim
+
+[Certain] The document opens and renders correctly **in LibreOffice**. [Likely]
+It renders correctly in Word: the markup is the documented `wpg`/`wps` shape
+grouping, but no copy of Word was available here, and LibreOffice is more
+forgiving of some OOXML than Word is. **First real engagement should open it in
+Word before it goes to a stakeholder.** Saying "verified" without that
+distinction would be exactly the kind of unsupported claim this tool exists to
+block.
+
+[Certain] Two limits are real and documented rather than worked around: text does
+not reflow to fit its box, and edge labels are omitted. Both are stated in
+SPEC §6, the RUNBOOK and the module docstring. The `.svg` remains the
+high-fidelity surface, and the relationship table carries the edge labels.

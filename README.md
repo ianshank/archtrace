@@ -112,11 +112,10 @@ nearly every requirement and gets switched off in week two.
   and deleting a file does not delete the blob. The repo holds the manifest; the
   content stays in the system of record that owns its lifecycle, reached through
   `--evidence-root`.
-- **Diagrams in the Word document.** Embedding one needs a raster or vector
-  image, which needs Node or the drawio CLI. `architecture.docx` is the narrative
-  and the traceability matrix; diagrams ship as `.svg`, `.drawio` and Lucid. The
-  named next increment is native DrawingML shapes emitted from the same layout
-  coordinates the SVG already uses.
+- **Raster or vector *images* in the Word document.** Embedding a picture needs
+  Node or the drawio CLI. Diagrams ship instead as native DrawingML shapes
+  emitted from the same layout coordinates the SVG uses — real Word shapes, no
+  rasteriser — with `.svg`, `.drawio` and Lucid as the high-fidelity surfaces.
 - **Any LLM in the critical path.** If every agent is unavailable, you author the
   same JSON by hand and the gate, the renders and the traceability all still
   work.

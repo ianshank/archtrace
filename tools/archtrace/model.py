@@ -15,7 +15,7 @@ from . import canon
 
 SCHEMA_VERSION = 1
 SUPPORTED_SCHEMA_VERSIONS = frozenset({1})
-RENDERER_VERSION = "1.1.0"
+RENDERER_VERSION = "1.2.0"
 
 REQUIREMENT_TYPES = frozenset({"functional", "nfr", "constraint", "assumption"})
 REQUIREMENT_STATUSES = frozenset({"proposed", "confirmed", "superseded", "retired"})

@@ -5,6 +5,54 @@ Versioning is semantic, with one project-specific rule: **a new blocking gate
 rule is a MINOR bump, never a PATCH.** A rule that starts failing builds is a
 behaviour change however small the diff.
 
+## [0.4.0] — 2026-09-16
+
+The Word deliverable stops being an appendix.
+
+### Added
+
+- **`tools/archtrace/docx_shapes.py`** and diagrams in `architecture.docx`.
+  Both C4 views are emitted as native DrawingML shapes — `wpg:wgp` groups of
+  `wps:wsp` round-rects, straight connectors and grounding badges — written
+  straight into `document.xml` from the same `layout.x`/`layout.y` the SVG uses.
+  No rasteriser, so no Node and no drawio CLI, and the zero-dependency invariant
+  is untouched. They arrive in Word as real shapes a reader can select and
+  recolour rather than a flattened picture, and the grounding badges travel with
+  them, so the one thing the tool exists to show — which boxes nobody asked for
+  — survives into the document stakeholders actually read.
+- **21 tests** in `tools/tests/test_docx_shapes.py`, asserting on the XML that
+  ships: it parses, every modelled element reaches a diagram, ids are unique
+  across views, connector flips and the zero-extent clamp are correct, and the
+  bytes are identical across runs. Verified end to end by converting the
+  rendered document with LibreOffice and reading the output, because a malformed
+  shape does not raise — Word simply refuses to open the file, and the gate would
+  have passed a document nobody could read.
+
+### Fixed
+
+- **Element names containing a double quote produced a document Word reports as
+  corrupt.** Shape names are XML *attributes* and the emitter used `escape()`,
+  which does not escape `"`. Now `quoteattr`. Found by the escaping test before
+  it ever reached a model — an element called `the "golden" path` is not exotic.
+- **Grounding badge letters were illegible in Word.** A 15px circle cannot give
+  up ~3px of inset on each side; the letter was squeezed to a smudge. Badges now
+  render with zero insets at a slightly larger radius than the SVG's, because
+  Word's line box for a bold capital is taller than the glyph.
+
+### Changed
+
+- `RENDERER_VERSION` 1.1.0 → **1.2.0**. The docx output format changed, so G6
+  render-freshness must treat previously generated documents as stale rather
+  than as a hand edit.
+- `_docx()` takes the view list instead of deriving nothing, and `w:document`
+  declares the `wp`, `a`, `wpg`, `wps` and `mc` namespaces.
+- **`example/release.json` now reports DRIFT, deliberately.** The renderer
+  changed after that state was approved, so the approval no longer describes the
+  artifact — which is exactly what `release --verify` exists to say. Re-signing
+  it here would mean typing someone else's approval into a file, the failure mode
+  the release binding was built to prevent. It stays drifted until the named
+  approver re-runs `archtrace release`.
+
 ## [0.3.0] — 2026-09-16
 
 The hygiene pass. No change to what the gate decides; substantial change to how

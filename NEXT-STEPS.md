@@ -29,37 +29,44 @@ prioritises functional over visual fidelity — meaning it may discard the
 coordinates the whole layout-in-the-model design depends on. If it fails, the
 fallback reintroduces a manual step the design claims to have removed.
 
-**4. `architecture.docx` has no diagrams.** Named increment: emit native
-DrawingML shapes into `document.xml` from the same layout coordinates the SVG
-uses. Pure stdlib, editable in Word, roughly 200 lines. It is the single
-highest-value renderer left, because it turns the Word deliverable from an
-appendix into the artifact.
-
-**5. archmine Phase 3 — durable symbol identity.** `_id()` hashes
+**4. archmine Phase 3 — durable symbol identity.** `_id()` hashes
 `path:kind:name:line`, so inserting a line above a symbol changes its id and a
 model that cited it last month fails G13 this month for no architectural reason.
 Prefer content-addressed ids (hash the normalised body) over a resolver that
 silently repairs broken citations — a fallback that heals a broken citation is a
 gate that has stopped meaning anything.
 
-**6. Send `docs/patches/archmine-a1-a2.patch` upstream.** Verified: it makes all
+**5. Send `docs/patches/archmine-a1-a2.patch` upstream.** Verified: it makes all
 four of archmine's artifacts deterministic and populates `commit`. The stamping
 fallback keeps working either way and becomes a no-op once it lands.
 
+### Done
+
+**`architecture.docx` now carries its diagrams** (`tools/archtrace/docx_shapes.py`,
+renderer 1.2.0). Native DrawingML shapes from the same layout coordinates the SVG
+uses: no rasteriser, so the zero-dependency invariant holds, and they land in Word
+as real shapes rather than a flattened image. Verified by converting the rendered
+document with LibreOffice and reading the result, not by assuming the XML was
+right — the escaping test caught a name containing a double quote producing a
+document Word would have called corrupt.
+
+Two limits stand, both documented in SPEC §6: text does not reflow to fit its box,
+and edge labels are omitted. The `.svg` remains the high-fidelity surface.
+
 ## Deferred, with reasons
 
-**7. archmine Phase 4 — the MCP server.** Additive, not load-bearing: facts
+**6. archmine Phase 4 — the MCP server.** Additive, not load-bearing: facts
 still arrive as a hashed file, so the gate is unaffected. But it gives an agent
 live query access to the symbol graph, which is a new trust surface. Hold it to
 the adapter contract tests in `REVIEW.md` first.
 
-**8. Branch coverage.** The stdlib tracer gives line coverage only, so a
+**7. Branch coverage.** The stdlib tracer gives line coverage only, so a
 half-tested `if` counts as covered. Adding branch coverage means either
 `coverage.py` as an optional dev path — which splits the number between
 environments — or a `sys.monitoring` implementation on 3.12+. Neither is worth
 it before §9a passes.
 
-**9. Deployment view in the C4 model.** Deferred deliberately: deployment
+**8. Deployment view in the C4 model.** Deferred deliberately: deployment
 elements (regions, clusters, nodes) are almost entirely `derived`/`standard`
 grounding, so the view is cheap to add and easy to fill with unexamined boxes.
 

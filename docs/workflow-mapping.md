@@ -117,9 +117,11 @@ Two caveats worth knowing before you rely on it:
   hand-assembled `mxfile` imports at all, and it states it prioritises functional
   over visual fidelity, meaning it may re-lay-out and discard coordinates. Thirty
   minute spike, before you build a habit on it.
-- **`architecture.docx` has no diagrams.** Embedding one needs Node or the
-  drawio CLI. Insert the generated `.svg` into Word or PowerPoint directly —
-  Office accepts SVG and can convert it to an editable shape.
+- **`architecture.docx` diagrams are shapes, not pictures.** They are native
+  DrawingML, drawn from the same coordinates as the SVG, so no rasteriser is
+  needed — but text does not reflow and edge labels are omitted. For a projector
+  or a deck, insert the generated `.svg` directly; Office converts it to an
+  editable shape.
 
 Step 9 is where the investment pays back. Today a revision is: change the
 thinking, redo the C4, redo the Word doc, re-upload, re-polish Lucid. Under
@@ -151,8 +153,8 @@ Stated plainly, because a migration that only lists benefits is a sales pitch:
 2. **You author JSON**, not Word, for the thinking.
 3. **Evidence export stays manual** until a Graph app registration exists, which
    is a procurement track, not a sprint.
-4. **The Word deliverable loses its diagrams** until the DrawingML renderer is
-   written.
+4. **The Word deliverable's diagrams are shape-grade, not layout-grade** —
+   no edge labels, no reflowing text. Use the `.svg` when fidelity matters.
 5. **Lucid is unverified** and may not round-trip at all.
 6. **The gate will block you** in week one, mostly on G3 (confirmed a
    requirement, modelled nothing for it) and G2 (quote does not resolve). That is

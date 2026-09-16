@@ -197,10 +197,13 @@ Then:
 
 - **draw.io / Lucid**: import `render/model.drawio`. Polish is throwaway by
   design; if a layout matters, put the coordinates in the model.
-- **Word / PowerPoint**: `render/architecture.docx` is narrative and
-  traceability tables, **no diagrams**. Insert the `.svg` directly — Office
-  accepts SVG and can convert it to an editable shape, which keeps it sharp on a
-  projector. `tools/svg2png.md` covers PNG if you need raster.
+- **Word / PowerPoint**: `render/architecture.docx` carries the narrative, the
+  traceability tables **and both C4 views as native Word shapes** — selectable
+  and recolourable, no image import needed. Grounding badges travel with them,
+  so the reader can still see which boxes nobody asked for. For a projector or a
+  deck, insert the `.svg` directly — Office converts it to an editable shape and
+  keeps it sharp at any size. `tools/svg2png.md` covers PNG if you need raster.
+  Moving a box in Word edits a build output; G6 will say so at the next gate.
 - **Jira**: `render/jira-tickets.json` and the CSV. Idempotent on `external_id`,
   so re-importing updates rather than duplicates.
 - **PR review**: reviewers read the *model diff*. `render/**` is marked
