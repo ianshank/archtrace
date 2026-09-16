@@ -1,20 +1,31 @@
-# Code quality and tech-debt remediation plan — v2
+# Code quality and tech-debt remediation plan — v3
 
-Written 2026-09-16 against `e34727e`. Every finding was verified by running
-something; the command is named in the [appendix](#appendix--how-each-finding-was-produced).
-Confidence tags follow the house convention: **[Certain]** verified by
-execution, **[Likely]** reasoned from the code, **[Guessing]** judgement.
+Written 2026-09-16 against `e34727e`; revised the same day against `b9e5eb1`
+after Copilot and CodeRabbit's independent review of the pull request
+surfaced two genuine defects in v2's own proposed fixes (§1.6–§1.7). A finding
+tagged **[Certain]** was verified by running something; the command is named
+in the [appendix](#appendix--how-each-finding-was-produced). A finding tagged
+**[Likely]** is reasoned from the code rather than executed, and
+**[Guessing]** is judgement — say which a finding is, and do not let "every
+[Certain] finding was verified" imply more than that about the others.
 
-Supersedes the ranked list in [`tech-debt.md`](tech-debt.md), and supersedes v1
-of this document — see [§1](#1-peer-review-of-v1-of-this-plan), which is a
-correction of it.
+Supersedes the ranked list in [`tech-debt.md`](tech-debt.md), supersedes v1 of
+this document (§1.1–§1.5 is that correction), and supersedes v2's own T1 and
+T2/T3 fix designs (§1.6–§1.7, folded into §3 and §4.3 below).
 
 ---
 
-## 1. Peer review of v1 of this plan
+## 1. Peer review, two rounds
 
 v1 audited **structure and CI**. It did not audit **behaviour**, and said so
-nowhere — which is how it reached a confident headline that was wrong.
+nowhere — which is how it reached a confident headline that was wrong
+(§1.1–§1.5). v2 then audited behaviour and found three real defects in the
+trust path — but two of its *own* proposed fixes were themselves wrong,
+caught by external review of the pull request and confirmed by re-running
+the exact scenario each fix claimed to solve (§1.6–§1.7). The pattern repeats
+for a reason worth stating plainly: a fix that has not been run against the
+case it is supposed to handle is a hypothesis, not a fix — which is the same
+lesson v1's headline taught, one level down.
 
 ### 1.1 The v1 headline was wrong [Certain]
 
@@ -68,6 +79,53 @@ Revised to four in §6.1.
 The gate defect and its fix; the CI root-causes; the dead code, drifted enum and
 duplication findings in §7 — all verified and unchanged. Phases 0–2 landed and
 `ci` is green.
+
+### 1.6 v2's T1 fix would have false-blocked every release with expired evidence [Certain]
+
+v2 proposed: *"`--verify` runs `gate.run(eng)` and refuses on any BLOCK."*
+Copilot's review of the pull request caught what that means in practice:
+`gate.run` includes G1, and G1 blocks the moment evidence content is absent
+under `--evidence-root`:
+
+```python
+raw = eng.evidence_bytes(rec["id"])
+if raw is None:
+    yield Finding("G1", BLOCK, rec["id"],
+                  "evidence content not present under --evidence-root; "
+                  "citation integrity cannot be verified")
+```
+
+Evidence content is deliberately not kept forever — SPEC §0.4 puts it outside
+git precisely so a retention policy can delete it on schedule. A release
+approved last quarter, re-verified today after its evidence's
+`retention_until` has passed, would report DRIFT under v2's fix — not because
+anything was tampered with, but because the evidence store did exactly what
+it was told to do. `--verify` would then treat that release identically to an
+actually-tampered one, with no way to tell the two apart. **Corrected in §3.**
+
+### 1.7 v2's T2/T3 fix solved one distortion out of five [Certain]
+
+v2 proposed removing `.casefold()` and claimed the quote then "displays
+verbatim" with "offsets stay valid." Both Copilot and CodeRabbit flagged the
+same gap independently, and isolating exactly which step inside `normalize()`
+produces each distortion confirms they were right:
+
+| input | step responsible | fixed by removing casefold? |
+|---|---|---|
+| `Straße` → `strasse` (6→7 chars) | `.casefold()` | yes |
+| ligature `ﬁle` → `file` (3→4 chars) | **NFKC** | no |
+| curly quotes `“yes”` → `"yes"` | **punctuation fold** | no |
+| em-dash `a — b` → `a - b` | **punctuation fold** | no |
+| multi-space `a    b` → `a b` | **whitespace collapse** | no |
+
+Casefold is one of five lossy steps in `normalize()`, and it is the only one
+v2's fix touches. Punctuation folding is not an edge case — `canon.py`'s own
+comment says it exists because "every Teams/Word/SharePoint export contains"
+curly quotes and en-dashes. A real evidence transcript hits the
+punctuation-fold or whitespace-collapse path routinely; v2's "verified"
+example used a sentence containing none of the other four distortions, so it
+demonstrated the fix for an input chosen to not need it. **Corrected in
+§4.3.**
 
 ---
 
@@ -139,12 +197,12 @@ check` catches it (G6 reads disk and reports one BLOCK) — but `--verify` does
 not run the gate, and `--verify` is the step documented as the publication-time
 control.
 
-### Fix, and why the obvious one is wrong
+### Fix, and why the two obvious ones are both wrong
 
-The obvious fix — hash `render/<name>` from disk and compare to the manifest —
-**introduces false positives**. `release.json` stores `sha256` of the *raw*
-fresh-render bytes, but G6 compares *canonical* form, and two byte-different
-files can be canonically equal:
+The first obvious fix — hash `render/<name>` from disk and compare to the
+manifest — **introduces false positives**. `release.json` stores `sha256` of
+the *raw* fresh-render bytes, but G6 compares *canonical* form, and two
+byte-different files can be canonically equal:
 
 ```
 two byte-different but canonically-equal SVGs:
@@ -154,14 +212,29 @@ two byte-different but canonically-equal SVGs:
 
 So a legitimately reformatted tree would fail a naive disk-hash check.
 
-**Do this instead: `--verify` runs `gate.run(eng)` and refuses on any BLOCK.**
-G6 already performs precisely the disk-versus-fresh canonical comparison, it is
-already tested, and it requires **no change to the `release.json` schema** — so
-every existing manifest keeps verifying. Report gate blocks as drift of a third
-kind alongside `source` and `output`.
+The second obvious fix — have `--verify` call `gate.run(eng)` and refuse on
+any BLOCK — was this plan's own v2 proposal, and it is wrong for close to the
+opposite reason: it introduces **false blocks**. `gate.run` includes G1, which
+blocks whenever evidence content is not present under `--evidence-root`
+(`gate.py:112-116`) — the ordinary, expected state once a record's
+`retention_until` has passed and the evidence store has deleted it, exactly as
+SPEC §0.4 designs it to. Running the whole gate from `--verify` reports DRIFT
+on every release whose evidence has since expired, indistinguishable from an
+actually-tampered deliverable (§1.6).
 
-Keep the existing fresh-render comparison too: it catches model drift, which is
-a different failure and still worth reporting.
+**Do this instead: call the render-freshness check alone, not the whole
+gate.** `gate.g6_render_freshness` already performs exactly the
+disk-versus-fresh canonical comparison this control needs, is already
+tested, and depends only on the model and `render/` — never on evidence
+content, so an expired retention window cannot make it block. Requires **no
+change to the `release.json` schema**, so every existing manifest keeps
+verifying. Report its findings as drift of a third kind alongside `source`
+and `output`, and leave G1, G2, G11 and the rest of the gate suite out of
+`--verify` entirely: they answer "is this model well-formed," not "is this
+deliverable what was approved," and conflating the two produced §1.6.
+
+Keep the existing fresh-render comparison too: it catches model drift, which
+is a different failure and still worth reporting.
 
 ---
 
@@ -211,34 +284,82 @@ any PDF export.
 "Verifiable by a human against the system of record" is the claim. These offsets
 are verifiable only by the tool that produced them.
 
-### 4.3 Fix — one change addresses both
+### 4.3 Fix — casefold is one distortion of five, and the wrong one to isolate alone [Certain]
 
-Stop casefolding in `normalize()`; match case-insensitively instead. Verified:
+v2 stopped at `.casefold()` and called it "one change addresses both." §1.7
+showed that overclaims what removing it actually does:
 
 ```
-case-preserving norm: If the feed drops for half a day we CANNOT lose ...
-same length as casefolded: True
-case-insensitive match at 33: 'we CANNOT lose those events'
+'ligature'   raw='ﬁle'     NFKC:        'file'    (len 3->4)   NOT casefold
+'sharp-s'    raw='Straße'  casefold:    'strasse' (len 6->7)   IS  casefold
+'curly "'    raw='"yes"'   punct-fold:  '"yes"'   (bytes differ) NOT casefold
+'em-dash'    raw='a—b'     punct-fold:  'a-b'     (bytes differ) NOT casefold
+'multi-sp'   raw='a    b'  ws-collapse: 'a b'     (len 10->5)  NOT casefold
 ```
 
-Offsets stay valid, the quote displays verbatim, determinism is unaffected, and
-T3's largest contributor disappears. (NFKC still shifts offsets for ligatures;
-that residue is small and should be *documented* rather than fixed — undoing
-NFKC would cost more than it buys.)
+Removing `.casefold()` fixes **T2 completely** — the displayed text keeps its
+original case, a real and self-contained improvement worth shipping on its
+own. It fixes only the casefold-shaped slice of **T3**: NFKC's ligature
+decomposition, punctuation folding and whitespace collapsing are three
+*separate* lossy transforms, none removed by dropping casefold, and none
+rare — `canon.py`'s own comment says punctuation folding exists because
+"every Teams/Word/SharePoint export contains" curly quotes and en-dashes. A
+citation from a real transcript routinely hits at least one of the other
+four.
 
-**This is the plan's one breaking change.** `sha256_normalized` changes for
-every existing evidence record, so G1 blocks every engagement until they are
-re-hashed. Handle it properly:
+**T2 (display) — ship this now.** Match case-insensitively at the point a
+fragment resolves to a span (`cmd_quote`, `g2_citation_integrity`); stop
+calling `.casefold()` inside `normalize()`. Small, independent, and solves a
+real problem completely.
+
+**T3 (source-mapping) — needs more than one change, or an honest scope-down.**
+Two shapes; pick one per adopter's risk tolerance:
+
+1. **Track a raw-to-canonical alignment, not just the canonical text.**
+   `normalize()`'s four remaining steps (NFKC, punctuation-fold, zero-width
+   removal, whitespace-collapse) are each a sequence of single-span
+   replacements; a variant that records source-offset ⟷ canonical-offset
+   pairs as it runs can map a matched canonical span back to the exact raw
+   bytes. Real engineering, not a one-liner — budget it as such — but it is
+   the only version of "verifiable by a human against the source document"
+   that is actually true.
+2. **Scope the claim down instead.** Keep matching and hashing on canonical
+   text as today, store the canonical `quote_cached` for display (now
+   case-preserving once T2 ships), and change the tool's own claim from
+   "verbatim" to "a citation is checkable against the canonical form of the
+   evidence, not against its raw bytes." Cheaper, honest, and consistent
+   with the NFKC ligature residue already being accepted as a documented
+   limitation rather than a solved problem.
+
+Either way, **do not claim offsets "remain valid"** for a record normalised
+under the old, casefold-including pipeline: its stored span was computed
+against text that no longer exists once casefold is removed, and there is no
+alignment to recover after the fact — the raw source may not even still be
+present (evidence content can be retention-deleted, same failure mode as
+§1.6). **Re-ingestion, not re-hashing, is the correct migration for a record
+that cannot be recomputed against its current raw source**; a bare version
+bump is only valid where that source is still available.
+
+**This is still the plan's one breaking change**, for a narrower reason than
+v2 stated: `sha256_normalized` changes for any evidence record whose
+canonical form contains a character `.casefold()` would have altered — an
+uppercase letter, or a special-casefolding character like `ß` — **not, as v2
+claimed, for every record**. A record whose normalised text happens to be
+already all-lowercase ASCII keeps its hash unchanged. Handle the ones that do
+change properly:
 
 1. Add `normalization_version` to the evidence record, defaulting to `1`.
 2. `canon.normalize(text, version=...)` keeps v1 behaviour reachable, so old
    records keep verifying — the same courtesy `SUPPORTED_SCHEMA_VERSIONS`
    already extends to the model.
-3. `archtrace fmt` re-hashes v1 records to v2 and rewrites `quote_cached` from
-   the now case-preserving text.
+3. `archtrace fmt` re-hashes a v1 record to v2 **only when the raw source is
+   still available** under `--evidence-root`; where it is not, refuse and
+   name the record for re-ingestion rather than silently keeping a stale v1
+   hash or guessing at a v2 one.
 4. Refuse an unknown version, matching G10's existing posture.
 
-Without step 2 this is a flag day for every adopter. With it, it is a migration.
+Without step 2 this is a flag day for every adopter. With it, it is a
+migration — and with step 3's availability check, an honest one.
 
 ---
 
@@ -340,9 +461,17 @@ almost nothing beyond `_shared`, which is why the palette and `wrap` duplication
 (§7.1, §7.2) resolves naturally once it exists.
 
 **The constraint that makes this safe:** every emitter is under G6, which
-byte-compares output. Do the move in one commit changing **no bytes** — if `make
-check` passes, the refactor is provably behaviour-preserving. That is a stronger
-guarantee than a test suite. Any behavioural change goes in a later commit.
+compares *canonicalised* output (`canon.canonical_bytes`), not raw bytes — so
+attribute ordering or insignificant whitespace does not block, and a real
+content change does. Do the move in one commit changing no canonical output
+for the models `make check` actually exercises — if it passes, the refactor
+is behaviour-preserving for every branch `render_all` reaches on those
+models (both C4 views, across all eight output formats), which is a stronger
+guarantee than a hand-written test asserting the same thing, though it is
+not a proof over every input the renderers could ever see. Treat a passing
+`make check` as strong evidence for this specific move, not as a substitute
+for the existing renders tests. Any behavioural change goes in a later
+commit.
 
 ### 6.2 `test_gate.py` — 669 lines [Certain]
 
@@ -405,7 +534,7 @@ The grounding-ref `or`-chain appears at `:298` and `:432`. `render_all` builds
 the same `(title, nodes, edges)` tuples twice (`:632`, `:641`).
 `.manifest.json` uses `json.dumps` while every other JSON output goes through
 `canon.canonical_json` — two canonicalisers is one too many in a project whose
-gate is byte-comparison.
+gate exists specifically to compare canonical form (G6, `canon.canonical_bytes`).
 
 ---
 
@@ -507,12 +636,21 @@ always there.
 
 ## 11. Acceptance criteria
 
-1. `release --verify` exits non-zero on a hand-edited file in `render/`, with a
-   test that tampers with a real deliverable and asserts the refusal.
+1. `release --verify` exits non-zero on a hand-edited file in `render/`, with
+   a test that tampers with a real deliverable and asserts the refusal — and
+   a separate test proves it does **not** refuse when evidence content is
+   simply absent (the expired-retention case, §1.6): `--verify` must tell
+   "the deliverable changed" apart from "the evidence store did its job."
 2. A quote in `traceability.md`, `architecture.docx` and `jira-tickets.json`
-   is byte-identical to the source transcript, capitalisation included.
-3. An evidence record written before the normalisation change still verifies,
-   proven by a fixture committed at `normalization_version: 1`.
+   preserves the source's original capitalisation (T2). Whether it is also
+   byte-identical to the raw source transcript depends on which §4.3 option
+   is taken — record which, and test against that claim, not against
+   "verbatim" by default.
+3. An evidence record whose normalised text is unaffected by the
+   normalisation change still verifies without modification; one that IS
+   affected either re-hashes cleanly against its still-available raw source,
+   or is named for re-ingestion — proven by two fixtures, not one: an
+   unaffected v1 record, and an affected one whose source has been deleted.
 4. Adding a module under a new subpackage changes the coverage denominator; a
    test asserts the module set cannot silently shrink.
 5. Coverage is measured over every executable statement the repository ships,
@@ -521,8 +659,13 @@ always there.
    reaches a user from any CLI path.
 7. `make docs` regenerates `docs/*.svg`, and a freshness check fails on drift.
 8. No module exceeds 400 lines.
-9. `grep -c '#[0-9a-f]\{6\}' tools/archtrace/renders/*.py` returns 0 outside
-   `_shared.py`.
+9. No hex colour literal appears outside
+   `tools/archtrace/renders/_shared.py`, checked with a command whose
+   failure mode is unambiguous — for example a loop that greps each
+   `renders/*.py` file individually and fails on any hit outside
+   `_shared.py` — not a bare `grep -c` across multiple files, whose exit
+   status reports "matched somewhere," not "count is zero," and would pass
+   by accident on a mixed result.
 10. A new member of `EVIDENCE_AUTHORITY` is accepted by the CLI with no CLI
     edit, and a test fails if that stops being true.
 11. `tech-debt.md`'s line-count figures are generated, or absent.
@@ -535,8 +678,10 @@ always there.
 |---|---|
 | T1 | `release` then `--verify` on a clean tree; edit `render/traceability.md`; `--verify` again |
 | T1 fix shape | `canonical_bytes` on two byte-different, canonically-equal SVGs |
+| §1.6 | read `gate.py`'s G1 rule and SPEC §0.4's retention design; the false-block is a direct reading, not a repro that needed running |
 | T2 | read `quote_cached` from `example/requirements/requirements.json`; `grep` the same string in `example/render/traceability.md` |
 | T3 | `canon.normalize` over `Straße`, `ﬁle`, `İstanbul`; compared lengths |
+| §1.7 | isolated NFKC / punctuation-fold / zero-width / whitespace-collapse / casefold as five separate steps and ran each input through each step individually, printing the length and value after every step, to attribute which step causes which distortion |
 | T4 | `coverage.measure()` against a synthetic package containing `renders/` |
 | T5 | `./archtrace --root <tmp> check` with a stray comma in `model.json` |
 | T6 | read `agents.py FORBIDDEN_CLAIMS` and `_authority` |
@@ -545,3 +690,11 @@ always there.
 | F2/F2b | `get_job_logs` on runs 35050591082 and 35051293467; gitleaks docs via Context7 |
 | §7.1–7.5 | `grep -n` across the three emitters; AST sweep of top-level symbols |
 | §7.4 | `python3 -c` comparing `model` constants to `cli.py` choice lists |
+| pin consistency | `which ruff mypy gitleaks`; `git ls-remote --tags` against astral-sh/ruff-pre-commit and pre-commit/mirrors-mypy to find real tags in the pinned ranges |
+| PATH-isolation fix | `make lint` invoked directly (absolute `make` path) with `PATH` restricted to a scratch bindir only, for each of: no stub, a failing stub, a clean stub — confirmed skip/fail/pass all still work with no `/usr/bin` or `/bin` on `PATH` |
+
+Two rounds of external review (Copilot and CodeRabbit, both against `b9e5eb1`
+on [PR #2](https://github.com/ianshank/archtrace/pull/2)) are folded into
+§1.6, §1.7, §6.1, §7.5, and acceptance criteria 1–3 and 9 above. Every claim
+either bot made was independently re-derived against the code before being
+accepted — none was taken on the bot's word alone.

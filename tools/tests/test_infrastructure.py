@@ -264,7 +264,13 @@ class MakefileGates(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as handle:
                 handle.write(f"#!/bin/sh\nexit {exit_code}\n")
             os.chmod(path, 0o755)  # noqa: S103
-        env = dict(os.environ, PATH=f"{bindir}:/usr/bin:/bin")
+        # PATH is ONLY the scratch bindir -- no /usr/bin, no /bin. A real
+        # ruff/mypy/gitleaks living in either (a normal outcome of a
+        # system-wide "pip install -e .[dev]") would otherwise get discovered
+        # for the "absent tool" cases below, silently defeating the isolation
+        # those tests exist to guarantee. `make` itself is resolved to an
+        # absolute path above, so it needs no PATH lookup to launch.
+        env = dict(os.environ, PATH=bindir)
         try:
             return subprocess.run([shutil.which("make") or "make", "-C",
                                    self.REPO, target], env=env,

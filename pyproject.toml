@@ -22,10 +22,14 @@ dependencies = []                      # deliberately empty; see the note above
 [project.optional-dependencies]
 # Developer tooling only. `make gate`, `make test` and `make coverage` all run
 # without any of this installed.
-# Pinned to a minor range, not `<1`. Ruff ships new rules in minor releases, so
-# an open range means the build's ruleset changes on someone else's schedule.
-# Bump deliberately, with the new findings in the same commit.
-dev = ["ruff>=0.15,<0.16", "mypy>=1.19,<2"]
+# Both pinned to a minor range, not an open upper bound. Ruff and mypy both
+# ship new rules in minor releases, so an open range means the build's
+# ruleset changes on someone else's schedule rather than a repository change.
+# Bump deliberately, with the new findings in the same commit -- and keep
+# .pre-commit-config.yaml's ruff/mypy revs in the same minor line as these,
+# or a clean commit hook and a failing CI quality job (or the reverse)
+# become possible for the same tree.
+dev = ["ruff>=0.15,<0.16", "mypy>=1.19,<1.20"]
 
 [project.scripts]
 archtrace = "archtrace.cli:main"
