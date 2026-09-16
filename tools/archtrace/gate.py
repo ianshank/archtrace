@@ -393,6 +393,15 @@ def g6_render_freshness(eng: Engagement) -> Iterator[Finding]:
             continue
         with open(path, "rb") as fh:
             committed = fh.read()
+        # Raw equality first: a == b implies canonical(a) == canonical(b), and
+        # in the passing case -- which is every run on a healthy repository --
+        # all twelve outputs are raw-identical. Canonicalising both sides
+        # unconditionally meant parsing the SVG, drawio and docx XML twice per
+        # output on every single check. Profiled at 91% of the gate's total
+        # time; `make pre-pr` pays it three times over (check, freshness, gate)
+        # and `make freshness` once per engagement.
+        if committed == data:
+            continue
         if canon.canonical_bytes(name, committed) != canon.canonical_bytes(name, data):
             if stale_toolchain:
                 yield Finding(
@@ -661,7 +670,25 @@ def run(eng: Engagement, strict: bool = False,
     for rid, _sev, fn in RULES:
         if selected is not None and rid not in selected:
             continue
-        produced = list(fn(eng))
+        try:
+            produced = list(fn(eng))
+        except Exception as exc:
+            # A rule crash is a finding, not a traceback. Several rules index
+            # with `[]` where the document may legitimately be malformed --
+            # `o["req"]` on an out_of_scope entry, `rec["id"]` on an evidence
+            # record -- and the module docstring for those rules already claims
+            # "a missing field is another rule's finding to report, not a
+            # traceback". It was not true: removing one `req` key produced a
+            # raw KeyError out of `archtrace check`, which loses every other
+            # rule's findings along with it. G6 has wrapped its renderer call
+            # this way since it was written; this extends the same treatment to
+            # every rule, so one malformed field costs one finding rather than
+            # the whole report.
+            LOG.debug("rule %s crashed", rid, exc_info=True)
+            produced = [Finding(rid, BLOCK, "<rule crashed>",
+                                f"{type(exc).__name__}: {exc}. This is a defect "
+                                "in the rule or a document shape it does not "
+                                "handle; the other rules still ran.")]
         LOG.debug("rule %s produced %d finding(s)", rid, len(produced))
         findings.extend(produced)
     blocking = [f for f in findings

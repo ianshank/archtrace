@@ -99,8 +99,19 @@ class MiningPolicy:
 class CoveragePolicy:
     """Line coverage floors, enforced by the stdlib tracer."""
 
-    min_total_pct: int = 85
-    min_module_pct: int = 70
+    # Actual is 94% total, worst module 85% (commands.evidence). The previous
+    # floors -- 85 and 70 -- sat 9 and 15 points below that, which made them
+    # decorative: shipping a 40-line untested feature in `gate` took it to 78%
+    # and the total to 92%, and BOTH still passed. A floor that cannot fail on
+    # a realistic regression is the same false green this repository keeps
+    # finding elsewhere. 92/80 leaves ~2 points of total slack for refactor
+    # noise and 5 on the worst module, and does catch that example.
+    #
+    # These are a ratchet. Raise them when the number rises; lowering one is a
+    # decision that belongs in a commit message, which is why `coverage_gate`
+    # says so when it fails.
+    min_total_pct: int = 92
+    min_module_pct: int = 80
     # __main__ runs the CLI on import and is never imported by tests.
     # __init__ modules are re-export shims of one to four lines, where a
     # percentage is noise rather than signal; they still count toward the total.

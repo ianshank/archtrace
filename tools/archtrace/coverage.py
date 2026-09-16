@@ -180,14 +180,20 @@ def measure(run, package_dir: str, exclude: tuple = ()) -> Report:
         covered = runnable & hit.get(path, set())
         return ModuleCoverage(name, path, len(runnable), len(covered))
 
-    modules = [_module(package_dir, entry)
-               for entry in sorted(os.listdir(package_dir))
-               if entry.endswith(".py") and entry[:-3] not in excluded]
-
-    sub = os.path.join(package_dir, "commands")
-    if os.path.isdir(sub):
-        modules.extend(_module(sub, entry, prefix="commands.")
-                       for entry in sorted(os.listdir(sub))
+    # Walk every subpackage, not one hardcoded name. `commands` used to be
+    # spelled out here, so any NEW subpackage was invisible to the measurement
+    # -- and the failure mode is the dangerous direction: an unmeasured module
+    # shrinks the DENOMINATOR, so the headline percentage stays flat or
+    # improves while coverage falls. Splitting a large module into a package
+    # (the standing proposal for renders.py and gate.py, ~15% of the package's
+    # statements each) would have silently removed it from the gate.
+    modules: list = []
+    for dirpath, dirs, files in os.walk(package_dir):
+        dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+        relative = os.path.relpath(dirpath, package_dir)
+        prefix = "" if relative == "." else relative.replace(os.sep, ".") + "."
+        modules.extend(_module(dirpath, entry, prefix)
+                       for entry in sorted(files)
                        if entry.endswith(".py") and entry[:-3] not in excluded)
 
     return Report(tuple(modules), CONFIG.coverage.min_total_pct,

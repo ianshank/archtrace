@@ -213,6 +213,52 @@ class SeededDefect(unittest.TestCase):
         self._patch(("model", "model.json"), mutate)
         self.assertFires("G6")
 
+    def test_a_rule_that_crashes_becomes_a_finding_not_a_traceback(self):
+        """The invariant gate.py claims for its rules, now actually enforced.
+
+        Several rules index with `[]` where a document may legitimately be
+        malformed. Removing one `req` key from out_of_scope produced a raw
+        KeyError out of `archtrace check` -- which loses every OTHER rule's
+        findings along with it, so one missing field hid the whole report.
+        G6 has wrapped its renderer call this way since it was written.
+        """
+        def mutate(doc):
+            doc["out_of_scope"][0].pop("req")
+        self._patch(("model", "model.json"), mutate)
+        _rules, code, findings = self._rules()
+        self.assertEqual(code, 1)
+        crashed = [f for f in findings if f.where == "<rule crashed>"]
+        self.assertTrue(crashed, "expected the crash to surface as a finding")
+        self.assertIn("KeyError", crashed[0].message)
+        self.assertEqual(crashed[0].rule, "G3", "the finding must name the rule")
+
+    def test_one_crashing_rule_does_not_suppress_the_others(self):
+        """The whole point: a traceback costs the entire report."""
+        def mutate(doc):
+            doc["out_of_scope"][0].pop("req")
+            doc["systems"][0]["containers"][0]["grounding"] = []
+        self._patch(("model", "model.json"), mutate)
+        _rules, _code, findings = self._rules()
+        rules = {f.rule for f in findings}
+        self.assertIn("G3", rules, "the crashing rule reports")
+        self.assertIn("G4", rules, "and an unrelated rule still ran")
+
+    def test_g6_short_circuit_keeps_canonical_tolerance(self):
+        """Raw equality is only a fast path: a == b implies canon(a) == canon(b).
+
+        Bytes that differ but are canonically equal must still pass, or the
+        optimisation has changed the rule rather than speeding it up.
+        """
+        path = self._path("render", "model.drawio")
+        with open(path, encoding="utf-8") as fh:
+            xml = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(xml.replace("\n", "\n  "))
+        _rules, code, findings = self._rules()
+        self.assertEqual(code, 0,
+                         "reformatted but canonically equal XML must pass\n"
+                         + "\n".join(str(f) for f in findings))
+
     def _g6_messages(self):
         _rules, _code, findings = self._rules()
         return [f.message for f in findings if f.rule == "G6"]

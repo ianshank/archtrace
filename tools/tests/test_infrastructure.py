@@ -335,6 +335,30 @@ class Coverage(unittest.TestCase):
             fh.write(body)
         return path
 
+    def test_every_subpackage_is_measured_not_one_hardcoded_name(self):
+        """An unmeasured module shrinks the DENOMINATOR.
+
+        The walker spelled out `commands` by name, so a new subpackage was
+        invisible -- and invisible in the dangerous direction: the headline
+        percentage stays flat or improves while coverage falls. Splitting a
+        large module into a package would have silently removed it from the
+        gate.
+        """
+        pkg = os.path.join(self.tmp, "pkg")
+        os.makedirs(os.path.join(pkg, "deep", "deeper"))
+        for part in (pkg, os.path.join(pkg, "deep"),
+                     os.path.join(pkg, "deep", "deeper")):
+            with open(os.path.join(part, "__init__.py"), "w") as fh:
+                fh.write("")
+        for rel, body in (("top.py", "X = 1\n"),
+                          (os.path.join("deep", "mid.py"), "Y = 2\n"),
+                          (os.path.join("deep", "deeper", "low.py"), "Z = 3\n")):
+            with open(os.path.join(pkg, rel), "w") as fh:
+                fh.write(body)
+        report = coverage.measure(lambda: None, pkg)
+        self.assertEqual(sorted(m.module for m in report.modules),
+                         ["deep.deeper.low", "deep.mid", "top"])
+
     def test_executable_lines_excludes_docstrings_and_pass(self):
         path = self._module("sample", '"""Doc."""\n\n\ndef f():\n'
                                       '    """Inner."""\n    pass\n\n\nX = 1\n')
