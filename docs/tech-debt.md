@@ -61,13 +61,42 @@ directory, which makes them assertions about the environment rather than about
 the gate. `ARCHTRACE_CITATION_MIN_QUOTE_WORDS=99 make test` fails identically —
 nothing scrubs `ARCHTRACE_*` from the environment either.
 
-**Why it was not fixed in this pass:** the fix is to thread a `Config` through
-`gate.run` and into the rules, and every rule is registered by `@rule` with the
-signature `(eng) -> Iterator[Finding]`. Changing all fifteen plus the registry
-plus every call site is a change of its own, and doing it badly would move the
-thresholds somewhere less visible rather than more. The docstring in
-`config.py` now describes what the code does instead of what was intended,
-which is the part that was costing nothing to fix.
+It reaches the renders too. A stray `[render] box_width = 300` in the working
+directory is picked up (`archtrace config` confirms `<- overridden`) and
+changes **2 of the 12 committed outputs** — `architecture.docx` by 3 bytes and
+the manifest that records its hash. G6 does block afterwards, so this cannot
+publish silently; but two developers on one engagement, one standing in a
+directory with a config and one without, produce different deliverables and
+disagree about whether the repository is clean.
+
+**Measured scope, replacing an earlier estimate here that was wrong.** That
+estimate said the fix meant threading a `Config` through all fifteen rules.
+It does not:
+
+| Consumer | Surface | Cost |
+|---|---|---|
+| `gate.py` | 3 constants (`MIN_QUOTE_WORDS`, `MIN_QUOTE_CHARS`, `GENERIC_PHRASES`), used in **one rule** (G2) | small |
+| `renders.py` | 6 constants, **25 usages** across `_wrap`, `_svg`, `_boundary`, `_diagram` — none of which take an `Engagement` | wide, and inside G6-byte-locked code |
+| `coverage.py` | 2 floors | leave: it measures the repository you are standing in, so process scope is correct |
+
+**The design.** `Engagement.load(root)` already knows the root, so it should
+resolve config from it and expose `eng.config`. Rules keep their
+`(eng) -> Iterator[Finding]` signature untouched — G2 reads
+`eng.config.citation.*` instead of a module constant. That is a genuinely small
+change and fully backwards compatible.
+
+**Why it was not done in this pass.** The renders half hides a decision that is
+not a maintainer's to make quietly, because it changes what `archtrace.toml`
+*means*: are gate thresholds and render geometry the same kind of setting?
+Citation floors are **policy** — "what does this organisation accept as
+evidence?" — and belong to an engagement. Box widths are **house style** and
+belong to a toolchain. If they split, one file configures two scopes and that
+has to be documented and defended, not discovered. Splitting them is right, but
+it is a deliberate API decision rather than a bug fix, and bundling it into a
+quality pass would be deciding it by stealth.
+
+The `config.py` docstring now describes what the code does rather than what was
+intended, which was the part that cost nothing.
 
 **Risk of leaving it:** moderate, and it is the highest-ranked item here for a
 reason. It is a correctness defect for anyone running from a subdirectory, and

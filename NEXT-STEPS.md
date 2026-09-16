@@ -71,9 +71,15 @@ would be embarrassing to repeat without checking. The backlog, in order:
    Left as-is (a policy question, not a defect) with a test that fails if that
    relationship changes.
 
-   Still open: G1's `FactsError` path inside a structured record, and G6's
-   unreadable-facts path. Both need a deliberately corrupt facts file as a
-   fixture.
+   The last two were a pair, and closing them turned out to be closing a
+   *contract*: G13 skips a symbol whose facts file will not parse, with the
+   comment "G1 already reported the unreadable facts file". Nothing checked
+   that G1 does. With G1's branch deleted the file is unreadable, G13 stays
+   quiet on its own authority, and the gate passes an engagement whose code
+   citations resolve against nothing. Both halves are now asserted in one test —
+   G1 must speak, and G13 must not speak twice.
+
+   **§2a is now closed: 29 of 29.**
 3. **One true end-to-end test.** `ColdStart` gets from `init` to a *blocked*
    gate and stops. Nothing drives a scaffolded engagement through
    `quote → promote → model → fmt → render → check → release → verify` to a

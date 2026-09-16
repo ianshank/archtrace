@@ -203,6 +203,41 @@ class StructuredEvidence(unittest.TestCase):
         self._patch(("model", "model.json"), mutate)
         self.assertFires("G13", "s_mam.grounding[1]")
 
+    def test_a_facts_file_that_does_not_parse_is_g1_s_finding_to_report(self):
+        """The last two branches the mutation audit found dead, and they are a
+        pair: G1 reports the unreadable facts file, and G13 stays silent about
+        the symbols it can no longer resolve *because* G1 has it.
+
+        `evidence_facts` swallows `FactsError` and returns None, and G13 then
+        `continue`s with the comment "G1 already reported the unreadable facts
+        file". Nothing checked that G1 actually does. If that branch were
+        deleted the file would be unreadable, G13 would stay quiet on its own
+        authority, and the gate would pass an engagement whose code citations
+        resolve against nothing.
+        """
+        path = os.path.join(self.root, "_evidence_root", "EV-003-mam-facts.json")
+        body = '{"schema_version": 1, "symbols": [ this is not json'
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+
+        def rehash(index):
+            for record in index["evidence"]:
+                if record["id"] == "EV-003":
+                    record["sha256_normalized"] = \
+                        mining.sha256_bytes(body.encode("utf-8"))
+        self._patch(("evidence", "index.json"), rehash)
+
+        findings, code = gate.run(Engagement.load(self.root))
+        self.assertEqual(code, 1)
+        g1 = [f for f in findings if f.rule == "G1" and f.where == "EV-003"]
+        self.assertTrue(g1, "G1 must report a facts file it cannot parse\n"
+                        + "\n".join(str(f) for f in findings))
+        self.assertIn("not valid JSON", g1[0].message)
+        self.assertEqual(
+            [f for f in findings if f.rule == "G13"], [],
+            "G13 defers to G1 on an unreadable facts file; if it also fires, "
+            "the operator is told twice and the deferral comment is wrong")
+
     def test_a_symbol_citing_an_evidence_record_that_does_not_exist(self):
         """Distinct from citing prose evidence: there is nothing to resolve
         against at all, so the check cannot even reach the content-kind test."""

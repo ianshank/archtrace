@@ -127,16 +127,23 @@ one.
   stoplist should carry phrases long enough to clear the floors is a policy
   question. `test_every_stoplist_phrase_is_shorter_than_the_floors` fails if that
   relationship ever changes, so whoever changes it finds out.
-- **Twenty-one blocking gate branches had never fired in a test run.** A
+- **Twenty-nine blocking gate branches had never fired in a test run.** A
   mutation audit (208 mutations, 104 survivors) found 29 `Finding` branches that
   could each be replaced with `if False:` with the suite still green — G1's
   duplicate-id and required-field checks, G3's status/type/priority validation,
   five of G4's reference checks, G5's duplicate id and uid, G6's missing-render
   and stray-file findings, G7, G9's unknown-counterpart, both G12n branches, and
   G5e's only finding. Each now has a test, and each test was verified by
-  re-seeding the branch it guards: 21 of 21 killed. Line coverage rose 94% → 95%
+  re-seeding the branch it guards: 29 of 29 killed. Line coverage rose 94% → 96%
   as a side effect, which is the more honest way round — the coverage was
   missing because the enforcement was.
+
+  The last two were a contract rather than a branch. G13 skips a symbol whose
+  facts file will not parse, with the comment "G1 already reported the
+  unreadable facts file" — and nothing checked that G1 does. With G1's branch
+  deleted the file is unreadable, G13 stays silent on its own authority, and the
+  gate passes an engagement whose code citations resolve against nothing. One
+  test now asserts both halves: G1 must speak, and G13 must not speak twice.
 - **`assertFires` asserted only that a rule id appeared *somewhere*.** Inverting
   G2's speaker predicate left `test_g2_speaker_not_in_the_room` passing: G2 still
   fired, on the four requirements whose speakers *are* participants, for the
@@ -156,7 +163,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **100 tests** (183 → 283) covering exactly the gaps that let the above through:
+- **101 tests** (183 → 284) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config
