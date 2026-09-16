@@ -5,10 +5,27 @@ name: archtrace
 # gate with a toolchain is a gate that eventually breaks for reasons nobody can
 # diagnose, and then gets disabled.
 
+# MANUAL ONLY, on purpose. This workflow cannot pass until an adopter wires the
+# evidence step below to their own store, and a check that is red on every PR
+# regardless of the change teaches reviewers to ignore red checks -- which costs
+# more than the check was ever worth. It stays here, runnable on demand, as the
+# template it is.
+#
+# To adopt it: wire "Fetch evidence content", then add back
+#   pull_request:
+#   push:
+#     branches: [main]
+# The PR-diff step below is already conditioned on a pull_request event and will
+# start working again at that point with no further edit.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archtrace-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   gate:

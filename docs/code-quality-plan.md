@@ -18,20 +18,21 @@ design, and 94% line-covered. The structure is sound. **The problem is not the
 code; it is that three of the seven quality gates cannot fail**, and two CI
 workflows have been red since the repository's first push.
 
-| | Finding | Severity |
-|---|---|---|
-| **F1** | `make lint`, `make types` and `make secrets` **exit 0 when the tool fails**. Three of seven `pre-pr` gates are decorative. | **Critical** |
-| **F2** | `.gitleaks.toml` uses a regex construct Go's engine cannot compile. The `ci / quality` job has never passed. | **Critical** |
-| **F3** | `.github/workflows/archtrace.yml` contains a literal `exit 1`. It fails on every PR and every push, by construction. | **High** |
-| **F4** | 8 lint violations are in the tree right now, masked by F1. | **High** |
+| | Finding | Severity | Status |
+|---|---|---|---|
+| **F1** | `make lint`, `make types` and `make secrets` **exit 0 when the tool fails**. Three of seven `pre-pr` gates are decorative. | **Critical** | **fixed** |
+| **F2** | `.gitleaks.toml` uses a regex construct Go's engine cannot compile. The `ci / quality` job has never passed. | **Critical** | **fixed** |
+| **F2b** | `GITHUB_TOKEN` missing from the gitleaks step — invisible until F2 was fixed. | **High** | **fixed** |
+| **F3** | `.github/workflows/archtrace.yml` contains a literal `exit 1`. It fails on every PR and every push, by construction. | **High** | **fixed** (option A) |
+| **F4** | 8 lint violations in the tree, masked by F1. | **High** | **fixed** |
 
-F1 is the one that matters. It is the exact defect class this tool exists to
+F1 is the one that mattered. It is the exact defect class this tool exists to
 prevent — a control that is present, documented, and enforcing nothing — and it
-is currently sitting inside archtrace's own build.
+was sitting inside archtrace's own build.
 
-**Sequencing constraint:** F1 and F4 must ship together. Fixing the Makefile
-without fixing the violations turns CI red; fixing the violations without the
-Makefile leaves the gate decorative. They are one change.
+**Sequencing constraint (observed):** F1 and F4 had to ship together. Fixing the
+Makefile without fixing the violations turns CI red; fixing the violations
+without the Makefile leaves the gate decorative. They were one change.
 
 ---
 
@@ -78,10 +79,18 @@ lint:
 
 Apply the same shape to `types` and `secrets`.
 
-**Acceptance.** A deliberately introduced violation makes `make lint` exit 1, and
-`make lint` with ruff uninstalled still exits 0 with the SKIP message. Add both
-as cases in `test_infrastructure.py`, so the gate that guards the gates is itself
-tested.
+**Done.** `MakefileGates` in `test_infrastructure.py` drives all three real
+recipes with a stubbed tool and asserts the three states stay distinguishable:
+violations fail, a clean run passes, an absent tool skips. A fourth test asserts
+a *failing* tool is never reported as a *missing* one — that message is what sent
+people looking for the wrong problem.
+
+The tests are deliberately free of ruff/mypy/gitleaks: the `gate` CI job runs
+`make test` with nothing installed, and a test needing the dev extras would
+silently stop running exactly where this defect lived.
+
+Verified by mutation — restoring the old `&& ... || echo` idiom fails two of the
+four with *"a gate that cannot go red is not a gate"*.
 
 ### F4. Eight lint violations, currently masked [Certain]
 
@@ -95,16 +104,18 @@ tested.
 | `C408` | `test_docx_shapes.py:69` | `dict()` → literal |
 | `RUF015` | `test_docx_shapes.py:149` | `[...][0]` → `next(...)` |
 
-All are mechanical. Note the per-file-ignore list in `pyproject.toml:76-77`
-already covers `tools/tests/*` for several rule families but not `ARG001`,
-`C408` or `RUF015` — decide per rule whether to fix or to widen the ignore, and
-say which in the commit.
+Seven were fixed in code. The eighth — `ARG001` on the `_boundary` test double —
+became a per-file ignore instead: a stub standing in for `renders._boundary`
+must carry the real signature to be substitutable, so its unused parameters are
+the point rather than an oversight. That is the same rationale under which
+`ARG002` was already ignored for tests.
 
-**Root cause worth fixing separately:** `pyproject.toml:25` pins
-`ruff>=0.6,<1`. Ruff ships new rules in minor releases, so the violation set
-grows without a code change. Today that is invisible because of F1; once F1 is
-fixed it becomes a build that breaks on someone else's release schedule. Pin to
-a compatible range (`ruff>=0.15,<0.16`) and bump deliberately.
+**Root cause, fixed with it:** `pyproject.toml:25` pinned `ruff>=0.6,<1`. Ruff
+ships new rules in minor releases, so the violation set grew without a code
+change — which is why these eight appeared with nobody having touched the files.
+Invisible while F1 held; a build that breaks on someone else's release schedule
+once F1 is fixed. Now `ruff>=0.15,<0.16` and `mypy>=1.19,<2`: bump deliberately,
+with the new findings in the same commit.
 
 ---
 
@@ -193,17 +204,22 @@ has a permanently red check that no change can turn green. A check that is
 always red trains reviewers to ignore red checks, which costs more than the
 check was ever worth.
 
-**This one needs a decision, not a patch.** Three options:
+This needed a decision rather than a patch, because the `exit 1` is *intentional*
+(SPEC §0.4 — evidence content is never in git). Three options were put forward:
 
-| Option | Effect | Recommendation |
-|---|---|---|
-| **A.** `on: workflow_dispatch` only | Stops the noise; template stays available and honest | **Recommended** — it is a template, and templates should not vote on PRs |
-| **B.** Gate on a repo variable (`if: vars.EVIDENCE_STORE_URL != ''`) | Self-enabling once an adopter wires it | Good if this ships to adopters as-is |
-| **C.** Move to `docs/` as an example | Removes it from Actions entirely | Cleanest if nobody will ever wire it here |
+| Option | Effect |
+|---|---|
+| **A.** `on: workflow_dispatch` only | Stops the noise; template stays available and honest |
+| **B.** Gate on a repo variable (`if: vars.EVIDENCE_STORE_URL != ''`) | Self-enabling once an adopter wires it |
+| **C.** Move to `docs/` as an example | Removes it from Actions entirely |
 
-Deliberately **not** changed in this PR. The `exit 1` is intentional (SPEC §0.4 —
-evidence content is never in git), and which of A/B/C is right depends on whether
-this repository is the product or the reference implementation.
+**Option A was chosen and applied.** The workflow keeps its `exit 1` and its
+explanation, and is runnable on demand. The header now carries the two-line
+recipe for re-enabling the triggers, and the PR-diff step is already conditioned
+on a `pull_request` event, so it resumes working with no further edit.
+
+Its missing `permissions:` and `concurrency:` blocks were added in the same
+change.
 
 ### CI hardening, same pass [Certain]
 
@@ -459,20 +475,28 @@ generating it is the more consistent answer.
 Ordered so each phase leaves the build greener than it found it, and so no phase
 depends on a later one.
 
-| Phase | Work | Why here | Effort | Risk |
-|---|---|---|---|---|
-| **0** | F2 gitleaks config *(done in this PR)* | Nothing else can be verified while `quality` cannot run | 10 min | none |
-| **1** | F1 + F4 together; pin ruff | The gates must be able to fail before any refactor can be trusted. **Must be one commit.** | 2 h | low |
-| **2** | F3 decision (A/B/C) + `permissions`/`concurrency` + SHA-pin actions | Gets every check green and keeps the token scoped | 1 h | low — needs a decision |
-| **3** | C1 — test the docs generators, `make docs`, freshness check | Closes the largest measurement hole; eat the dog food | 4 h | low |
-| **4** | R5, R6, R7 — dead code, enum binding, small redundancies | Small, independent, each with a test | 3 h | low |
-| **5** | D1 — split `renders.py`, byte-identical | Now safe: gates work (1), G6 proves it | 1 d | low, **verifiable** |
-| **6** | R1–R4 — palette, wrap, macro tables, ref chain | Needs D1's `_shared.py` to land in | 4 h | low |
-| **7** | H1 — `shell=False` by default | Independent; sequence by appetite | 3 h | medium — CLI surface change |
-| **8** | D2, H2, H3 — test split, pinning, compliance files | Cleanup | 4 h | none |
+| Phase | Work | Why here | Effort | Risk | Status |
+|---|---|---|---|---|---|
+| **0** | F2 + F2b — gitleaks config and token | Nothing else can be verified while `quality` cannot run | 10 min | none | **done** |
+| **1** | F1 + F4 together; pin ruff and mypy | The gates must be able to fail before any refactor can be trusted. **Must be one commit.** | 2 h | low | **done** |
+| **2** | F3 (option A) + `permissions`/`concurrency` on `archtrace.yml` | Gets every check green and keeps the token scoped | 1 h | low | **done** |
+| **2b** | SHA-pin all actions; align the two gitleaks versions | Tags are mutable; pre-commit and CI currently run different binaries | 1 h | low | open |
+| **3** | C1 — test the docs generators, `make docs`, freshness check | Closes the largest measurement hole; eat the dog food | 4 h | low | open |
+| **4** | R5, R6, R7 — dead code, enum binding, small redundancies | Small, independent, each with a test | 3 h | low | open |
+| **5** | D1 — split `renders.py`, byte-identical | Now safe: gates work (1), G6 proves it | 1 d | low, **verifiable** | open |
+| **6** | R1–R4 — palette, wrap, macro tables, ref chain | Needs D1's `_shared.py` to land in | 4 h | low | open |
+| **7** | H1 — `shell=False` by default | Independent; sequence by appetite | 3 h | medium — CLI surface change | open |
+| **8** | D2, H2, H3 — test split, pinning, compliance files | Cleanup | 4 h | none | open |
 
-Phases 0–2 are the ones that change what "green" means. Everything after is
-ordinary improvement, and none of it should start before phase 1 lands.
+Phases 0–2 were the ones that changed what "green" means, and they have landed:
+`ci` is green, `make lint` can fail, and no workflow is red by construction.
+Everything from 2b on is ordinary improvement.
+
+**One thing to expect in phase 3 and after.** F1 masked lint, types *and* secrets
+simultaneously for the whole life of the repository, and fixing F2 immediately
+revealed F2b underneath it. A gate that has never been able to fail has never
+been telling you anything, so treat the first findings from a newly-honest gate
+as backlog that was always there — not as a regression someone introduced.
 
 ## 9. Acceptance criteria
 

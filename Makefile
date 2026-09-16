@@ -53,20 +53,36 @@ coverage:
 	@$(PY) tools/coverage_gate.py
 
 # --- developer tooling, optional -------------------------------------------
+#
+# These use `if/then/else`, NOT `cmd && tool || echo`. In shell, `||` fires when
+# ANYTHING on its left fails -- the tool being absent, or the tool running and
+# reporting violations -- and the `echo` then exits 0. That idiom made these
+# three recipes incapable of failing: `make lint` printed real ruff errors,
+# then printed "SKIP lint: ruff not installed", then exited 0. Three of the
+# seven pre-pr gates were reporting green on findings they had just printed.
+#
+# A gate that cannot go red is not a gate. `test_infrastructure.py` now asserts
+# both halves of this: a violation must fail, and an absent tool must skip.
 
 .PHONY: lint types secrets
 lint:
-	@command -v ruff >/dev/null 2>&1 \
-	  && ruff check tools docs \
-	  || echo "SKIP lint: ruff not installed (pip install -e \".[dev]\")"
+	@if command -v ruff >/dev/null 2>&1; then \
+	  ruff check tools docs; \
+	else \
+	  echo "SKIP lint: ruff not installed (pip install -e \".[dev]\")"; \
+	fi
 types:
-	@command -v mypy >/dev/null 2>&1 \
-	  && mypy \
-	  || echo "SKIP types: mypy not installed (pip install -e \".[dev]\")"
+	@if command -v mypy >/dev/null 2>&1; then \
+	  mypy; \
+	else \
+	  echo "SKIP types: mypy not installed (pip install -e \".[dev]\")"; \
+	fi
 secrets:
-	@command -v gitleaks >/dev/null 2>&1 \
-	  && gitleaks detect --config .gitleaks.toml --redact --no-banner \
-	  || echo "SKIP secrets: gitleaks not installed"
+	@if command -v gitleaks >/dev/null 2>&1; then \
+	  gitleaks detect --config .gitleaks.toml --redact --no-banner; \
+	else \
+	  echo "SKIP secrets: gitleaks not installed"; \
+	fi
 
 # --- the pre-PR gate --------------------------------------------------------
 # Ordered cheapest-first so a trivial failure does not wait behind the suite.
