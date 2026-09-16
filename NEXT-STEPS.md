@@ -23,6 +23,65 @@ hold the content; something has to.
 
 ## Known gaps, in priority order
 
+**2a. The test suite has a 50% mutation score, and the survivors are not
+random.** Measured, not estimated: 208 single-line mutations applied to a frozen
+tree, each run against the full suite. 104 survived. The distribution is what
+makes this urgent rather than merely untidy — **29 of the survivors are gate
+rule branches whose blocking `Finding` has never once fired in a test run.**
+G1's duplicate-evidence-id check, G3's status/type/priority validation, G4's
+unknown-standard and unknown-ADR checks, G5's duplicate-id and duplicate-uid
+checks, G6's missing-file and stray-file findings, G13's unknown-record check:
+all deletable, suite green. Two rules can have their entire relationship loop
+replaced with `for rel in []` — relationship grounding and relationship symbol
+citations are unchecked by any test.
+
+Three survivors were fixed in this pass: the release signing path, `fmt` as a
+no-op, and the documentation-diagram guards. **Every item below was reproduced
+by hand before being written down** — the audit was run by a subagent, and a
+finding about this repository's own controls is exactly the kind of claim it
+would be embarrassing to repeat without checking. The backlog, in order:
+
+1. **`assertFires(rule, where=...)`.** The helper asserts only that a rule id
+   appeared *somewhere* in the findings, across 38 call sites. Invert G2's
+   speaker check (`speaker not in participants` → `speaker in participants`)
+   and `test_g2_speaker_not_in_the_room` — the test named for that exact
+   behaviour — still passes. The suite goes red only through 27 *unrelated*
+   tests that break because the clean example now fires a spurious G2. The rule
+   is guarded by collateral damage, not by its own test. Threading a `where`
+   through turns ~29 coarse assertions into precise ones and is the single
+   highest-yield change here.
+2. **`tools/tests/support.py`.** `sys.path.insert` is copied 7 times,
+   `mkdtemp` 20, `copytree(EXAMPLE)` 12, and `run_cli` exists in five divergent
+   variants. The duplication is not the cost; the drift is — two copies of
+   `assertFires` have already diverged. A shared fixture layer is also where
+   the `ARCHTRACE_*` and CWD scrub belongs (see `docs/tech-debt.md` §0).
+3. **One true end-to-end test.** `ColdStart` gets from `init` to a *blocked*
+   gate and stops. Nothing drives a scaffolded engagement through
+   `quote → promote → model → fmt → render → check → release → verify` to a
+   green gate and a MATCH. That one test kills at least nine survivors by
+   itself, and `quote` — the command that exists to remove a class of mistake —
+   is currently never used as the input to anything.
+4. **`canon.normalize` is under-specified by its tests.** Removing the NFKC
+   call entirely, or the curly-double-quote and ellipsis folds, leaves the suite
+   green. `test_nfkc_alone_is_insufficient` proves NFKC is not *sufficient*;
+   nothing proves it is *necessary*. Same for the two `canonical_bytes`
+   mechanisms whose docstrings say they exist to stop G6 false positives across
+   machines — zip entry ordering and the `modified` attribute strip.
+5. **`release` will sign an engagement with zero confirmed requirements.**
+   Reproduced: `init` a scaffold, `release`, `--verify` → MATCH, exit 0, with
+   `"confirmed_requirements": []` in the manifest. `check` refuses to call that
+   state clean ("an empty pass, not a clean one"); `release` signs it anyway.
+6. **Malformed JSON in any source document is a raw traceback, not a refusal**
+   (T5). `printf '{ this is not json' > model/model.json && archtrace check`
+   → `json.decoder.JSONDecodeError` on stderr and exit 1. Exit 1 means
+   "blocked", which CI reads as a gate finding; this is a usage error and
+   SPEC §exit-codes says 2.
+7. **`retention_until`, `date` and `classification` are never format-checked.**
+   Reproduced: `retention_until="not-a-date"` together with
+   `classification="<script>alert(1)</script>"` gives `0 blocking, 0 warning`.
+   G1 tests truthiness only, so a retention obligation the repository claims to
+   record can be an arbitrary string.
+
 **3. Lucid round-trip is unverified.** Thirty-minute spike. Lucid's docs
 conflict on whether a hand-assembled `mxfile` imports at all, and it states it
 prioritises functional over visual fidelity — meaning it may discard the
