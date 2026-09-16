@@ -19,15 +19,25 @@ rather than evaluate it.
 
 ```bash
 make help              # every target, grouped by whether it needs dependencies
+make check             # the gates, against the bytes AS COMMITTED
+make freshness         # G6 for every engagement discovered in the repo
+make engagements       # list what freshness discovered
 make gate              # fmt + render + check, the pre-publish loop
 make test              # runs the suite
 make coverage          # the suite under the stdlib tracer, against floors
 make agents            # deterministic validation of the agent definitions
 make config            # print the thresholds this build actually enforces
-make pre-pr            # everything, in the order CI runs it
+make docs              # regenerate the documentation diagrams
+make pre-pr            # everything, cheapest-first (11 steps)
 
 ./archtrace --root engagements/aurora init "Project Aurora"   # a real one
 ```
+
+`check` before `gate`, deliberately. `gate` is `fmt render check` — it
+regenerates every artifact before checking it, so a hand edit to `render/` is
+overwritten rather than reported. `check` reads the bytes as committed and is
+the only one of the two that can fail on a tampered deliverable; `freshness`
+asks that question of every engagement in the repository rather than just one.
 
 Python 3.9+, standard library only. No pip, no venv, no Java, no Node, no
 pandoc, no drawio CLI, no Structurizr CLI, no setup step in CI. CI proves that
@@ -56,7 +66,7 @@ emits the SVG when layout control matters more than editability.
 evidence/index.json         claims about evidence — never the content itself
 requirements/*.json         REQ records with verifiable byte-span citations
 model/model.json            C4 elements, relationships, ADRs, out-of-scope
-render/                     generated; a hand edit fails the build
+render/                     generated; a hand edit fails `make check`
 .github/agents/*.agent.md   three read-only agents; none of them can gate
 ```
 

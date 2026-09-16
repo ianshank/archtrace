@@ -139,7 +139,7 @@ demonstrated the fix for an input chosen to not need it. **Corrected in
 
 | | Finding | Severity | Status |
 |---|---|---|---|
-| **T1** | `release --verify` reports *"Safe to publish"* on a tampered deliverable | **Critical** | open |
+| **T1** | `release --verify` reports *"Safe to publish"* on a tampered deliverable | **Critical** | **fixed in 0.5.0** |
 | **T2** | Every stakeholder quote in every deliverable is casefolded, not verbatim | **High** | open |
 | **T3** | Citation offsets cannot be mapped back to the source document by hand | **High** | open |
 | **T4** | The coverage gate is blind to any new subpackage | **High** | open |

@@ -1,20 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1532" height="1704" viewBox="0 0 1532 1704" font-family="Helvetica, Arial, sans-serif">
-<rect width="1532" height="1704" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1532" height="1906" viewBox="0 0 1532 1906" font-family="Helvetica, Arial, sans-serif">
+<rect width="1532" height="1906" fill="#ffffff"/>
 <text x="30" y="30" font-size="17" font-weight="bold" fill="#16202e">archtrace — operating model</text>
 <text x="30" y="50" font-size="11.5" fill="#4a5568">Three loops · two human gates · no LLM in the critical path    |    solid = invocation, dashed = data returned</text>
 <rect x="22" y="128" width="1488" height="308" rx="6" fill="#eef4fa"/>
 <text x="32" y="145" font-size="12" font-weight="bold" fill="#4a5568">Loop 1 — after every meeting (~2 min)</text>
 <rect x="22" y="454" width="1488" height="550" rx="6" fill="#eef5ee"/>
 <text x="32" y="471" font-size="12" font-weight="bold" fill="#4a5568">Loop 2 — per batch (~30 min) · the only step that needs judgement</text>
-<rect x="22" y="1022" width="1488" height="630" rx="6" fill="#faf4ec"/>
+<rect x="22" y="1022" width="1488" height="832" rx="6" fill="#faf4ec"/>
 <text x="32" y="1039" font-size="12" font-weight="bold" fill="#4a5568">Loop 3 — before anything leaves the repo (seconds)</text>
-<line x1="118" y1="118" x2="118" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
-<line x1="334" y1="118" x2="334" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
-<line x1="550" y1="118" x2="550" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
-<line x1="766" y1="118" x2="766" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
-<line x1="982" y1="118" x2="982" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
-<line x1="1198" y1="118" x2="1198" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
-<line x1="1414" y1="118" x2="1414" y2="1690" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="118" y1="118" x2="118" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="334" y1="118" x2="334" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="550" y1="118" x2="550" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="766" y1="118" x2="766" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="982" y1="118" x2="982" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="1198" y1="118" x2="1198" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
+<line x1="1414" y1="118" x2="1414" y2="1892" stroke="#9aa5b5" stroke-width="1" stroke-dasharray="3 4"/>
 <rect x="30" y="66" width="176" height="52" rx="5" fill="#dbe4f0" stroke="#33415c" stroke-width="1.4"/>
 <text x="118" y="97" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#16202e">Stakeholders</text>
 <rect x="246" y="66" width="176" height="52" rx="5" fill="#e6e6e6" stroke="#33415c" stroke-width="1.4"/>
@@ -107,57 +107,74 @@
 <text x="874" y="972" font-size="11" text-anchor="middle" fill="#16202e">signed commit behind CODEOWNERS</text>
 <line x1="550" y1="1062" x2="977" y2="1062" stroke="#33415c" stroke-width="1.4"/>
 <path d="M 977 1057 L 982 1062 L 977 1067 z" fill="#33415c"/>
-<rect x="657" y="1045" width="218" height="15" fill="#ffffff"/>
-<text x="766" y="1056" font-size="11" text-anchor="middle" fill="#16202e">make gate   (fmt · render · check)</text>
+<rect x="591" y="1045" width="350" height="15" fill="#ffffff"/>
+<text x="766" y="1056" font-size="11" text-anchor="middle" fill="#16202e">make check   (reads the committed bytes; writes nothing)</text>
 <path d="M 982 1094 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
 <path d="M 988 1108 L 982 1112 L 988 1116 z" fill="#33415c"/>
-<rect x="1012" y="1094" width="390" height="15" fill="#ffffff" opacity="0.9"/>
-<text x="1016" y="1106" font-size="11" text-anchor="start" fill="#16202e">G1 hash · G2 citation · G3 coverage · G4 grounding · G5 C4 form</text>
+<rect x="1012" y="1094" width="492" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1106" font-size="11" text-anchor="start" fill="#16202e">G10 schema version · G1 evidence hash · G2 citation · G3 coverage · G4 grounding</text>
 <path d="M 982 1134 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
 <path d="M 988 1148 L 982 1152 L 988 1156 z" fill="#33415c"/>
-<rect x="464" y="1134" width="510" height="15" fill="#ffffff" opacity="0.9"/>
-<text x="970" y="1146" font-size="11" text-anchor="end" fill="#16202e">G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR · G13 symbols</text>
-<line x1="982" y1="1182" x2="555" y2="1182" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
-<path d="M 555 1177 L 550 1182 L 555 1187 z" fill="#33415c"/>
-<rect x="639" y="1165" width="254" height="15" fill="#ffffff"/>
-<text x="766" y="1176" font-size="11" text-anchor="middle" fill="#16202e">exit 1 + named rule and fix   /   exit 0</text>
-<rect x="682" y="1210" width="600" height="40" rx="4" fill="#fffdf2" stroke="#c9be8f"/>
-<text x="694" y="1225" font-size="11" fill="#4a5568">"Green" means grounded and internally consistent.</text>
-<text x="694" y="1239" font-size="11" fill="#4a5568">It never means correct. Correctness is still the architect's.</text>
-<line x1="766" y1="1276" x2="555" y2="1276" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
-<path d="M 555 1271 L 550 1276 L 555 1281 z" fill="#33415c"/>
-<rect x="504" y="1259" width="308" height="15" fill="#ffffff"/>
-<text x="658" y="1270" font-size="11" text-anchor="middle" fill="#16202e">review/advisory.md — advisory only, always exit 0</text>
-<line x1="550" y1="1316" x2="977" y2="1316" stroke="#33415c" stroke-width="1.4"/>
-<path d="M 977 1311 L 982 1316 L 977 1321 z" fill="#33415c"/>
-<rect x="663" y="1299" width="206" height="15" fill="#ffffff"/>
-<text x="766" y="1310" font-size="11" text-anchor="middle" fill="#16202e">release --approved-by … --role …</text>
-<path d="M 982 1348 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
-<path d="M 988 1362 L 982 1366 L 988 1370 z" fill="#33415c"/>
-<rect x="1012" y="1348" width="288" height="15" fill="#ffffff" opacity="0.9"/>
-<text x="1016" y="1360" font-size="11" text-anchor="start" fill="#16202e">refuse if the gate blocks or the tree is dirty</text>
-<line x1="982" y1="1396" x2="1193" y2="1396" stroke="#33415c" stroke-width="1.4"/>
-<path d="M 1193 1391 L 1198 1396 L 1193 1401 z" fill="#33415c"/>
-<rect x="912" y="1379" width="356" height="15" fill="#ffffff"/>
-<text x="1090" y="1390" font-size="11" text-anchor="middle" fill="#16202e">release.json — commit + sha256 of every source and output</text>
-<path d="M 1198 1428 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
-<path d="M 1204 1442 L 1198 1446 L 1204 1450 z" fill="#33415c"/>
-<rect x="1228" y="1428" width="282" height="15" fill="#ffffff" opacity="0.9"/>
-<text x="1232" y="1440" font-size="11" text-anchor="start" fill="#16202e">PR: model diff reviewed · render/** collapsed</text>
-<line x1="550" y1="1476" x2="977" y2="1476" stroke="#33415c" stroke-width="1.4"/>
-<path d="M 977 1471 L 982 1476 L 977 1481 z" fill="#33415c"/>
-<rect x="711" y="1459" width="110" height="15" fill="#ffffff"/>
-<text x="766" y="1470" font-size="11" text-anchor="middle" fill="#16202e">release --verify</text>
-<line x1="982" y1="1516" x2="555" y2="1516" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
-<path d="M 555 1511 L 550 1516 L 555 1521 z" fill="#33415c"/>
-<rect x="594" y="1499" width="344" height="15" fill="#ffffff"/>
-<text x="766" y="1510" font-size="11" text-anchor="middle" fill="#16202e">MATCH (byte-identical)   /   DRIFT (names what changed)</text>
-<rect x="30" y="1540" width="1472" height="56" rx="5" fill="#fdf0e6" stroke="#b4531f" stroke-width="1.6"/>
-<text x="44" y="1558" font-size="12.5" font-weight="bold" fill="#b4531f">PUBLISH ONLY ON MATCH</text>
-<text x="44" y="1574" font-size="10.5" fill="#4a5568">Publishing a post-approval edit under an approved-looking provenance trail is exactly the</text>
-<text x="44" y="1587" font-size="10.5" fill="#4a5568">failure this catches.</text>
-<line x1="550" y1="1626" x2="1409" y2="1626" stroke="#33415c" stroke-width="1.4"/>
-<path d="M 1409 1621 L 1414 1626 L 1409 1631 z" fill="#33415c"/>
-<rect x="954" y="1609" width="56" height="15" fill="#ffffff"/>
-<text x="982" y="1620" font-size="11" text-anchor="middle" fill="#16202e">publish</text>
+<rect x="386" y="1134" width="588" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="970" y="1146" font-size="11" text-anchor="end" fill="#16202e">G5 C4 form · G5e external containers · G6 render freshness · G7 ADR linkage · G8 orphan evidence</text>
+<path d="M 982 1174 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 1188 L 982 1192 L 988 1196 z" fill="#33415c"/>
+<rect x="1012" y="1174" width="480" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1186" font-size="11" text-anchor="start" fill="#16202e">G9 conflicts · G11 authority · G12 NFR silence · G12n NFR reason · G13 symbols</text>
+<line x1="982" y1="1222" x2="555" y2="1222" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 1217 L 550 1222 L 555 1227 z" fill="#33415c"/>
+<rect x="639" y="1205" width="254" height="15" fill="#ffffff"/>
+<text x="766" y="1216" font-size="11" text-anchor="middle" fill="#16202e">exit 1 + named rule and fix   /   exit 0</text>
+<rect x="682" y="1250" width="600" height="68" rx="4" fill="#fffdf2" stroke="#c9be8f"/>
+<text x="694" y="1265" font-size="11" fill="#4a5568">`check` runs BEFORE `gate`, and that order is the control. `gate` is</text>
+<text x="694" y="1279" font-size="11" fill="#4a5568">fmt + render + check: it regenerates the renders, so by the time it</text>
+<text x="694" y="1293" font-size="11" fill="#4a5568">checks them a hand edit has already been overwritten. Only `check`</text>
+<text x="694" y="1307" font-size="11" fill="#4a5568">can report one.</text>
+<line x1="550" y1="1344" x2="977" y2="1344" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 1339 L 982 1344 L 977 1349 z" fill="#33415c"/>
+<rect x="657" y="1327" width="218" height="15" fill="#ffffff"/>
+<text x="766" y="1338" font-size="11" text-anchor="middle" fill="#16202e">make gate   (fmt · render · check)</text>
+<rect x="682" y="1372" width="600" height="40" rx="4" fill="#fffdf2" stroke="#c9be8f"/>
+<text x="694" y="1387" font-size="11" fill="#4a5568">"Green" means grounded and internally consistent.</text>
+<text x="694" y="1401" font-size="11" fill="#4a5568">It never means correct. Correctness is still the architect's.</text>
+<line x1="766" y1="1438" x2="555" y2="1438" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 1433 L 550 1438 L 555 1443 z" fill="#33415c"/>
+<rect x="504" y="1421" width="308" height="15" fill="#ffffff"/>
+<text x="658" y="1432" font-size="11" text-anchor="middle" fill="#16202e">review/advisory.md — advisory only, always exit 0</text>
+<line x1="550" y1="1478" x2="977" y2="1478" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 1473 L 982 1478 L 977 1483 z" fill="#33415c"/>
+<rect x="663" y="1461" width="206" height="15" fill="#ffffff"/>
+<text x="766" y="1472" font-size="11" text-anchor="middle" fill="#16202e">release --approved-by … --role …</text>
+<path d="M 982 1510 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 1524 L 982 1528 L 988 1532 z" fill="#33415c"/>
+<rect x="1012" y="1510" width="288" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1522" font-size="11" text-anchor="start" fill="#16202e">refuse if the gate blocks or the tree is dirty</text>
+<line x1="982" y1="1558" x2="1193" y2="1558" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 1193 1553 L 1198 1558 L 1193 1563 z" fill="#33415c"/>
+<rect x="912" y="1541" width="356" height="15" fill="#ffffff"/>
+<text x="1090" y="1552" font-size="11" text-anchor="middle" fill="#16202e">release.json — commit + sha256 of every source and output</text>
+<path d="M 1198 1590 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 1204 1604 L 1198 1608 L 1204 1612 z" fill="#33415c"/>
+<rect x="1228" y="1590" width="282" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1232" y="1602" font-size="11" text-anchor="start" fill="#16202e">PR: model diff reviewed · render/** collapsed</text>
+<line x1="550" y1="1638" x2="977" y2="1638" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 977 1633 L 982 1638 L 977 1643 z" fill="#33415c"/>
+<rect x="711" y="1621" width="110" height="15" fill="#ffffff"/>
+<text x="766" y="1632" font-size="11" text-anchor="middle" fill="#16202e">release --verify</text>
+<path d="M 982 1670 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
+<path d="M 988 1684 L 982 1688 L 988 1692 z" fill="#33415c"/>
+<rect x="1012" y="1670" width="270" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="1016" y="1682" font-size="11" text-anchor="start" fill="#16202e">re-read render/ FROM DISK — never re-render</text>
+<line x1="982" y1="1718" x2="555" y2="1718" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
+<path d="M 555 1713 L 550 1718 L 555 1723 z" fill="#33415c"/>
+<rect x="594" y="1701" width="344" height="15" fill="#ffffff"/>
+<text x="766" y="1712" font-size="11" text-anchor="middle" fill="#16202e">MATCH (byte-identical)   /   DRIFT (names what changed)</text>
+<rect x="30" y="1742" width="1472" height="56" rx="5" fill="#fdf0e6" stroke="#b4531f" stroke-width="1.6"/>
+<text x="44" y="1760" font-size="12.5" font-weight="bold" fill="#b4531f">PUBLISH ONLY ON MATCH</text>
+<text x="44" y="1776" font-size="10.5" fill="#4a5568">Publishing a post-approval edit under an approved-looking provenance trail is exactly the</text>
+<text x="44" y="1789" font-size="10.5" fill="#4a5568">failure this catches.</text>
+<line x1="550" y1="1828" x2="1409" y2="1828" stroke="#33415c" stroke-width="1.4"/>
+<path d="M 1409 1823 L 1414 1828 L 1409 1833 z" fill="#33415c"/>
+<rect x="954" y="1811" width="56" height="15" fill="#ffffff"/>
+<text x="982" y="1822" font-size="11" text-anchor="middle" fill="#16202e">publish</text>
 </svg>

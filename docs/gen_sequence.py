@@ -8,9 +8,22 @@ Standard library only, like everything else. The .mmd next to this file is the
 editable source of record (GitHub renders mermaid `sequenceDiagram` natively,
 unlike the C4 extension); this exists because a diagram going into a deck needs
 layout control that Mermaid does not offer.
+
+The gate's rule list is read from the registry, not typed here. It used to be
+typed, and it listed eleven of the fifteen registered ids -- a diagram claiming
+to show what `make gate` runs while omitting four rules. `_gate_lines()` now
+refuses to generate at all when a registered rule has no label, so the failure
+is a build error rather than a quietly incomplete picture.
 """
 
+import os
+import sys
 from xml.sax.saxutils import escape
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+
+import repo_facts  # after the sys.path bootstrap above
 
 LANES = [
     ("Stakeholders", "actor"),
@@ -32,6 +45,52 @@ FILL = {"actor": "#dbe4f0", "system": "#e6e6e6", "agent": "#efe3c9",
 BANDS = {"evidence": "#eef4fa", "interpret": "#eef5ee", "gate": "#faf4ec"}
 STROKE, TEXT, MUTED = "#33415c", "#16202e", "#4a5568"
 GATE_FILL, GATE_STROKE = "#fdf0e6", "#b4531f"
+
+# What each rule is ABOUT, in four words or fewer. Editorial: the registry owns
+# which ids exist, this owns how to say them on a diagram. `_gate_lines()`
+# asserts the two agree in both directions.
+RULE_LABELS = {
+    "G1": "evidence hash",
+    "G2": "citation",
+    "G3": "coverage",
+    "G4": "grounding",
+    "G5": "C4 form",
+    "G5e": "external containers",
+    "G6": "render freshness",
+    "G7": "ADR linkage",
+    "G8": "orphan evidence",
+    "G9": "conflicts",
+    "G10": "schema version",
+    "G11": "authority",
+    "G12": "NFR silence",
+    "G12n": "NFR reason",
+    "G13": "symbols",
+}
+
+
+def _gate_lines(per_line: int = 5) -> list:
+    """The gate's rules as diagram text, in the order `check` runs them.
+
+    Refuses to generate when the registry and the label table disagree in
+    either direction. A rule added without a label would otherwise vanish from
+    the diagram, which is how this got to eleven-of-fifteen; a label left behind
+    by a removed rule would draw a gate step that no longer runs.
+    """
+    ids = repo_facts.rule_ids()
+    unlabelled = [rid for rid in ids if rid not in RULE_LABELS]
+    if unlabelled:
+        raise SystemExit(
+            "gen_sequence: these rules are registered and have no label in "
+            f"RULE_LABELS: {', '.join(unlabelled)}. Add one -- a diagram that "
+            "silently omits a gate rule misrepresents the gate.")
+    orphaned = [rid for rid in RULE_LABELS if rid not in ids]
+    if orphaned:
+        raise SystemExit(
+            f"gen_sequence: RULE_LABELS names rules the gate does not run: "
+            f"{', '.join(orphaned)}. Remove them.")
+    parts = [f"{rid} {RULE_LABELS[rid]}" for rid in ids]
+    return [" · ".join(parts[i:i + per_line])
+            for i in range(0, len(parts), per_line)]
 
 # (kind, *args). call/ret = arrow; self = loop; note = spanning box;
 # gate = full-width human-decision bar; band = phase background.
@@ -70,10 +129,15 @@ SCRIPT = [
     ("endband",),
 
     ("band", "gate", "Loop 3 — before anything leaves the repo (seconds)"),
-    ("call", "AR", "AT", "make gate   (fmt · render · check)"),
-    ("self", "AT", "G1 hash · G2 citation · G3 coverage · G4 grounding · G5 C4 form"),
-    ("self", "AT", "G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR · G13 symbols"),
+    ("call", "AR", "AT", "make check   (reads the committed bytes; writes nothing)"),
+    *(("self", "AT", line) for line in _gate_lines()),
     ("ret", "AT", "AR", "exit 1 + named rule and fix   /   exit 0"),
+    ("note", "AT", "AT",
+     "`check` runs BEFORE `gate`, and that order is the control. `gate` is\n"
+     "fmt + render + check: it regenerates the renders, so by the time it\n"
+     "checks them a hand edit has already been overwritten. Only `check`\n"
+     "can report one."),
+    ("call", "AR", "AT", "make gate   (fmt · render · check)"),
     ("note", "AT", "AT",
      '"Green" means grounded and internally consistent.\n'
      "It never means correct. Correctness is still the architect's."),
@@ -83,6 +147,7 @@ SCRIPT = [
     ("call", "AT", "GIT", "release.json — commit + sha256 of every source and output"),
     ("self", "GIT", "PR: model diff reviewed · render/** collapsed"),
     ("call", "AR", "AT", "release --verify"),
+    ("self", "AT", "re-read render/ FROM DISK — never re-render"),
     ("ret", "AT", "AR", "MATCH (byte-identical)   /   DRIFT (names what changed)"),
     ("gate", "PUBLISH ONLY ON MATCH",
      "Publishing a post-approval edit under an approved-looking provenance "
@@ -246,9 +311,13 @@ def build() -> str:
 
 
 if __name__ == "__main__":
-    import os
-    target = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "workflow-sequence.svg")
-    with open(target, "w", encoding="utf-8") as fh:
-        fh.write(build())
-    print(f"wrote {target}")
+    # See the note in gen_architecture.py: `--stdout` lets the freshness check
+    # ask what this WOULD produce without overwriting what is committed.
+    if "--stdout" in sys.argv:
+        sys.stdout.write(build())
+    else:
+        target = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "workflow-sequence.svg")
+        with open(target, "w", encoding="utf-8") as fh:
+            fh.write(build())
+        print(f"wrote {target}")

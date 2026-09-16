@@ -31,6 +31,54 @@ plain that they existed at all.
 
 ## Open tech debt, ranked
 
+### 0. ~~Configuration resolved from the process CWD~~ — fixed [Certain]
+
+`config.DEFAULT = load()` resolved at import with `root="."`, so the
+`archtrace.toml` that took effect was the one in the directory the operator was
+standing in. `--root` never reached this layer at all. Both consequences were
+reproduced:
+
+```
+$ cd engagements/aurora && archtrace check      # read NO configuration
+$ cd ~ && archtrace --root /work/proj check     # applied ~/archtrace.toml
+```
+
+```
+$ printf '[citation]\nmin_quote_words = 99\n' > archtrace.toml
+$ make test
+FAILED (failures=26)
+```
+
+That last one is the sharpest statement: **a repository that legitimately
+configured archtrace could not run archtrace's own test suite.** Twenty-six
+assertions depended on the developer's working directory, which made them
+statements about the environment rather than about the gate.
+
+**Fixed in two halves.** `config.find_config_root` walks up to the nearest
+`.git`, `.hg` or `pyproject.toml` and reads the file there, falling back to the
+starting directory when there is no marker — deliberately, rather than walking
+on into someone's home directory, which is how the second defect happened.
+`cli.main` then re-resolves from `--root` after argparse and calls
+`gate.apply_config`, so the policy reaching the rules is the project's and not
+the operator's. `archtrace config` resolves the same way and prints the
+configuration root it used, because a tool that reports one threshold while
+enforcing another is the failure that command exists to prevent.
+
+The suite pins its own policy in `setUp` rather than inheriting the ambient one.
+That is now necessary for a second reason as well as the first: `apply_config`
+rebinds module constants, so any test driving the CLI leaves them rebound and
+test *ordering* would otherwise decide the thresholds. `ConfigurationRoot`
+asserts both directions, and the full suite passes with and without a
+`[citation] min_quote_words = 99` at this repository's root.
+
+**Still open, and deliberately:** this does not make configuration
+per-engagement. One repository, one policy. `renders.py` still binds six
+constants at import across 25 usages in helpers that take no `Engagement`, and
+a stray `[render] box_width` does change two of the twelve committed outputs
+(G6 blocks afterwards, so it cannot publish silently). Splitting citation policy
+from render house style would mean one file configuring two scopes, which
+changes what `archtrace.toml` means — a deliberate API decision, not a bug fix.
+
 ### 1. `renders.py` is now the largest module at 598 lines [Certain]
 
 `cli.py` went from 1,008 to 248; `renders.py` inherited the title. It contains
@@ -46,17 +94,23 @@ already carried a decomposition. Splitting it into `renders/` mirroring
 **Risk of leaving it:** low. It is cohesive by output type, fully covered (98%),
 and changes rarely.
 
-### 2. The docs generators are untested and unmeasured [Certain]
+### 2. The docs generators are still unmeasured, now partly tested [Certain]
 
-`docs/gen_architecture.py` (308 lines) and `gen_sequence.py` (254) have no tests
-and are outside the coverage measurement, which scopes to `tools/archtrace`.
-They are presentation code that produces committed artifacts, so a break is
-visible immediately — but "visible immediately" assumes somebody looks.
+`docs/gen_architecture.py` and `gen_sequence.py` remain outside the coverage
+measurement, which scopes to `tools/archtrace`.
 
-**Honest assessment:** three rendering defects in these were caught this session
-only because I rasterised the output and looked at it. That is not a process.
-Minimum viable fix: assert the SVG parses and contains the expected element
-count, which would have caught two of the three.
+**Partly closed.** "Visible immediately assumes somebody looks", written here
+earlier, turned out to be the whole problem: nobody did, and both diagrams had
+drifted — one drew a test count four releases old, both named eleven of fifteen
+gate rules. `make docs-fresh` now asks of `docs/` what G6 asks of `render/`, and
+`DocsFreshness` exercises the target's failure paths. `tools/repo_facts.py`
+removes the class of defect that produced the stale count.
+
+**Still open:** nothing asserts the emitted SVG *parses*, or that its text stays
+inside the canvas. Both were checked by hand while writing that change, which is
+the same "not a process" this entry complained about. The generators' own
+drawing logic — `wrap`, `arrow`, the self-message overflow flip in
+`gen_sequence.py:176` — has no test at all.
 
 ### 3. Line coverage only, not branch [Certain]
 

@@ -131,8 +131,9 @@ an agent read-only — it will write with `sh -c 'cat > …'`. Deny both.
 outside `make gate`:
 
 ```bash
-make mine-dry REPO=~/work/mam-legacy URI=https://github.example.com/media/mam-legacy
-make mine     REPO=~/work/mam-legacy ID=EV-004 URI=...
+make mine-dry REPO=~/work/mam-legacy URI=https://github.example.com/media/mam-legacy \
+              RETAIN=2029-01-01
+make mine     REPO=~/work/mam-legacy ID=EV-004 URI=... RETAIN=2029-01-01
 ./archtrace --root engagements/aurora symbols EV-004 UserService
 ```
 
@@ -164,7 +165,8 @@ copilot --agent architecture-modeler --deny-tool=write,shell --allow-tool=read \
       use derived/standard/existing/assumption."
 ```
 
-Apply the diff yourself, then `make gate ROOT=engagements/aurora`, then commit.
+Apply the diff yourself, then `make check ROOT=engagements/aurora && make gate
+ROOT=engagements/aurora`, then commit.
 
 **The commit is the audit record of who confirmed what and when — but only if
 you make it one.** A plain commit proves neither that the committer had
@@ -186,8 +188,17 @@ independent review cryptographically.
 ## Loop 3 — before anything leaves the repo (seconds)
 
 ```bash
-make gate ROOT=engagements/aurora     # fmt + render + check
+make check ROOT=engagements/aurora    # the gates, against the bytes as committed
+make freshness                        # G6 for every engagement in the repo
+make gate  ROOT=engagements/aurora    # fmt + render + check
 ```
+
+Run `check` **before** `gate`, and not as a formality. `gate` is `fmt render
+check`: it regenerates every artifact before checking it, so a hand edit to
+`render/` is overwritten rather than reported and `gate` goes green on it.
+`check` reads the bytes as committed and is the only one of the two that can
+fail on a tampered deliverable. `freshness` asks G6 of every engagement in the
+repository, not just `ROOT`.
 
 Green means grounded and internally consistent. It does **not** mean correct —
 `check` says so in its own output, and the day it stops saying so is the day this
@@ -233,7 +244,12 @@ Then, immediately before anything leaves:
 ./archtrace --root engagements/aurora release --verify
 ```
 
-`MATCH` means every source and output is byte-identical to what was approved.
+`MATCH` means every source document, and every file in `render/` **on disk**,
+is byte-identical to what was approved. It reads the artifact in your hand, not
+a fresh render of the model -- re-rendering answers "could the model still
+produce this?", which is a MATCH on a deliverable someone edited after it was
+approved. `--verify` deliberately loads neither the model nor the renderer, so
+it still answers when the model will not load.
 `DRIFT` names what changed and exits 1. Publish on MATCH; on DRIFT either re-run
 the approval or publish the state the manifest actually describes.
 

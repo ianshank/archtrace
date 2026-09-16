@@ -69,9 +69,29 @@ repos:
         files: '^\.github/agents/.*\.agent\.md$'
         entry: ./archtrace agents
 
-      - id: archtrace-gate
-        name: archtrace gate
+      - id: archtrace-freshness
+        name: archtrace render freshness (every engagement)
+        language: system
+        pass_filenames: false
+        # Also fires on render/, which the gate hook below never did: editing a
+        # build output was the one change that triggered nothing at all.
+        files: '^(engagements/.*/|example/)?(model|requirements|evidence|render)/'
+        # `make gate` is `fmt render check`: it regenerates every artifact
+        # before checking it, so a hand-edited render is overwritten rather
+        # than reported and the hook passes. `freshness` asks G6 of every
+        # engagement DISCOVERED in the repo, without writing to the tree --
+        # so it does not depend on ARCHTRACE_ROOT pointing at the engagement
+        # that actually changed.
+        entry: make freshness
+
+      - id: archtrace-check
+        name: archtrace check (the bytes as committed)
         language: system
         pass_filenames: false
         files: '^(engagements/.*/)?(model|requirements|evidence)/.*\.json$'
-        entry: bash -c 'make gate ROOT="${ARCHTRACE_ROOT:-example}"'
+        # `check`, not `gate`. `make gate` is `fmt render check`: it WRITES to
+        # the working tree during a commit and regenerates every artifact
+        # before checking it, so a hand edit is overwritten rather than
+        # reported -- the exact failure `freshness` above and the CI ordering
+        # were added to close, left live in the commit hook.
+        entry: bash -c 'make check ROOT="${ARCHTRACE_ROOT:-example}"'

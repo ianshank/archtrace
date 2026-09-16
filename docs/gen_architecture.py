@@ -12,9 +12,23 @@ failure this whole tool exists to prevent.
 
 No product logos are drawn. Naming a product in text is fine; reproducing its
 mark is not.
+
+Every number on the canvas comes from `tools/repo_facts.py`, never from a
+literal here. This file drew "157 tests · 94% line coverage" for four releases;
+the count was 240 by the time anyone looked. See that module for why a
+hand-written measurement in a document cannot stay true.
 """
 
+import os
+import sys
 from xml.sax.saxutils import escape
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+
+import repo_facts  # after the sys.path bootstrap above
+
+FACTS = repo_facts.summary()
 
 W, H = 1680, 918
 
@@ -128,7 +142,10 @@ text(30, 46, "archtrace", 30, INK, "bold")
 text(30, 72, "Evidence-grounded architecture pipeline.", 13, MUTED)
 text(30, 90, "The model lives in git; everything downstream is a build output.",
      13, MUTED)
-text(30, 106, "Zero runtime dependencies · 157 tests · 94% line coverage",
+text(30, 106,
+     f"Zero runtime dependencies · {FACTS['tests']} tests · "
+     f"≥{FACTS['coverage_floor']}% line coverage enforced · "
+     f"{FACTS['rules']} gate rules",
      11, FAINT)
 
 # --- input & evidence -----------------------------------------------------
@@ -202,14 +219,14 @@ STAGES = [
      "Single agent, read-only by harness. Proposes verifiable byte spans. "
      "Never confirms anything."),
     ("3", "Deterministic gate",
-     "G1–G13 + agent checks, fail-closed, exit code. Citation integrity, "
-     "grounding kinds, render freshness."),
+     f"{FACTS['rules']} rules + agent checks, fail-closed, exit code. Citation "
+     "integrity, grounding kinds, render freshness."),
     ("4", "Renderer",
      "SVG · draw.io · PlantUML · Mermaid · docx · Jira payloads. A pure "
      "function of the model."),
     ("5", "Release + verify",
      "Binds approver, commit and SHA-256 of every source and output. "
-     "MATCH or DRIFT before publish."),
+     "--verify re-reads the bytes on DISK."),
 ]
 sx = 404
 for num, title, body in STAGES:
@@ -302,10 +319,20 @@ for kind, title, body in PRINCIPLES:
 out.append("</svg>")
 
 
+def build() -> str:
+    return "\n".join(out) + "\n"
+
+
 if __name__ == "__main__":
-    import os
-    target = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "architecture.svg")
-    with open(target, "w", encoding="utf-8") as fh:
-        fh.write("\n".join(out) + "\n")
-    print(f"wrote {target}")
+    # `--stdout` exists so the freshness check can ask what this WOULD produce
+    # without producing it. `make freshness` learned the same lesson the
+    # expensive way: a check that regenerates the artifact before comparing has
+    # already destroyed the evidence it was looking for.
+    if "--stdout" in sys.argv:
+        sys.stdout.write(build())
+    else:
+        target = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "architecture.svg")
+        with open(target, "w", encoding="utf-8") as fh:
+            fh.write(build())
+        print(f"wrote {target}")

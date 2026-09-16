@@ -7,8 +7,9 @@ module; advisory output lives in review/ and cannot affect the exit code.
 
 from __future__ import annotations
 
+import json
 import os
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Callable
 
@@ -29,6 +30,8 @@ from .model import (
     NFR_CATEGORIES,
     NFR_STATUSES,
     PRIORITIES,
+    RENDER_MANIFEST,
+    RENDERER_VERSION,
     REQUIREMENT_AUTHORITY,
     REQUIREMENT_STATUSES,
     REQUIREMENT_TYPES,
@@ -49,6 +52,32 @@ WARN = "warn"
 MIN_QUOTE_WORDS = CONFIG.citation.min_quote_words
 MIN_QUOTE_CHARS = CONFIG.citation.min_quote_chars
 GENERIC_PHRASES = frozenset(CONFIG.citation.generic_phrases)
+
+
+def apply_config(resolved) -> None:
+    """Rebind the citation thresholds from a `config.Config`.
+
+    These are bound at import from `config.DEFAULT`, which resolves before
+    argparse has seen `--root`. So `cd ~ && archtrace --root /work/proj check`
+    enforced whatever `~/archtrace.toml` said: the policy came from where the
+    operator was standing rather than from the project being gated, silently.
+
+    `cli.main` calls this once, after parsing, with the config resolved from
+    `--root`. It is a deliberate rebind rather than threading a `Config` through
+    fifteen rule signatures -- the rules read policy, they do not carry it, and
+    a module constant is where `archtrace config` can still print it.
+    """
+    # PLW0603: a deliberate rebind, and the alternative is worse. These are
+    # read by one rule and printed by `archtrace config`; threading a Config
+    # through fifteen rule signatures to avoid one `global` would move the
+    # policy somewhere less visible, not more. The tests pin it explicitly
+    # rather than inheriting it, which is what makes the rebind safe.
+    global MIN_QUOTE_WORDS, MIN_QUOTE_CHARS, GENERIC_PHRASES  # noqa: PLW0603
+    MIN_QUOTE_WORDS = resolved.citation.min_quote_words
+    MIN_QUOTE_CHARS = resolved.citation.min_quote_chars
+    GENERIC_PHRASES = frozenset(resolved.citation.generic_phrases)
+    LOG.debug("citation policy: >=%s words / >=%s chars, %s stoplist phrases",
+              MIN_QUOTE_WORDS, MIN_QUOTE_CHARS, len(GENERIC_PHRASES))
 
 
 @dataclass(frozen=True)
@@ -339,6 +368,33 @@ def g5e_external_containers(eng: Engagement) -> Iterator[Finding]:
 
 # --- G6 render freshness ---------------------------------------------------
 
+def _committed_renderer(render_dir: str):
+    """Which renderer wrote the artifacts sitting in render/, if it said.
+
+    The manifest has recorded `renderer_version` all along; G6 just never read
+    it, so a toolchain upgrade and a hand edit produced the same message and
+    the operator was left to guess which had happened. Returns None when the
+    manifest is absent or unreadable, which is itself reported by the ordinary
+    byte comparison -- this is a diagnosis, never a gate of its own.
+    """
+    try:
+        with open(os.path.join(render_dir, RENDER_MANIFEST),
+                  encoding="utf-8") as handle:
+            document = json.load(handle)
+    except (OSError, ValueError) as exc:
+        LOG.debug("no readable render manifest in %s: %s", render_dir, exc)
+        return None
+    # `null`, `[]` and `"text"` are all valid JSON and none of them has .get.
+    # Catching only OSError/ValueError let those raise an AttributeError out of
+    # a helper whose whole contract is that it degrades to None.
+    if not isinstance(document, dict):
+        LOG.debug("render manifest in %s is %s, not an object",
+                  render_dir, type(document).__name__)
+        return None
+    recorded = document.get("renderer_version")
+    return recorded if isinstance(recorded, str) else None
+
+
 @rule("G6", BLOCK)
 def g6_render_freshness(eng: Engagement) -> Iterator[Finding]:
     from .renders import render_all  # local import avoids a cycle
@@ -350,6 +406,11 @@ def g6_render_freshness(eng: Engagement) -> Iterator[Finding]:
         yield Finding("G6", BLOCK, "render/",
                       f"renderer failed on this model: {type(exc).__name__}: {exc}")
         return
+    written_by = _committed_renderer(render_dir)
+    stale_toolchain = written_by is not None and written_by != RENDERER_VERSION
+    if stale_toolchain:
+        LOG.debug("render/ was written by renderer %s; this build is %s",
+                  written_by, RENDERER_VERSION)
     for name, data in sorted(fresh.items()):
         path = os.path.join(render_dir, name)
         if not os.path.isfile(path):
@@ -358,12 +419,43 @@ def g6_render_freshness(eng: Engagement) -> Iterator[Finding]:
             continue
         with open(path, "rb") as fh:
             committed = fh.read()
+        # Raw equality first: a == b implies canonical(a) == canonical(b), and
+        # in the passing case -- which is every run on a healthy repository --
+        # all twelve outputs are raw-identical. Canonicalising both sides
+        # unconditionally meant parsing the SVG, drawio and docx XML twice per
+        # output on every single check. Profiled at 91% of the gate's total
+        # time; `make pre-pr` pays it three times over (check, freshness, gate)
+        # and `make freshness` once per engagement.
+        if committed == data:
+            continue
         if canon.canonical_bytes(name, committed) != canon.canonical_bytes(name, data):
-            yield Finding("G6", BLOCK, f"render/{name}",
-                          "committed render differs from a fresh regeneration. "
-                          "Renders are build outputs: edit the model, not the "
-                          "artifact. (If the renderer version changed, this is "
-                          "toolchain drift, not your edit.)")
+            if stale_toolchain:
+                yield Finding(
+                    "G6", BLOCK, f"render/{name}",
+                    f"generated by renderer {written_by}, but this build is "
+                    f"{RENDERER_VERSION}. This is toolchain drift, not "
+                    "something you edited: run `archtrace render` and commit "
+                    "the result.")
+            elif written_by is None:
+                # No manifest, or one that records no version. Which of those
+                # two it is cannot be known from here, so naming either would
+                # be a guess -- and guessing "the same renderer" points the
+                # operator at the model when the renderer may well have moved.
+                yield Finding(
+                    "G6", BLOCK, f"render/{name}",
+                    "committed render differs from a fresh regeneration, and "
+                    f"render/{RENDER_MANIFEST} records no renderer version, so "
+                    "a hand edit and toolchain drift cannot be told apart here. "
+                    "Run `archtrace render`: if the diff disappears it was "
+                    "drift, and if it persists the model and the artifact "
+                    "disagree.")
+            else:
+                yield Finding(
+                    "G6", BLOCK, f"render/{name}",
+                    "committed render differs from a fresh regeneration, and "
+                    f"the renderer that wrote it was {written_by} -- the same "
+                    "one running now. Renders are build outputs: edit the "
+                    "model, not the artifact.")
     for stray in sorted(os.listdir(render_dir)) if os.path.isdir(render_dir) else []:
         if stray not in fresh and not stray.startswith("."):
             yield Finding("G6", BLOCK, f"render/{stray}",
@@ -580,10 +672,49 @@ def g13_symbol_citations(eng: Engagement) -> Iterator[Finding]:
 
 # --- runner ----------------------------------------------------------------
 
-def run(eng: Engagement, strict: bool = False) -> tuple[list[Finding], int]:
+def run(eng: Engagement, strict: bool = False,
+        only: Iterable[str] | None = None) -> tuple[list[Finding], int]:
+    """Run the registered rules, optionally only the ones named in `only`.
+
+    `only` takes rule ids from the registry rather than a hardcoded list, so
+    selecting a subset needs no change here when a rule is added. It exists for
+    callers that can answer one question but not another -- checking render
+    freshness across engagements whose evidence content is not on this machine,
+    where G1 and G2 legitimately cannot verify and would drown the answer.
+
+    Selecting a subset never turns a blocking rule into a passing one: the
+    findings a selected rule produces are graded exactly as they always were.
+    """
+    selected = None if only is None else set(only)
+    if selected is not None:
+        unknown = selected - {rid for rid, _s, _f in RULES}
+        if unknown:
+            raise ValueError(
+                f"unknown rule id(s): {sorted(unknown)} "
+                f"(known: {sorted({rid for rid, _s, _f in RULES})})")
     findings: list[Finding] = []
     for rid, _sev, fn in RULES:
-        produced = list(fn(eng))
+        if selected is not None and rid not in selected:
+            continue
+        try:
+            produced = list(fn(eng))
+        except Exception as exc:
+            # A rule crash is a finding, not a traceback. Several rules index
+            # with `[]` where the document may legitimately be malformed --
+            # `o["req"]` on an out_of_scope entry, `rec["id"]` on an evidence
+            # record -- and the module docstring for those rules already claims
+            # "a missing field is another rule's finding to report, not a
+            # traceback". It was not true: removing one `req` key produced a
+            # raw KeyError out of `archtrace check`, which loses every other
+            # rule's findings along with it. G6 has wrapped its renderer call
+            # this way since it was written; this extends the same treatment to
+            # every rule, so one malformed field costs one finding rather than
+            # the whole report.
+            LOG.debug("rule %s crashed", rid, exc_info=True)
+            produced = [Finding(rid, BLOCK, "<rule crashed>",
+                                f"{type(exc).__name__}: {exc}. This is a defect "
+                                "in the rule or a document shape it does not "
+                                "handle; the other rules still ran.")]
         LOG.debug("rule %s produced %d finding(s)", rid, len(produced))
         findings.extend(produced)
     blocking = [f for f in findings

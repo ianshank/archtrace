@@ -15,20 +15,50 @@ codebase:
    to learn what the build is actually checking.
 
 Precedence, lowest to highest: defaults here, then `archtrace.toml` at the
-repository root, then `ARCHTRACE_*` environment variables. Standard library
-only; TOML is read with `tomllib` where available and skipped where not, so the
-tool still runs on Python 3.9.
+**repository root**, then `ARCHTRACE_*` environment variables.
+
+"Repository root" is now resolved rather than assumed. This used to read the
+file in the *process working directory*, which was the same thing only because
+`make` and CI always run from the top: `cd engagements/aurora && archtrace
+check` read no configuration at all, and `cd ~ && archtrace --root /work/proj
+check` applied whatever `~/archtrace.toml` happened to say. `find_config_root`
+walks up to the nearest `.git`, `.hg` or `pyproject.toml` and stops there.
+
+One thing this deliberately does NOT do is make configuration per-engagement.
+One repository, one policy. Per-engagement policy is a larger question --
+whether citation floors and render geometry are even the same kind of setting --
+and is recorded in `docs/tech-debt.md` rather than decided here.
+
+Standard library
+only; TOML is read with `tomllib`, which is 3.11+. On 3.9/3.10 a config file
+that is *present* is refused rather than ignored -- silently dropping it meant
+the same repository enforced different thresholds on different interpreters --
+while its absence stays silent, because the file is optional. Use `ARCHTRACE_*`
+variables on those versions.
 """
 
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from typing import Any
 
+from .log import ENV_LEVEL as LOG_ENV_VAR
+from .log import get_logger
+
+LOG = get_logger("config")
+
 CONFIG_FILENAME = "archtrace.toml"
 ENV_PREFIX = "ARCHTRACE_"
+
+# `ARCHTRACE_*` names that are operational rather than policy, and so are not
+# parsed as <SECTION>_<KEY>. Imported from their owning module rather than
+# spelled again here: a copy would be free to drift, and the drift would brick
+# the CLI, because an unmatched name is an error and `cli.main` refuses to run
+# while any error is outstanding.
+RESERVED_ENV = frozenset({LOG_ENV_VAR})
 
 
 @dataclass(frozen=True)
@@ -83,8 +113,19 @@ class MiningPolicy:
 class CoveragePolicy:
     """Line coverage floors, enforced by the stdlib tracer."""
 
-    min_total_pct: int = 85
-    min_module_pct: int = 70
+    # Actual is 94% total, worst module 85% (commands.evidence). The previous
+    # floors -- 85 and 70 -- sat 9 and 15 points below that, which made them
+    # decorative: shipping a 40-line untested feature in `gate` took it to 78%
+    # and the total to 92%, and BOTH still passed. A floor that cannot fail on
+    # a realistic regression is the same false green this repository keeps
+    # finding elsewhere. 92/80 leaves ~2 points of total slack for refactor
+    # noise and 5 on the worst module, and does catch that example.
+    #
+    # These are a ratchet. Raise them when the number rises; lowering one is a
+    # decision that belongs in a commit message, which is why `coverage_gate`
+    # says so when it fails.
+    min_total_pct: int = 92
+    min_module_pct: int = 80
     # __main__ runs the CLI on import and is never imported by tests.
     # __init__ modules are re-export shims of one to four lines, where a
     # percentage is noise rather than signal; they still count toward the total.
@@ -147,6 +188,17 @@ def _apply(block: Any, overrides: dict, section: str, seen: list,
            errors: list) -> Any:
     if not overrides:
         return block
+    # A misspelled key was silently discarded: `_apply` iterated the block's
+    # fields and simply never looked at anything else, so
+    # ARCHTRACE_CITATION_MIN_QUOTE_WORDZ=99 changed nothing, reported nothing,
+    # and left `sources` empty. A bad *value* was already refused loudly; a bad
+    # *key* was not -- which is exactly the silent fallback this module's own
+    # docstring says is worse than one that stops you.
+    known = {item.name for item in fields(block)}
+    errors.extend(
+        f"{section}.{key}: no such setting "
+        f"(known: {', '.join(sorted(known))})"
+        for key in sorted(overrides) if key not in known)
     values = {}
     for item in fields(block):
         if item.name not in overrides:
@@ -166,31 +218,122 @@ def _apply(block: Any, overrides: dict, section: str, seen: list,
                             for f in fields(block)}, **values})
 
 
-def _from_toml(path: str) -> dict:
-    """Read the optional config file, tolerating an unreadable one loudly."""
-    try:
-        import tomllib  # type: ignore[import-not-found]  # 3.11+ only
-    except ModuleNotFoundError:  # Python 3.9/3.10 — config file is optional.
-        return {}
+def _from_toml(path: str, errors: list) -> dict:
+    """Read the optional config file, refusing an unreadable one loudly.
+
+    `tomllib` is 3.11+. On 3.9/3.10 -- and 3.9 is the declared floor, tested in
+    CI -- this used to return `{}` and say nothing, so a team's `archtrace.toml`
+    was silently inert on the oldest interpreter they are told is supported.
+    Two runners on two Python versions then enforced two different policies for
+    the same repository, and `archtrace config` printed "Override with
+    archtrace.toml" -- advice that could not work there.
+
+    A *missing* file is still fine and silent: the file is optional. A file that
+    is present and cannot be honoured is an error, which is the same rule the
+    gate applies to an unknown schema version.
+    """
     if not os.path.isfile(path):
         return {}
-    with open(path, "rb") as handle:
-        return tomllib.load(handle)
+    try:
+        import tomllib  # type: ignore[import-not-found]  # 3.11+ only
+    except ModuleNotFoundError:
+        errors.append(
+            f"{os.path.basename(path)} is present but this interpreter has no "
+            f"tomllib (Python {sys.version_info[0]}.{sys.version_info[1]}; "
+            "needs 3.11+). Refusing to run with settings you wrote and this "
+            f"build would ignore -- use {ENV_PREFIX}* variables instead, or "
+            "run on 3.11+.")
+        return {}
+    try:
+        with open(path, "rb") as handle:
+            return tomllib.load(handle)
+    except (OSError, ValueError) as exc:
+        # tomllib raises TOMLDecodeError, a ValueError. Previously this escaped
+        # as a traceback at *import* time, because DEFAULT is resolved on load.
+        errors.append(f"{os.path.basename(path)} could not be read: {exc}")
+        return {}
 
 
-def _from_env(env: Mapping[str, str]) -> dict:
-    """ARCHTRACE_CITATION_MIN_QUOTE_WORDS=10 -> {citation: {min_quote_words: 10}}."""
-    sections = {f.name for f in fields(Config) if f.name != "sources"}
+def _policy_sections() -> set:
+    """The configurable sections. `sources` and `errors` are outputs of a load,
+    not settings, so they are never overridable -- and the two places that
+    filter them used to disagree, leaving `ARCHTRACE_ERRORS_*` parsed into a
+    phantom section that `load` then silently dropped."""
+    return {f.name for f in fields(Config) if f.name not in {"sources", "errors"}}
+
+
+def _from_env(env: Mapping[str, str], errors: list) -> dict:
+    """ARCHTRACE_CITATION_MIN_QUOTE_WORDS=10 -> {citation: {min_quote_words: 10}}.
+
+    An `ARCHTRACE_`-prefixed name that matches no section is a typo, not a
+    coincidence: nothing else in the environment wears this prefix. It used to
+    be dropped here, before `load` could see it, so `ARCHTRACE_CITATON_…` (one
+    letter) changed nothing and said nothing -- and the env layer is the one the
+    missing-tomllib error explicitly tells 3.9/3.10 users to use instead.
+    """
+    sections = _policy_sections()
     out: dict = {}
-    for key, value in env.items():
-        if not key.startswith(ENV_PREFIX):
+    for key, value in sorted(env.items()):
+        if not key.startswith(ENV_PREFIX) or key in RESERVED_ENV:
             continue
         remainder = key[len(ENV_PREFIX):].lower()
+        # Policy variables are ARCHTRACE_<SECTION>_<KEY> and therefore always
+        # have an underscore after the prefix. A single-token name is an
+        # operational variable -- ARCHTRACE_LOG, ARCHTRACE_PYTHON -- and not
+        # ours to judge. Deciding that by SHAPE rather than by an allowlist is
+        # the difference between a rule and a game of whack-a-mole: the first
+        # version of this check rejected ARCHTRACE_LOG and bricked the CLI, and
+        # adding ARCHTRACE_PYTHON for the shim immediately hit the same trap.
+        # A misspelled SECTION still has its key, so it still has an
+        # underscore, so it is still caught.
+        if "_" not in remainder:
+            LOG.debug("ignoring operational variable %s", key)
+            continue
         section = next((s for s in sections if remainder.startswith(s + "_")), None)
         if section is None:
+            errors.append(
+                f"{key}: no such configuration section "
+                f"(expected {ENV_PREFIX}<SECTION>_<KEY> with SECTION one of "
+                f"{', '.join(sorted(s.upper() for s in sections))})")
             continue
         out.setdefault(section, {})[remainder[len(section) + 1:]] = value
     return out
+
+
+# What marks the top of a project. `.git` first because it is the honest
+# answer for this tool's audience; the others cover a worktree exported without
+# history, or a subdirectory of a monorepo that is its own package.
+REPO_MARKERS = (".git", ".hg", "pyproject.toml")
+
+
+def find_config_root(start: str = ".") -> str:
+    """The directory whose `archtrace.toml` governs `start`.
+
+    Walks up to the nearest repository marker. Without this the file that took
+    effect was the one in the process working directory, so
+    `cd engagements/aurora && archtrace check` read no configuration at all and
+    `cd ~ && archtrace --root /work/proj check` applied `~/archtrace.toml` --
+    which is not what "at the repository root" meant, and not what anyone
+    setting a citation floor for their organisation intends.
+
+    Falls back to `start` when no marker is found, which keeps the previous
+    behaviour for a bare directory that is not a repository at all. That is a
+    deliberate floor rather than a search of the whole filesystem: walking past
+    a non-repository into the user's home directory is how the second defect
+    above happened, and finding nothing is the safer answer.
+    """
+    current = os.path.abspath(start)
+    while True:
+        if any(os.path.exists(os.path.join(current, marker))
+               for marker in REPO_MARKERS):
+            LOG.debug("configuration root for %s is %s", start, current)
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            LOG.debug("no repository marker above %s; using it as the "
+                      "configuration root", start)
+            return os.path.abspath(start)
+        current = parent
 
 
 def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
@@ -199,9 +342,19 @@ def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
     config = Config()
     seen: list = []
     errors: list = []
-    layers = [_from_toml(os.path.join(root, CONFIG_FILENAME)),
-              _from_env(resolved_env)]
+    config_root = find_config_root(root)
+    layers = [_from_toml(os.path.join(config_root, CONFIG_FILENAME), errors),
+              _from_env(resolved_env, errors)]
+    known = _policy_sections()
     for layer in layers:
+        # A misspelled SECTION was as silent as a misspelled key used to be:
+        # `[citaton]` simply never matched and the whole block evaporated.
+        # `_from_env` reports its own (it can only emit known section names),
+        # so in practice this catches the TOML layer.
+        errors.extend(
+            f"{name}: no such configuration section "
+            f"(known: {', '.join(sorted(known))})"
+            for name in sorted(layer) if name not in known)
         updates = {}
         for section in fields(config):
             if section.name in {"sources", "errors"}:

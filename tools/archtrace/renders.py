@@ -18,7 +18,13 @@ from xml.sax.saxutils import escape, quoteattr
 
 from . import canon, docx_shapes
 from .config import DEFAULT as CONFIG
-from .model import NFR_CATEGORIES, RENDERER_VERSION, Element, Engagement
+from .model import (
+    NFR_CATEGORIES,
+    RENDER_MANIFEST,
+    RENDERER_VERSION,
+    Element,
+    Engagement,
+)
 
 BOX_W, BOX_H = CONFIG.render.box_width, CONFIG.render.box_height
 MARGIN = CONFIG.render.margin
@@ -195,47 +201,81 @@ def _emission_order(nodes: Iterable[tuple[Element, str]]) -> list[tuple[Element,
                                         n[0].layout.get("x", 0), n[0].id))
 
 
-_PUML_MACRO = {"person": "Person", "system": "System", "system_ext": "System_Ext",
-               "container": "Container", "component": "Component"}
+# One table, not two. `_PUML_MACRO` and `_MMD_MACRO` were separate dicts with
+# identical contents, which is a drift waiting to happen: adding a C4 element
+# kind to one and not the other produces a KeyError in exactly one renderer.
+C4_MACRO = {"person": "Person", "system": "System", "system_ext": "System_Ext",
+            "container": "Container", "component": "Component"}
+
+
+def _puml_arg(value) -> str:
+    """Escape a value for a quoted C4 macro argument in PlantUML.
+
+    The argument is delimited by double quotes and the preprocessor offers no
+    backslash escape inside one, so a quote in an element name terminated the
+    argument early and produced a diagram that does not parse at all. PlantUML
+    resolves HTML entities in labels, so `&quot;` renders as a quote. A newline
+    would end the statement, so it is folded to a space.
+    """
+    return (str(value).replace("&", "&amp;").replace('"', "&quot;")
+            .replace("\n", " ").replace("\r", " "))
+
+
+def _mmd_arg(value) -> str:
+    """The same problem in Mermaid, which spells the entity differently.
+
+    Mermaid's documented escape inside a label is `#quot;`; it does not share
+    PlantUML's `&`-entity syntax, which is why these are two functions rather
+    than one shared helper with a parameter.
+    """
+    return (str(value).replace('"', "#quot;")
+            .replace("\n", " ").replace("\r", " "))
+
+
+def _md_cell(value) -> str:
+    """Escape a value for a GitHub-flavoured Markdown table cell.
+
+    An unescaped pipe starts a new column, so an element named `A | B` turned a
+    five-column row into six and silently shifted every cell after it. One call
+    site already escaped pipes by hand, on `quote_cached` only.
+    """
+    return (str(value).replace("\\", "\\\\").replace("|", "\\|")
+            .replace("\n", " ").replace("\r", " "))
 
 
 def _puml(title: str, level: str, nodes, edges) -> bytes:
     include = ("https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/"
                f"master/C4_{'Context' if level == 'context' else 'Container'}.puml")
-    out = ["@startuml", f"!include {include}", "", f'title {title}', ""]
+    out = ["@startuml", f"!include {include}", "", f"title {_puml_arg(title)}", ""]
     for element, kind in _emission_order(nodes):
-        macro = _PUML_MACRO[kind]
-        args = [element.id, f'"{element.name}"']
+        macro = C4_MACRO[kind]
+        args = [element.id, f'"{_puml_arg(element.name)}"']
         if kind in ("container", "component"):
-            args.append(f'"{element.data.get("technology", "")}"')
-        args.append(f'"{element.data.get("description", "")}"')
+            args.append(f'"{_puml_arg(element.data.get("technology", ""))}"')
+        args.append(f'"{_puml_arg(element.data.get("description", ""))}"')
         out.append(f"{macro}({', '.join(args)})")
     out.append("")
     for edge in edges:
         out.append(f'Rel({edge["source"]}, {edge["destination"]}, '
-                   f'"{edge.get("description", "")}", '
-                   f'"{edge.get("technology", "")}")')
+                   f'"{_puml_arg(edge.get("description", ""))}", '
+                   f'"{_puml_arg(edge.get("technology", ""))}")')
     out += ["", "@enduml"]
     return ("\n".join(out) + "\n").encode("utf-8")
 
 
-_MMD_MACRO = {"person": "Person", "system": "System", "system_ext": "System_Ext",
-              "container": "Container", "component": "Component"}
-
-
 def _mermaid(title: str, level: str, nodes, edges) -> bytes:
     header = "C4Context" if level == "context" else "C4Container"
-    out = [header, f'    title {title}']
+    out = [header, f"    title {_mmd_arg(title)}"]
     for element, kind in _emission_order(nodes):
-        macro = _MMD_MACRO[kind]
-        args = [element.id, f'"{element.name}"']
+        macro = C4_MACRO[kind]
+        args = [element.id, f'"{_mmd_arg(element.name)}"']
         if kind in ("container", "component"):
-            args.append(f'"{element.data.get("technology", "")}"')
-        args.append(f'"{element.data.get("description", "")}"')
+            args.append(f'"{_mmd_arg(element.data.get("technology", ""))}"')
+        args.append(f'"{_mmd_arg(element.data.get("description", ""))}"')
         out.append(f"    {macro}({', '.join(args)})")
     for edge in edges:
         out.append(f'    Rel({edge["source"]}, {edge["destination"]}, '
-                   f'"{edge.get("description", "")}")')
+                   f'"{_mmd_arg(edge.get("description", ""))}")')
     return ("\n".join(out) + "\n").encode("utf-8")
 
 
@@ -349,7 +389,7 @@ def _traceability_md(eng: Engagement) -> bytes:
             f"({excluded.get('decided_by', '?')}, {excluded.get('date', '?')})_"
             if excluded else "**none**")
         out.append(f"| {req['id']} | {req.get('status')} | {req.get('priority')} "
-                   f"| {req.get('statement')} | {cell} |")
+                   f"| {_md_cell(req.get('statement'))} | {_md_cell(cell)} |")
     out += ["", "## Elements to grounding", "",
             "`source` resolves a cited symbol to where it lives in the mined",
             "codebase. Blank means the element is not grounded in code.", "",
@@ -358,8 +398,9 @@ def _traceability_md(eng: Engagement) -> bytes:
     for element in eng.elements():
         cell = ", ".join(_grounding_text(g) for g in element.grounding)
         locator = _element_locators(eng, element.grounding)
-        out.append(f"| `{element.id}` | {element.level} | {element.name} "
-                   f"| {cell} | {locator} |")
+        out.append(f"| `{element.id}` | {element.level} "
+                   f"| {_md_cell(element.name)} | {_md_cell(cell)} "
+                   f"| {_md_cell(locator)} |")
     out += ["", "## Non-functional coverage", "",
             "Three honest positions, not two. `open` is a tracked gap; it is not",
             "the same claim as `not_applicable`.", "",
@@ -384,13 +425,14 @@ def _traceability_md(eng: Engagement) -> bytes:
                      f"({entry.get('decided_by', '')}, {entry.get('date', '')})")
         else:
             status, basis = entry.get("status", "?"), ""
-        out.append(f"| {category} | {status} | {basis} |")
+        out.append(f"| {category} | {status} | {_md_cell(basis)} |")
     if eng.open_questions:
         out += ["", "## Open questions", "", "| id | question | owner |",
                 "|---|---|---|"]
         for question in eng.open_questions:
-            out.append(f"| {question['id']} | {question['question']} "
-                       f"| {question.get('owner', '')} |")
+            out.append(f"| {_md_cell(question['id'])} "
+                       f"| {_md_cell(question['question'])} "
+                       f"| {_md_cell(question.get('owner', ''))} |")
     code_records = [r for r in eng.evidence
                     if r.get("content_kind") == "structured"]
     if code_records:
@@ -404,7 +446,8 @@ def _traceability_md(eng: Engagement) -> bytes:
             symbols = len(facts.symbols) if facts else "?"
             relations = len(facts.relations) if facts else "?"
             commit = (record.get("commit") or (facts.commit if facts else "") or "")
-            out.append(f"| {record['id']} | {record.get('source_uri', '')} "
+            out.append(f"| {_md_cell(record['id'])} "
+                       f"| {_md_cell(record.get('source_uri', ''))} "
                        f"| `{commit[:12]}` | {symbols} | {relations} |")
     out += ["", "## Citations", "",
             "`authority` is what the record proves. Observed implementation is",
@@ -413,11 +456,15 @@ def _traceability_md(eng: Engagement) -> bytes:
             "|---|---|---|---|---|"]
     for req in eng.requirements:
         for prov in req.get("provenance", []):
-            quote = prov.get("quote_cached", "").replace("|", "\\|")
+            # Was a hand-rolled pipe escape here, and the only one in the file.
+            # Routed through the shared helper so every cell is escaped the
+            # same way rather than wherever somebody remembered to.
+            quote = _md_cell(prov.get("quote_cached", ""))
             record = eng.evidence_by_id(prov["evidence_id"]) or {}
-            out.append(f"| {req['id']} | {prov['evidence_id']} "
-                       f"| {record.get('authority', '?')} "
-                       f"| {prov.get('speaker', '')} | \"{quote}\" |")
+            out.append(f"| {req['id']} | {_md_cell(prov['evidence_id'])} "
+                       f"| {_md_cell(record.get('authority', '?'))} "
+                       f"| {_md_cell(prov.get('speaker', ''))} "
+                       f"| \"{quote}\" |")
     return ("\n".join(out) + "\n").encode("utf-8")
 
 
@@ -651,6 +698,6 @@ def render_all(eng: Engagement) -> dict:
         "outputs": {name: hashlib.sha256(data).hexdigest()[:16]
                     for name, data in sorted(outputs.items())},
     }
-    outputs[".manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True)
+    outputs[RENDER_MANIFEST] = (json.dumps(manifest, indent=2, sort_keys=True)
                                  + "\n").encode("utf-8")
     return outputs

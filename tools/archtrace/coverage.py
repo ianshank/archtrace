@@ -43,9 +43,19 @@ class ModuleCoverage:
     path: str
     executable: int
     covered: int
+    # Why the module could not be measured, empty when it could. Defaulted so
+    # existing four-argument construction keeps working.
+    unreadable: str = ""
 
     @property
     def percent(self) -> int:
+        if self.unreadable:
+            # NOT 100. A module the measurer could not parse has no measured
+            # lines, and "no measured lines" must never read as "fully
+            # covered": that scored an unparseable file at 100% and sailed it
+            # through the floor, silently, because the only other signal was a
+            # DEBUG log and the gate runs at the default `silent` level.
+            return 0
         if not self.executable:
             return 100
         return 100 * self.covered // self.executable
@@ -77,25 +87,41 @@ class Report:
 
     def failures(self) -> list:
         """Every floor this report breaches, most severe first."""
-        out = []
+        out: list = []
+        # First, because a module that could not be measured makes every other
+        # number in this report a partial answer rather than a wrong one.
+        out.extend(f"{module.module} could not be measured: {module.unreadable}"
+                   for module in sorted(self.modules, key=lambda m: m.module)
+                   if module.unreadable)
         if self.percent < self.min_total_pct:
             out.append(f"total {self.percent}% < {self.min_total_pct}%")
         out.extend(
             f"{module.module} {module.percent}% < {self.min_module_pct}% "
             f"({module.missing} line(s) never executed)"
             for module in sorted(self.modules, key=lambda m: m.percent)
-            if module.percent < self.min_module_pct)
+            # An unreadable module is already reported above, with its reason.
+            # Repeating it as "0% < 70% (0 line(s) never executed)" describes a
+            # measurement that never happened as though it had.
+            if not module.unreadable and module.percent < self.min_module_pct)
         return out
 
 
-def executable_lines(path: str) -> set:
-    """Line numbers in `path` that can actually run."""
+def executable_lines(path: str) -> set | None:
+    """Line numbers in `path` that can actually run, or None if it cannot be read.
+
+    None rather than an empty set. An empty set is a real, correct answer for a
+    module that genuinely has no statements, and collapsing the two cases made
+    an unparseable or unreadable file indistinguishable from an empty one --
+    which `ModuleCoverage.percent` then scored at 100%.
+    """
     try:
         with open(path, encoding="utf-8") as handle:
             tree = ast.parse(handle.read(), filename=path)
-    except (OSError, SyntaxError):
-        LOG.debug("cannot parse %s for coverage", path)
-        return set()
+    except (OSError, SyntaxError, ValueError) as exc:
+        # The reason travels with the result. Logging it at DEBUG was the only
+        # record, and the coverage gate runs at the default `silent` level.
+        LOG.warning("cannot measure %s: %s", path, exc)
+        return None
     lines = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.stmt) or isinstance(node, _NON_EXECUTABLE):
@@ -146,19 +172,28 @@ def measure(run, package_dir: str, exclude: tuple = ()) -> Report:
 
     def _module(directory: str, entry: str, prefix: str = "") -> ModuleCoverage:
         path = os.path.join(directory, entry)
+        name = f"{prefix}{entry[:-3]}"
         runnable = executable_lines(path)
+        if runnable is None:
+            return ModuleCoverage(name, path, 0, 0,
+                                  unreadable="could not be parsed or read")
         covered = runnable & hit.get(path, set())
-        return ModuleCoverage(f"{prefix}{entry[:-3]}", path,
-                              len(runnable), len(covered))
+        return ModuleCoverage(name, path, len(runnable), len(covered))
 
-    modules = [_module(package_dir, entry)
-               for entry in sorted(os.listdir(package_dir))
-               if entry.endswith(".py") and entry[:-3] not in excluded]
-
-    sub = os.path.join(package_dir, "commands")
-    if os.path.isdir(sub):
-        modules.extend(_module(sub, entry, prefix="commands.")
-                       for entry in sorted(os.listdir(sub))
+    # Walk every subpackage, not one hardcoded name. `commands` used to be
+    # spelled out here, so any NEW subpackage was invisible to the measurement
+    # -- and the failure mode is the dangerous direction: an unmeasured module
+    # shrinks the DENOMINATOR, so the headline percentage stays flat or
+    # improves while coverage falls. Splitting a large module into a package
+    # (the standing proposal for renders.py and gate.py, ~15% of the package's
+    # statements each) would have silently removed it from the gate.
+    modules: list = []
+    for dirpath, dirs, files in os.walk(package_dir):
+        dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+        relative = os.path.relpath(dirpath, package_dir)
+        prefix = "" if relative == "." else relative.replace(os.sep, ".") + "."
+        modules.extend(_module(dirpath, entry, prefix)
+                       for entry in sorted(files)
                        if entry.endswith(".py") and entry[:-3] not in excluded)
 
     return Report(tuple(modules), CONFIG.coverage.min_total_pct,

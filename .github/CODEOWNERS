@@ -1,0 +1,29 @@
+# RUNBOOK.md and REVIEW.md both name CODEOWNERS as part of this tool's control
+# story -- "a signed commit behind CODEOWNERS proves identity and independent
+# review" -- and the file did not exist. A control the documentation claims and
+# the repository lacks is worse than no claim: it is the failure mode this tool
+# was built to find, in its own tree.
+#
+# CODEOWNERS only has teeth with branch protection requiring review from code
+# owners. Without that it is advisory, and RUNBOOK.md:180 already says so.
+
+*                           @ianshank
+
+# The three documents a release binds by hash. `archtrace release` signs these;
+# a change here is a change to what was approved.
+/engagements/               @ianshank
+/example/model/             @ianshank
+/example/requirements/      @ianshank
+/example/evidence/          @ianshank
+
+# The gate itself, and the policy it enforces.
+/tools/archtrace/           @ianshank
+/tools/tests/               @ianshank
+
+# The controls around the gate: what CI runs, what the agents may do, what
+# counts as a secret, and what the build is allowed to install.
+/.github/                   @ianshank
+/.pre-commit-config.yaml    @ianshank
+/.gitleaks.toml             @ianshank
+/Makefile                   @ianshank
+/pyproject.toml             @ianshank

@@ -21,7 +21,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from archtrace import canon, gate, mining
+from archtrace import canon, config, gate, mining
 from archtrace.model import Engagement
 
 EXAMPLE = os.path.join(
@@ -77,6 +77,10 @@ class StructuredEvidence(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # See the note in test_gate.SeededDefect.setUp: pin the policy these
+        # assertions describe rather than inheriting whatever the repository
+        # configures or a previously-run CLI test left rebound.
+        gate.apply_config(config.Config())
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -98,10 +102,25 @@ class StructuredEvidence(unittest.TestCase):
             with open(os.path.join(self.root, "render", name), "wb") as fh:
                 fh.write(data)
 
-    def assertFires(self, rule):
+    def assertFires(self, rule, where=None, message=None):
+        """Same contract as `test_gate.SeededDefect.assertFires`; see the note
+        there for why `where` is the part that makes this an assertion about
+        the seeded defect rather than about the example at large."""
         rules, code, findings = self._rules()
         self.assertIn(rule, rules, f"{rule} did not fire; got {sorted(rules)}\n"
                       + "\n".join(str(f) for f in findings))
+        mine = [f for f in findings if f.rule == rule]
+        if where is not None:
+            self.assertIn(
+                where, {f.where for f in mine},
+                f"{rule} fired, but not on {where!r} -- so this test does not "
+                f"show that the seeded defect was found.\n"
+                + "\n".join(str(f) for f in mine))
+        if message is not None:
+            self.assertTrue(
+                any(message in f.message for f in mine),
+                f"no {rule} finding explains itself with {message!r}\n"
+                + "\n".join(str(f) for f in mine))
         self.assertEqual(code, 1)
 
     # -- the example carries code evidence and stays green ----------------
@@ -122,7 +141,7 @@ class StructuredEvidence(unittest.TestCase):
         doc["symbols"][0]["name"] += "X"
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(doc, fh, indent=2)
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-003")
 
     def test_code_evidence_without_a_commit_blocks(self):
         def mutate(doc):
@@ -143,7 +162,7 @@ class StructuredEvidence(unittest.TestCase):
                 if record["id"] == "EV-003":
                     record["sha256_normalized"] = mining.sha256_bytes(body.encode())
         self._patch(("evidence", "index.json"), rehash)
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-003")
 
     def test_unknown_content_kind_blocks(self):
         def mutate(doc):
@@ -151,7 +170,7 @@ class StructuredEvidence(unittest.TestCase):
                 if record["id"] == "EV-003":
                     record["content_kind"] = "spreadsheet"
         self._patch(("evidence", "index.json"), mutate)
-        self.assertFires("G1")
+        self.assertFires("G1", "EV-003")
 
     # -- G13 symbol citation integrity ------------------------------------
 
@@ -161,7 +180,7 @@ class StructuredEvidence(unittest.TestCase):
                 if system["id"] == "s_mam":
                     system["grounding"][1]["symbol"] = "sym:deadbeefdeadbeef"
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "s_mam.grounding[1]")
 
     def test_a_symbol_citing_prose_evidence_blocks(self):
         def mutate(doc):
@@ -169,7 +188,7 @@ class StructuredEvidence(unittest.TestCase):
                 if system["id"] == "s_mam":
                     system["grounding"][1]["evidence_id"] = "EV-001"
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "s_mam.grounding[1]")
 
     def test_a_symbol_on_a_satisfies_grounding_blocks(self):
         """Code cannot satisfy a requirement, so a symbol there is a category
@@ -178,7 +197,7 @@ class StructuredEvidence(unittest.TestCase):
             doc["people"][0]["grounding"] = [
                 {"kind": "satisfies", "req": "REQ-002", "symbol": "sym:1"}]
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "p_dit.grounding[0]")
 
     def test_a_symbol_without_an_evidence_id_blocks(self):
         def mutate(doc):
@@ -186,7 +205,74 @@ class StructuredEvidence(unittest.TestCase):
                 if system["id"] == "s_mam":
                     system["grounding"][1].pop("evidence_id")
         self._patch(("model", "model.json"), mutate)
-        self.assertFires("G13")
+        self.assertFires("G13", "s_mam.grounding[1]")
+
+    def test_a_facts_file_that_does_not_parse_is_g1_s_finding_to_report(self):
+        """The last two branches the mutation audit found dead, and they are a
+        pair: G1 reports the unreadable facts file, and G13 stays silent about
+        the symbols it can no longer resolve *because* G1 has it.
+
+        `evidence_facts` swallows `FactsError` and returns None, and G13 then
+        `continue`s with the comment "G1 already reported the unreadable facts
+        file". Nothing checked that G1 actually does. If that branch were
+        deleted the file would be unreadable, G13 would stay quiet on its own
+        authority, and the gate would pass an engagement whose code citations
+        resolve against nothing.
+        """
+        path = os.path.join(self.root, "_evidence_root", "EV-003-mam-facts.json")
+        body = '{"schema_version": 1, "symbols": [ this is not json'
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+
+        def rehash(index):
+            for record in index["evidence"]:
+                if record["id"] == "EV-003":
+                    record["sha256_normalized"] = \
+                        mining.sha256_bytes(body.encode("utf-8"))
+        self._patch(("evidence", "index.json"), rehash)
+
+        findings, code = gate.run(Engagement.load(self.root))
+        self.assertEqual(code, 1)
+        g1 = [f for f in findings if f.rule == "G1" and f.where == "EV-003"]
+        self.assertTrue(g1, "G1 must report a facts file it cannot parse\n"
+                        + "\n".join(str(f) for f in findings))
+        self.assertIn("not valid JSON", g1[0].message)
+        self.assertEqual(
+            [f for f in findings if f.rule == "G13"], [],
+            "G13 defers to G1 on an unreadable facts file; if it also fires, "
+            "the operator is told twice and the deferral comment is wrong")
+
+    def test_a_symbol_citing_an_evidence_record_that_does_not_exist(self):
+        """Distinct from citing prose evidence: there is nothing to resolve
+        against at all, so the check cannot even reach the content-kind test."""
+        def mutate(doc):
+            for system in doc["systems"]:
+                if system["id"] == "s_mam":
+                    system["grounding"][1]["evidence_id"] = "EV-999"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G13", "s_mam.grounding[1]",
+                         message="unknown evidence record")
+
+    def test_g13_checks_relationship_symbols_not_only_elements(self):
+        """G13 ends with `for rel in eng.relationships`, and that loop could be
+        replaced with `for rel in []` while all 277 tests passed -- as could
+        G4's. Relationships carry grounding exactly as elements do, so an
+        unchecked loop leaves half the model's citations ungated.
+
+        The example's relationships are all prose-grounded, so this attaches a
+        symbol citation to one and points it at a symbol that was never mined:
+        the same defect `test_a_symbol_that_was_never_mined_blocks` seeds on an
+        element, reached through the loop nothing exercised.
+        """
+        def mutate(doc):
+            doc["relationships"][0]["grounding"] = [{
+                "kind": "existing", "evidence_id": "EV-003",
+                "symbol": "sym:deadbeefdeadbeef",
+            }]
+        self._patch(("model", "model.json"), mutate)
+        self._rerender()
+        self.assertFires("G13", "p_dit->s_ingest.grounding[0]",
+                         message="does not appear in")
 
     # -- the authority boundary -------------------------------------------
 
@@ -214,6 +300,10 @@ class BackwardsCompatibility(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # See the note in test_gate.SeededDefect.setUp: pin the policy these
+        # assertions describe rather than inheriting whatever the repository
+        # configures or a previously-run CLI test left rebound.
+        gate.apply_config(config.Config())
         # Strip every trace of the mining integration.
         path = os.path.join(self.root, "evidence", "index.json")
         doc = canon.load_json(path)
@@ -279,6 +369,10 @@ class Mine(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.root = os.path.join(self.tmp, "example")
         shutil.copytree(EXAMPLE, self.root)
+        # See the note in test_gate.SeededDefect.setUp: pin the policy these
+        # assertions describe rather than inheriting whatever the repository
+        # configures or a previously-run CLI test left rebound.
+        gate.apply_config(config.Config())
         self.repo = os.path.join(self.tmp, "repo")
         os.makedirs(self.repo)
         with open(os.path.join(self.repo, "src.py"), "w") as fh:

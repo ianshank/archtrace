@@ -82,6 +82,40 @@ class Verbs(CliCase):
         after = open(os.path.join(self.root, "model", "model.json"), "rb").read()
         self.assertEqual(before, after, "fmt must reach a fixed point")
 
+    def test_fmt_repairs_a_stale_quote_cached_and_g2_then_passes(self):
+        """`fmt`'s whole job, and until now it could be deleted silently.
+
+        Idempotence is satisfied trivially by a no-op: strip the line that
+        writes `quote_cached` and `fmt` becomes a canonicaliser that refreshes
+        nothing, with the suite still green. That was measured. This asserts
+        the behaviour G2's own error message prescribes -- "run `archtrace fmt`
+        rather than editing it by hand" -- which is the only reason a user ever
+        types the command.
+        """
+        path = os.path.join(self.root, "requirements", "requirements.json")
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+        target = next(r for r in doc["requirements"]
+                      if r.get("status") == "confirmed" and r.get("provenance"))
+        original = target["provenance"][0]["quote_cached"]
+        target["provenance"][0]["quote_cached"] = "a quote nobody ever said"
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh)
+
+        self.assertEqual(self.run_cli("check")[0], 1,
+                         "a quote that is not in the evidence must block")
+        code, out, _err = self.run_cli("fmt")
+        self.assertEqual(code, 0)
+        self.assertIn("refreshed 1 cached quote", out)
+        with open(path, encoding="utf-8") as fh:
+            repaired = json.load(fh)
+        restored = next(r for r in repaired["requirements"]
+                        if r["id"] == target["id"])
+        self.assertEqual(restored["provenance"][0]["quote_cached"], original,
+                         "fmt must re-derive the quote from its span")
+        self.assertEqual(self.run_cli("check")[0], 0,
+                         "the fix G2 recommends must actually fix it")
+
     def test_report_prints_the_grounding_mix_and_nfr_stance(self):
         code, out, _err = self.run_cli("report")
         self.assertEqual(code, 0)

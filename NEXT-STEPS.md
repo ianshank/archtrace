@@ -23,6 +23,112 @@ hold the content; something has to.
 
 ## Known gaps, in priority order
 
+**2b. Configuration resolved from the process working directory, not from
+`--root`** — **fixed.** `cd engagements/aurora && archtrace check` read no
+configuration; `cd ~ && archtrace --root /work/proj check` applied
+`~/archtrace.toml`; and a legitimate `archtrace.toml` at this repository's root
+turned 26 of its own tests red. Config now resolves to the nearest repository
+marker, `cli.main` re-resolves from `--root` after argparse, and the suite pins
+the policy it asserts against rather than inheriting the ambient one. See
+`docs/tech-debt.md` §0 for what deliberately stays open: configuration is still
+one-repository-one-policy, not per-engagement.
+
+**2a. The test suite has a 50% mutation score, and the survivors are not
+random.** Measured, not estimated: 208 single-line mutations applied to a frozen
+tree, each run against the full suite. 104 survived. The distribution is what
+makes this urgent rather than merely untidy — **29 of the survivors are gate
+rule branches whose blocking `Finding` has never once fired in a test run.**
+G1's duplicate-evidence-id check, G3's status/type/priority validation, G4's
+unknown-standard and unknown-ADR checks, G5's duplicate-id and duplicate-uid
+checks, G6's missing-file and stray-file findings, G13's unknown-record check:
+all deletable, suite green. Two rules can have their entire relationship loop
+replaced with `for rel in []` — relationship grounding and relationship symbol
+citations are unchecked by any test.
+
+Three survivors were fixed in this pass: the release signing path, `fmt` as a
+no-op, and the documentation-diagram guards. **Every item below was reproduced
+by hand before being written down** — the audit was run by a subagent, and a
+finding about this repository's own controls is exactly the kind of claim it
+would be embarrassing to repeat without checking. The backlog, in order:
+
+1. ~~**`assertFires(rule, where=...)`**~~ — **done.** The helper asserted only
+   that a rule id appeared *somewhere*, across 35 call sites. Inverting G2's
+   speaker check left `test_g2_speaker_not_in_the_room` passing: G2 still fired,
+   on the four requirements whose speakers *are* participants, for the opposite
+   reason. `where` and `message` are now threaded through every site, harvested
+   from the findings the rules actually emit rather than written from memory.
+   Six predicates verified killed by their own test. **This was the
+   prerequisite for everything below it** — there was no point writing tests for
+   the 29 dead branches while the helper could not tell which finding it caught.
+2. **`tools/tests/support.py`.** `sys.path.insert` is copied 7 times,
+   `mkdtemp` 20, `copytree(EXAMPLE)` 12, and `run_cli` exists in five divergent
+   variants. The duplication is not the cost; the drift is — two copies of
+   `assertFires` have already diverged, and the policy pin added for
+   `docs/tech-debt.md` §0 is now a third thing copied into four `setUp`s.
+2a. ~~**The 29 dead gate branches**~~ — **27 of them done.** Each has a
+   seeded-defect test, each verified by re-seeding the branch it guards: 27 of
+   27 killed, coverage 94% → 95%.
+
+   The two worst were G4's and G13's relationship loops: both end with
+   `for rel in eng.relationships` and both could be replaced with
+   `for rel in []` while the entire suite passed, so **half the model's
+   citations — the ten grounded relationships in the worked example — were
+   ungated by any test.**
+
+   Writing G2's stoplist test turned up that the stoplist **cannot fire alone at
+   default settings**: every phrase in it is below both floors, and the floor
+   check does not `continue`. It is redundant unless the floors are lowered.
+   Left as-is (a policy question, not a defect) with a test that fails if that
+   relationship changes.
+
+   The last two were a pair, and closing them turned out to be closing a
+   *contract*: G13 skips a symbol whose facts file will not parse, with the
+   comment "G1 already reported the unreadable facts file". Nothing checked
+   that G1 does. With G1's branch deleted the file is unreadable, G13 stays
+   quiet on its own authority, and the gate passes an engagement whose code
+   citations resolve against nothing. Both halves are now asserted in one test —
+   G1 must speak, and G13 must not speak twice.
+
+   **§2a is now closed: 29 of 29.**
+3. ~~**One true end-to-end test**~~ — **done.** `FullLifecycle` drives a
+   scaffolded engagement through `init → evidence add → quote → promote →
+   model → fmt → render → check → release → verify` to a green gate and a
+   MATCH, then edits a render and asserts both `--verify` and G6 refuse it.
+   It is the first test to use `quote` as an input rather than hand-computing
+   the span.
+
+   **Measured five mutations killed, not the nine the audit projected** — and
+   two of the five it listed turned out to be untestable rather than untested:
+   `quote`'s `quote_cached` is `text[start:end]` where `start = text.find(
+   needle)` and `needle` is already normalised, so emitting `needle` instead is
+   an *equivalent* mutant. Worth recording, because "nine survivors" would have
+   been repeated as a result rather than a projection.
+4. ~~**`canon.normalize` is under-specified by its tests**~~ — **done, and it
+   was hiding a live defect.** Removing the NFKC call entirely left the suite
+   green, as did the `stable_uid` separator, the `modified`-attribute strip and
+   zip entry ordering. Asserting the *whole* fold table rather than a sample
+   found that `″` (DOUBLE PRIME) never folded at all: NFKC decomposes it to two
+   PRIMEs before the table runs, so `6″` and `6"` normalised differently and a
+   citation using one never matched a quote using the other. Fixed, with a
+   general check for any future key NFKC decomposes. Two smaller claims were
+   also false: the table's comment about what NFKC does, and
+   `deterministic_zip`'s compression, which the line that looked load-bearing
+   did not actually control.
+5. **`release` will sign an engagement with zero confirmed requirements.**
+   Reproduced: `init` a scaffold, `release`, `--verify` → MATCH, exit 0, with
+   `"confirmed_requirements": []` in the manifest. `check` refuses to call that
+   state clean ("an empty pass, not a clean one"); `release` signs it anyway.
+6. **Malformed JSON in any source document is a raw traceback, not a refusal**
+   (T5). `printf '{ this is not json' > model/model.json && archtrace check`
+   → `json.decoder.JSONDecodeError` on stderr and exit 1. Exit 1 means
+   "blocked", which CI reads as a gate finding; this is a usage error and
+   SPEC §exit-codes says 2.
+7. **`retention_until`, `date` and `classification` are never format-checked.**
+   Reproduced: `retention_until="not-a-date"` together with
+   `classification="<script>alert(1)</script>"` gives `0 blocking, 0 warning`.
+   G1 tests truthiness only, so a retention obligation the repository claims to
+   record can be an arbitrary string.
+
 **3. Lucid round-trip is unverified.** Thirty-minute spike. Lucid's docs
 conflict on whether a hand-assembled `mxfile` imports at all, and it states it
 prioritises functional over visual fidelity — meaning it may discard the

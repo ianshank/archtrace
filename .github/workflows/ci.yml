@@ -36,7 +36,27 @@ jobs:
           echo "--- packages present before the gate runs ---"
           cat /tmp/before.txt
       - run: make agents
+      # Needs nothing installed, so it belongs here rather than in the
+      # quality job. Until now the only enforcement that recording
+      # content stays out of git was a local pre-commit hook.
+      - run: make evidence-guard
+      # The same question G6 asks of `render/`, asked of `docs/`. Both
+      # generated diagrams had drifted: one drew a test count four releases
+      # old, both named eleven of fifteen gate rules. Non-mutating, so it can
+      # run here beside the other read-only checks.
+      - name: Documentation diagrams match their generators
+        run: make docs-fresh
       - run: make test
+      # `check` BEFORE `gate`, and it is not redundant. `gate` is
+      # `fmt render check`, so it regenerates every artifact before checking
+      # it: a hand-edited render is silently overwritten and `gate` goes green.
+      # Running the gate against the bytes as committed is the only step here
+      # that can actually fail on a tampered deliverable.
+      - name: Gate the committed bytes, without regenerating them
+        run: make check
+      # And do it for every engagement in the repo, not just ROOT.
+      - name: Every engagement's renders match the current renderer
+        run: make freshness
       - run: make gate
       - name: Coverage floors
         # One version only: the tracer's line attribution differs slightly
@@ -68,10 +88,23 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
+      # `make lint` and `make types` degrade to a printed SKIP and exit 0 when
+      # the tool is absent -- correct for a gate that must run with nothing
+      # installed, and a trap here: if the console scripts land off PATH, this
+      # job goes green having linted nothing. Assert they exist FIRST, so the
+      # failure is "ruff is missing" rather than a silent pass.
+      - name: The dev tooling is actually on PATH
+        run: ruff --version && mypy --version
       - run: make lint
       - run: make types
       - uses: gitleaks/gitleaks-action@v2
         env:
+          # Pinned. The action defaults to whatever gitleaks version it ships
+          # with, while .pre-commit-config.yaml pins v8.21.2 -- so CI and the
+          # commit hook scanned with different binaries against a config whose
+          # `(?im)` fix and `[[rules.allowlists]]` block were verified against
+          # one of them.
+          GITLEAKS_VERSION: "8.21.2"
           # Required since v2 for pull_request scans; without it the action
           # stops before scanning anything. This was previously masked: the
           # config panicked on an unsupported regex before the token was read.

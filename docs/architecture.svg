@@ -3,7 +3,7 @@
 <text x="30" y="46" font-size="30" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">archtrace</text>
 <text x="30" y="72" font-size="13" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Evidence-grounded architecture pipeline.</text>
 <text x="30" y="90" font-size="13" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">The model lives in git; everything downstream is a build output.</text>
-<text x="30" y="106" font-size="11" fill="#8a94a3" font-weight="normal" text-anchor="start" font-style="normal">Zero runtime dependencies · 157 tests · 94% line coverage</text>
+<text x="30" y="106" font-size="11" fill="#8a94a3" font-weight="normal" text-anchor="start" font-style="normal">Zero runtime dependencies · 305 tests · ≥92% line coverage enforced · 15 gate rules</text>
 <rect x="24" y="112" width="300" height="488" rx="10" fill="#f1f8f3" stroke="#9ccbb0" stroke-width="1.4"/>
 <text x="44" y="144" font-size="17" fill="#16202e" font-weight="bold" text-anchor="start" font-style="normal">Input &amp; Evidence</text>
 <text x="44" y="164" font-size="11.5" fill="#4a5568" font-weight="normal" text-anchor="start" font-style="normal">Untrusted. Content never enters git.</text>
@@ -93,7 +93,7 @@
 <text x="837" y="405" font-size="14" fill="#ffffff" font-weight="bold" text-anchor="middle" font-style="normal">3</text>
 <text x="837" y="436" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">Deterministic</text>
 <text x="837" y="451" font-size="12" fill="#16202e" font-weight="bold" text-anchor="middle" font-style="normal">gate</text>
-<text x="837" y="474" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">G1–G13 + agent</text>
+<text x="837" y="474" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">15 rules + agent</text>
 <text x="837" y="487" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">checks, fail-closed,</text>
 <text x="837" y="500" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">exit code. Citation</text>
 <text x="837" y="513" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">integrity, grounding</text>
@@ -119,8 +119,9 @@
 <text x="1189" y="459" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">Binds approver,</text>
 <text x="1189" y="472" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">commit and SHA-256 of</text>
 <text x="1189" y="485" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">every source and</text>
-<text x="1189" y="498" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">output. MATCH or</text>
-<text x="1189" y="511" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">DRIFT before publish.</text>
+<text x="1189" y="498" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">output. --verify</text>
+<text x="1189" y="511" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">re-reads the bytes on</text>
+<text x="1189" y="524" font-size="10" fill="#4a5568" font-weight="normal" text-anchor="middle" font-style="normal">DISK.</text>
 <line x1="326" y1="470" x2="367.0" y2="470.0" stroke="#1f5f9e" stroke-width="2"/>
 <path d="M 376 470 L 367.0 475.5 L 367.0 464.5 z" fill="#1f5f9e"/>
 <rect x="323.6" y="446.0" width="54.8" height="32" fill="#ffffff"/>
