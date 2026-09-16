@@ -1,0 +1,17 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title archtrace itself — System Context
+
+Person(p_architect, "Solutions Architect", "Runs the engagement.")
+System_Ext(s_sources, "Stakeholder sources", "Meetings, documents, repositories.")
+System(s_core, "archtrace", "Evidence-grounded architecture pipeline.")
+System_Ext(s_external, "Jira / Lucid / SharePoint", "Publication targets.")
+Person(p_peers, "Peer reviewers", "Independent review before delivery.")
+
+Rel(p_architect, s_core, "runs the gate", "CLI")
+Rel(s_sources, s_core, "evidence", "manual export")
+Rel(s_core, s_external, "artifacts", "manual import")
+Rel(p_peers, s_core, "reviews the model diff", "pull request")
+
+@enduml

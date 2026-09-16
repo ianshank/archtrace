@@ -1,0 +1,78 @@
+<mxfile host="archtrace" type="device">
+  <diagram id="System Context" name="System Context">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="826">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="p_architect" value="Solutions Architect" style="rounded=1;fillColor=#dbe4f0;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_peers" value="Peer reviewers" style="rounded=1;fillColor=#dbe4f0;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="150" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_sources" value="Stakeholder sources" style="rounded=1;fillColor=#e4e4e4;strokeColor=#33415c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_core" value="archtrace" style="rounded=1;fillColor=#c7d7ee;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="640" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_external" value="Jira / Lucid / SharePoint" style="rounded=1;fillColor=#e4e4e4;strokeColor=#33415c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="System Context-e0" value="runs the gate" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="p_architect" target="s_core">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="System Context-e1" value="evidence" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="s_sources" target="s_core">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="System Context-e2" value="artifacts" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="s_core" target="s_external">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="System Context-e3" value="reviews the model diff" style="edgeStyle=orthogonalEdgeStyle;dashed=1;" edge="1" parent="1" source="p_peers" target="s_core">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="Containers" name="Containers">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" page="1" pageWidth="1169" pageHeight="826">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="p_architect" value="Solutions Architect" style="rounded=1;fillColor=#dbe4f0;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="p_peers" value="Peer reviewers" style="rounded=1;fillColor=#dbe4f0;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="150" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_sources" value="Stakeholder sources" style="rounded=1;fillColor=#e4e4e4;strokeColor=#33415c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="s_external" value="Jira / Lucid / SharePoint" style="rounded=1;fillColor=#e4e4e4;strokeColor=#33415c;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="0" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_intake" value="Evidence manifest" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="150" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_extract" value="Extraction agent" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="300" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_gate" value="Deterministic gate" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="640" y="300" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_render" value="Renderer" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="640" y="450" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_release" value="Release + verify" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="320" y="450" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_promote" value="Promote gate" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="300" width="220" height="104" as="geometry"/>
+        </mxCell>
+        <mxCell id="c_trust" value="Trust boundary" style="rounded=1;fillColor=#cfe3d8;strokeColor=#33415c;" vertex="1" parent="1">
+          <mxGeometry x="0" y="450" width="220" height="104" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

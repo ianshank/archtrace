@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "decisions": [
+    {
+      "id": "ADR-001",
+      "title": "A human confirms every requirement",
+      "status": "accepted",
+      "drivers": [
+        "REQ-007"
+      ],
+      "decision": "Promotion from proposed to confirmed is a human git commit.",
+      "consequences": "Nobody asked for this step; it is the only control for a plausible-but-wrong requirement carrying a real quote."
+    },
+    {
+      "id": "ADR-002",
+      "title": "Approval binds to content hashes, not a commit",
+      "status": "accepted",
+      "drivers": [
+        "REQ-004"
+      ],
+      "decision": "release.json records approver, commit and a SHA-256 per source and output; --verify reports MATCH or DRIFT.",
+      "consequences": "Nobody asked for this; it came from a peer review finding that a commit does not prove which artifact was approved."
+    },
+    {
+      "id": "ADR-003",
+      "title": "The repository holds claims about evidence, never the content",
+      "status": "accepted",
+      "drivers": [
+        "REQ-001"
+      ],
+      "decision": "Normalise and hash at intake; the manifest is committed, the content stays in the system of record.",
+      "consequences": "Nobody asked for this; a repository cannot satisfy a retention obligation."
+    },
+    {
+      "id": "ADR-004",
+      "title": "Retrieved documents are data, never instructions",
+      "status": "accepted",
+      "drivers": [
+        "REQ-006"
+      ],
+      "decision": "Every agent contract carries the rule; no pattern detector, because it is trivially evaded.",
+      "consequences": "Nobody asked for this; it came from a peer review finding about indirect prompt injection."
+    }
+  ],
+  "nfr_coverage": [],
+  "open_questions": [
+    {
+      "id": "OQ-001",
+      "owner": "Ian Cruickshank",
+      "question": "Has SPEC 9a been run on a real NBCU engagement? Still no."
+    }
+  ],
+  "out_of_scope": [],
+  "people": [
+    {
+      "id": "p_architect",
+      "uid": "e_92f982741847",
+      "name": "Solutions Architect",
+      "description": "Runs the engagement.",
+      "layout": {
+        "x": 0,
+        "y": 0
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-005"
+        }
+      ]
+    },
+    {
+      "id": "p_peers",
+      "uid": "e_c6483d7e029f",
+      "name": "Peer reviewers",
+      "description": "Independent review before delivery.",
+      "layout": {
+        "x": 0,
+        "y": 150
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-004"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "source": "p_architect",
+      "destination": "s_core",
+      "description": "runs the gate",
+      "technology": "CLI",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-005"
+        }
+      ]
+    },
+    {
+      "source": "s_sources",
+      "destination": "s_core",
+      "description": "evidence",
+      "technology": "manual export",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-001"
+        }
+      ]
+    },
+    {
+      "source": "s_core",
+      "destination": "s_external",
+      "description": "artifacts",
+      "technology": "manual import",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-009"
+        }
+      ]
+    },
+    {
+      "source": "p_peers",
+      "destination": "s_core",
+      "description": "reviews the model diff",
+      "technology": "pull request",
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-004"
+        }
+      ]
+    }
+  ],
+  "standards": [],
+  "systems": [
+    {
+      "id": "s_sources",
+      "uid": "e_8be55040f612",
+      "name": "Stakeholder sources",
+      "description": "Meetings, documents, repositories.",
+      "external": true,
+      "layout": {
+        "x": 320,
+        "y": 0
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-001"
+        },
+        {
+          "kind": "satisfies",
+          "req": "REQ-003"
+        }
+      ]
+    },
+    {
+      "id": "s_core",
+      "uid": "e_303d87fa6960",
+      "name": "archtrace",
+      "description": "Evidence-grounded architecture pipeline.",
+      "external": false,
+      "layout": {
+        "x": 640,
+        "y": 0
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-005"
+        }
+      ],
+      "containers": [
+        {
+          "id": "c_intake",
+          "uid": "e_efa11844966b",
+          "name": "Evidence manifest",
+          "description": "Normalise, hash, manifest-only in git.",
+          "layout": {
+            "x": 320,
+            "y": 150
+          },
+          "grounding": [
+            {
+              "kind": "derived",
+              "from": "c_extract",
+              "adr": "ADR-003"
+            }
+          ]
+        },
+        {
+          "id": "c_extract",
+          "uid": "e_4f50f13910a8",
+          "name": "Extraction agent",
+          "description": "Single read-only agent proposing spans.",
+          "layout": {
+            "x": 320,
+            "y": 300
+          },
+          "grounding": [
+            {
+              "kind": "satisfies",
+              "req": "REQ-006"
+            },
+            {
+              "kind": "satisfies",
+              "req": "REQ-002"
+            }
+          ]
+        },
+        {
+          "id": "c_gate",
+          "uid": "e_50d82960b70e",
+          "name": "Deterministic gate",
+          "description": "G1-G13 plus coverage and agent checks.",
+          "layout": {
+            "x": 640,
+            "y": 300
+          },
+          "grounding": [
+            {
+              "kind": "satisfies",
+              "req": "REQ-007"
+            },
+            {
+              "kind": "satisfies",
+              "req": "REQ-010"
+            }
+          ]
+        },
+        {
+          "id": "c_render",
+          "uid": "e_269a91930ad2",
+          "name": "Renderer",
+          "description": "SVG, draw.io, PlantUML, Mermaid, docx, Jira.",
+          "layout": {
+            "x": 640,
+            "y": 450
+          },
+          "grounding": [
+            {
+              "kind": "satisfies",
+              "req": "REQ-008"
+            }
+          ]
+        },
+        {
+          "id": "c_release",
+          "uid": "e_ab1651180292",
+          "name": "Release + verify",
+          "description": "Binds approver, commit and output hashes.",
+          "layout": {
+            "x": 320,
+            "y": 450
+          },
+          "grounding": [
+            {
+              "kind": "derived",
+              "from": "c_gate",
+              "adr": "ADR-002"
+            }
+          ]
+        },
+        {
+          "id": "c_promote",
+          "uid": "e_c5d7eba4bf60",
+          "name": "Promote gate",
+          "description": "Human confirms the quote supports the statement.",
+          "layout": {
+            "x": 0,
+            "y": 300
+          },
+          "grounding": [
+            {
+              "kind": "derived",
+              "from": "c_extract",
+              "adr": "ADR-001"
+            }
+          ]
+        },
+        {
+          "id": "c_trust",
+          "uid": "e_46281a83da1e",
+          "name": "Trust boundary",
+          "description": "Evidence is data, never instructions.",
+          "layout": {
+            "x": 0,
+            "y": 450
+          },
+          "grounding": [
+            {
+              "kind": "derived",
+              "from": "c_extract",
+              "adr": "ADR-004"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_external",
+      "uid": "e_4acd2e833971",
+      "name": "Jira / Lucid / SharePoint",
+      "description": "Publication targets.",
+      "external": true,
+      "layout": {
+        "x": 960,
+        "y": 0
+      },
+      "grounding": [
+        {
+          "kind": "satisfies",
+          "req": "REQ-009"
+        }
+      ]
+    }
+  ],
+  "workspace": {
+    "client": "Ian Cruickshank / NBCU",
+    "name": "archtrace itself"
+  }
+}
