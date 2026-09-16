@@ -93,6 +93,16 @@ engagements:
 # what lets the example gate itself in CI.
 EVIDENCE_EXCEPTION ?= example/_evidence_root/
 evidence-guard:
+	@# Prove we CAN check before reporting that we did. The first version of
+	@# this recipe piped `git ls-files` through `|| true`, so outside a git
+	@# repository the command failed, the failure was swallowed, and the target
+	@# printed "no recording content is committed" and exited 0 -- a guard that
+	@# passes when it cannot look, which is the exact false green it was added
+	@# to close.
+	@git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { \
+	  echo "not a git repository, so nothing can be said about what is"; \
+	  echo "committed. Refusing to report a pass for a check that did not run."; \
+	  exit 1; }
 	@bad=$$(git ls-files -- '*_evidence_root/*' \
 	          | grep -v '^$(EVIDENCE_EXCEPTION)' || true); \
 	 test -z "$$bad" || { \

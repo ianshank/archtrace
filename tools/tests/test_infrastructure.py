@@ -580,6 +580,30 @@ class FreshnessTarget(unittest.TestCase):
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("no engagements found", done.stdout)
 
+    def test_evidence_guard_passes_on_this_repository(self):
+        done = self._make("evidence-guard")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("no recording content is committed", done.stdout)
+
+    def test_evidence_guard_refuses_when_it_cannot_check(self):
+        """A guard that passes when it cannot look is the false green it was
+        added to close.
+
+        The first version piped `git ls-files` through `|| true`, so outside a
+        git repository the command failed, the failure was swallowed, and the
+        target reported success. Verified by running the real recipe against a
+        directory that is not a repository.
+        """
+        outside = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, outside, ignore_errors=True)
+        shutil.copy(os.path.join(self.REPO, "Makefile"), outside)
+        done = subprocess.run(
+            ["make", "-C", outside, "--no-print-directory", "evidence-guard"],
+            capture_output=True, text=True, check=False)
+        self.assertNotEqual(done.returncode, 0,
+                            "reported a pass for a check that did not run")
+        self.assertIn("did not run", done.stdout)
+
     def test_engagements_lists_what_freshness_would_check(self):
         done = self._make("engagements")
         self.assertEqual(done.returncode, 0)
