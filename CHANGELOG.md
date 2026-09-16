@@ -127,6 +127,25 @@ one.
   stoplist should carry phrases long enough to clear the floors is a policy
   question. `test_every_stoplist_phrase_is_shorter_than_the_floors` fails if that
   relationship ever changes, so whoever changes it finds out.
+- **No test ever walked the path an adopter walks.** Every other test starts
+  from the worked example — a fixture somebody already got right — and
+  `ColdStart` scaffolds a real engagement but stops at a *blocked* gate. Nothing
+  took a scaffolded engagement through `init → evidence add → quote → promote →
+  model → fmt → render → check → release → verify` to a green gate and a MATCH.
+  `FullLifecycle` does, driven only through the CLI.
+
+  It is also the first test to use `quote`. Every other test that needs a byte
+  span computes it with `canon.normalize` plus `str.find` — the exact mistake
+  `quote` exists to remove — so the one command written to stop a class of error
+  was never the input to anything. Here its stdout is parsed and spliced into
+  `proposed.json` as an agent would, and the transcript says the fragment
+  **twice**: `quote` promises the first occurrence, and with a single occurrence
+  that promise is unfalsifiable and `find` could be `rfind` forever.
+
+  Five mutations killed that nothing else caught: `quote` resolving to the last
+  occurrence, `quote` dropping its duplicate warning, evidence auto-numbering
+  off by one, `release` signing a fresh render, and `promote` confirming on a
+  dry run.
 - **`make pre-pr` ran one interpreter while CI runs three.** Not theoretical:
   the configuration tests added in this release were written against `tomllib`,
   passed locally on 3.11, and failed the 3.9 job — because this tool
@@ -219,7 +238,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **121 tests** (183 → 304) covering exactly the gaps that let the above through:
+- **122 tests** (183 → 305) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

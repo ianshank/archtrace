@@ -905,6 +905,217 @@ class ColdStart(unittest.TestCase):
             fh.write(canon.canonical_json(doc))
 
 
+class FullLifecycle(unittest.TestCase):
+    """One engagement, `init` to MATCH, driven only through the CLI.
+
+    Everything else in this file starts from the worked example, which is a
+    fixture somebody already got right. `ColdStart` scaffolds a real one but
+    stops at a *blocked* gate -- no test anywhere took a scaffolded engagement
+    all the way to a green check and a verified release, so the path an adopter
+    actually walks was never walked.
+
+    It also uses `quote`. Every other test that needs a byte span computes it
+    with `canon.normalize` plus `str.find`, which is the mistake `quote` exists
+    to remove -- so the one command written to stop a class of error was never
+    the input to anything. Here its stdout is parsed and spliced into
+    `proposed.json` exactly as an agent or an analyst would.
+    """
+
+    APPROVER = ("--approved-by", "I. Cruickshank",
+                "--role", "solution-architect")
+    TRANSCRIPT = (
+        "00:08:14  M. Sponsor: the number that matters is that finance can "
+        "close the month without hand-reconciling three separate systems.\n"
+        "00:09:02  M. Sponsor: and we cannot lose an event when the upstream "
+        "feed drops for half a day, that is the part that hurts us.\n"
+        "00:14:31  M. Sponsor: to say it once more, finance can close the "
+        "month without hand-reconciling three separate systems.\n")
+    # Deliberately said TWICE, at 08:14 and 14:31. `quote` promises the FIRST
+    # occurrence and warns about the rest; with a single occurrence that promise
+    # is unfalsifiable, and `text.find` could be `text.rfind` forever.
+    FRAGMENT = "finance can close the month without hand-reconciling three separate systems"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        gate.apply_config(config.Config())
+
+    def _run(self, *argv):
+        """Drive `main` and capture stdout, because stdout is the contract:
+        `quote` emits JSON an agent pastes into a file."""
+        from archtrace.cli import main
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["--root", self.tmp, *argv])
+        return code, out.getvalue(), err.getvalue()
+
+    def _path(self, *parts):
+        return os.path.join(self.tmp, *parts)
+
+    def _model(self):
+        """A two-element model satisfying REQ-001, with every NFR category
+        declared so the run reaches a clean gate rather than a warning one."""
+        return {
+            "schema_version": 1,
+            "workspace": {"name": "Lifecycle", "client": "Acme"},
+            "people": [{
+                "id": "p_finance", "uid": "e_a00000000001",
+                "name": "Finance", "description": "Closes the month.",
+                "layout": {"x": 0, "y": 0},
+                "grounding": [{"kind": "satisfies", "req": "REQ-001"}],
+            }],
+            "systems": [{
+                "id": "s_close", "uid": "e_a00000000002",
+                "name": "Close Platform", "description": "Reconciles.",
+                "external": False, "layout": {"x": 320, "y": 0},
+                # Two grounding kinds, not one. `existing` also cites EV-002,
+                # which otherwise sits in the manifest uncited and G8 warns --
+                # and a warn verdict prints different wording, so the clean
+                # claim below would be asserting the wrong sentence.
+                "grounding": [
+                    {"kind": "satisfies", "req": "REQ-001"},
+                    {"kind": "existing", "evidence_id": "EV-002"},
+                ],
+                "containers": [],
+            }],
+            "relationships": [{
+                "source": "p_finance", "destination": "s_close",
+                "description": "closes the month in",
+                "technology": "web",
+                "grounding": [{"kind": "satisfies", "req": "REQ-001"}],
+            }],
+            "decisions": [], "standards": [], "out_of_scope": [],
+            "open_questions": [],
+            "nfr_coverage": [
+                {"category": category, "status": "not_applicable",
+                 "decided_by": "I. Cruickshank", "date": "2026-09-16",
+                 "rationale": "Out of scope for this worked lifecycle."}
+                for category in NFR_CATEGORIES
+            ],
+        }
+
+    def test_init_to_match_without_touching_a_fixture(self):
+        code, _out, err = self._run("init", "Lifecycle", "--client", "Acme")
+        self.assertEqual(code, 0, err)
+
+        # --- evidence intake -------------------------------------------
+        source = self._path("_evidence_root", "kickoff.txt")
+        with open(source, "w", encoding="utf-8") as fh:
+            fh.write(self.TRANSCRIPT)
+        code, _out, err = self._run(
+            "evidence", "add", source, "--id", "EV-001",
+            "--source", "teams-transcript",
+            "--authority", "stakeholder-confirmed",
+            "--source-uri", "https://example.invalid/kickoff",
+            "--date", "2026-09-16",
+            "--participants", "M. Sponsor", "I. Cruickshank",
+            "--classification", "internal", "--retention-until", "2029-01-01")
+        self.assertEqual(code, 0, err)
+
+        # A second record with NO --id, so the auto-numbering path runs. With
+        # one hand-numbered record it never does, and the id could be derived
+        # any way at all.
+        second = self._path("_evidence_root", "standards.txt")
+        with open(second, "w", encoding="utf-8") as fh:
+            fh.write("Retention for finance records is seven years.\n")
+        code, _out, err = self._run(
+            "evidence", "add", second,
+            "--source", "document", "--authority", "authoritative-document",
+            "--source-uri", "https://example.invalid/standards",
+            "--date", "2026-09-16", "--participants", "I. Cruickshank",
+            "--classification", "internal", "--retention-until", "2029-01-01",
+            # G11 refuses an authoritative document with no owner and no
+            # effective date -- "the policy says so" is not a citation. Supplied
+            # here because the happy path is what this test is for; the refusal
+            # has its own test.
+            "--document-owner", "Group Finance",
+            "--effective-date", "2026-01-01")
+        self.assertEqual(code, 0, err)
+        index = canon.load_json(self._path("evidence", "index.json"))
+        self.assertEqual([r["id"] for r in index["evidence"]],
+                         ["EV-001", "EV-002"],
+                         "the second record must be EV-002")
+
+        # --- quote: its stdout is the input, not a hand-computed span ----
+        code, out, err = self._run("quote", "EV-001", self.FRAGMENT,
+                                   "--speaker", "M. Sponsor")
+        self.assertEqual(code, 0, err)
+        quoted = json.loads(out)["provenance"][0]
+        self.assertEqual(quoted["speaker"], "M. Sponsor")
+        self.assertGreater(quoted["end"], quoted["start"])
+        self.assertIn("occurs more than once", err,
+                      "a fragment said twice must be flagged, not silently "
+                      "resolved to one of them")
+        normalised = canon.normalize(self.TRANSCRIPT)
+        self.assertEqual(
+            quoted["start"], normalised.find(canon.normalize(self.FRAGMENT)),
+            "quote promises the FIRST occurrence; this is the assertion that "
+            "makes `find` distinguishable from `rfind`")
+        self.assertEqual(out, canon.canonical_json({"provenance": [quoted]})
+                         + "\n", "stdout must stay machine-readable JSON")
+
+        proposed = {"schema_version": 1, "requirements": [{
+            "id": "REQ-001", "type": "functional", "priority": "must",
+            "status": "proposed", "conflicts_with": [],
+            "statement": "Month-end close completes without manual "
+                         "reconciliation.",
+            "provenance": [quoted],
+        }]}
+        with open(self._path("requirements", "proposed.json"), "w",
+                  encoding="utf-8") as fh:
+            fh.write(canon.canonical_json(proposed))
+
+        # --- the human gate ---------------------------------------------
+        self.assertEqual(self._run("promote", "REQ-001")[0], 0)
+        self.assertEqual(
+            canon.load_json(self._path("requirements",
+                                       "requirements.json"))["requirements"],
+            [], "the dry run must confirm nothing")
+        self.assertEqual(self._run("promote", "REQ-001", "--yes")[0], 0)
+
+        # --- model, format, render --------------------------------------
+        with open(self._path("model", "model.json"), "w",
+                  encoding="utf-8") as fh:
+            fh.write(canon.canonical_json(self._model()))
+        self.assertEqual(self._run("fmt")[0], 0)
+        with open(self._path("model", "model.json"), "rb") as fh:
+            before = fh.read()
+        self.assertEqual(self._run("fmt")[0], 0)
+        with open(self._path("model", "model.json"), "rb") as fh:
+            self.assertEqual(fh.read(), before,
+                             "fmt must reach a fixed point")
+        code, out, err = self._run("render")
+        self.assertEqual(code, 0, err)
+
+        # --- the gate, green on an engagement nobody pre-built ----------
+        code, out, err = self._run("check")
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("grounded and internally consistent", out)
+
+        # --- approval and verification ----------------------------------
+        code, out, err = self._run("release", *self.APPROVER)
+        self.assertEqual(code, 0, err)
+        manifest = canon.load_json(self._path("release.json"))
+        self.assertEqual(manifest["confirmed_requirements"], ["REQ-001"])
+        self.assertEqual(manifest["approved_by"], "I. Cruickshank")
+        self.assertIn("traceability.md", manifest["outputs"])
+
+        code, out, _err = self._run("release", "--verify")
+        self.assertEqual(code, 0, out)
+        self.assertIn("MATCH", out)
+
+        # --- and it can still refuse ------------------------------------
+        victim = self._path("render", "traceability.md")
+        with open(victim, "ab") as fh:
+            fh.write(b"\n<!-- edited after approval -->\n")
+        code, out, _err = self._run("release", "--verify")
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("DRIFT", out)
+        self.assertIn("traceability.md", out)
+        self.assertNotEqual(self._run("check")[0], 0,
+                            "G6 must also refuse the edited render")
+
+
 class Release(unittest.TestCase):
     """An approval must bind to a state, and must refuse a failing one."""
 

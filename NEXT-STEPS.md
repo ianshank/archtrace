@@ -90,12 +90,19 @@ would be embarrassing to repeat without checking. The backlog, in order:
    G1 must speak, and G13 must not speak twice.
 
    **§2a is now closed: 29 of 29.**
-3. **One true end-to-end test.** `ColdStart` gets from `init` to a *blocked*
-   gate and stops. Nothing drives a scaffolded engagement through
-   `quote → promote → model → fmt → render → check → release → verify` to a
-   green gate and a MATCH. That one test kills at least nine survivors by
-   itself, and `quote` — the command that exists to remove a class of mistake —
-   is currently never used as the input to anything.
+3. ~~**One true end-to-end test**~~ — **done.** `FullLifecycle` drives a
+   scaffolded engagement through `init → evidence add → quote → promote →
+   model → fmt → render → check → release → verify` to a green gate and a
+   MATCH, then edits a render and asserts both `--verify` and G6 refuse it.
+   It is the first test to use `quote` as an input rather than hand-computing
+   the span.
+
+   **Measured five mutations killed, not the nine the audit projected** — and
+   two of the five it listed turned out to be untestable rather than untested:
+   `quote`'s `quote_cached` is `text[start:end]` where `start = text.find(
+   needle)` and `needle` is already normalised, so emitting `needle` instead is
+   an *equivalent* mutant. Worth recording, because "nine survivors" would have
+   been repeated as a result rather than a projection.
 4. ~~**`canon.normalize` is under-specified by its tests**~~ — **done, and it
    was hiding a live defect.** Removing the NFKC call entirely left the suite
    green, as did the `stable_uid` separator, the `modified`-attribute strip and
