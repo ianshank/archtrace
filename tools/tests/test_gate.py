@@ -693,6 +693,47 @@ class Release(unittest.TestCase):
         # assertion is that render/ is judged on its own bytes, not re-rendered.
         self.assertNotEqual(self._verify(), 0)
 
+    def test_release_signs_the_bytes_on_disk_not_a_fresh_render(self):
+        """T1's other half, and nothing was watching it.
+
+        `--verify` was fixed to read `render/` from disk. `release` is what
+        writes the hashes it verifies against, and every other test in this
+        class signs from a clean tree -- where the bytes on disk and a fresh
+        render are identical by construction, so the two questions cannot be
+        told apart. Re-seeding the original defect on the signing side leaves
+        all 252 tests green; that was measured, not assumed.
+
+        G6 compares CANONICALLY, so trailing whitespace on a Markdown line is
+        invisible to the gate while changing the file's bytes. That narrow gap
+        is the only place the two questions differ, and it is exactly the state
+        an approval has to describe honestly: the bytes in the operator's hand,
+        not the ones the renderer would produce from the model.
+        """
+        import hashlib
+        name = "traceability.md"
+        path = self._output(name)
+        with open(path, "rb") as fh:
+            as_rendered = fh.read()
+        on_disk = as_rendered.replace(b"\n", b"   \n", 1)
+        self.assertNotEqual(on_disk, as_rendered, "the fixture changed nothing")
+        self.assertEqual(
+            canon.canonical_bytes(name, on_disk),
+            canon.canonical_bytes(name, as_rendered),
+            "this edit must be canonically invisible, or G6 blocks the release "
+            "and the test proves nothing about signing")
+        with open(path, "wb") as fh:
+            fh.write(on_disk)
+
+        self.assertEqual(self._release(), 0, "G6 should not have blocked this")
+        manifest = canon.load_json(os.path.join(self.root, "release.json"))
+        self.assertEqual(
+            manifest["outputs"][name],
+            "sha256:" + hashlib.sha256(on_disk).hexdigest(),
+            "the approval recorded a hash of bytes that are not the ones on "
+            "disk; it describes a render nobody is holding")
+        self.assertEqual(self._verify(), 0,
+                         "the bytes signed must be the bytes that verify")
+
     def test_release_binds_every_output_and_source_by_hash(self):
         self.assertEqual(self._release(), 0)
         manifest = canon.load_json(os.path.join(self.root, "release.json"))

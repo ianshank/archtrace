@@ -800,6 +800,47 @@ class DocsFreshness(unittest.TestCase):
                             "a crashing generator was read as a clean check")
         self.assertIn("generator failed", done.stdout)
 
+    def test_every_generated_diagram_is_well_formed_xml(self):
+        """An SVG that does not parse renders as nothing at all. Three
+        rendering defects in these generators were caught by rasterising the
+        output and looking at it, which is not a process."""
+        import xml.etree.ElementTree as ET
+        for name in sorted(os.listdir(self.docs)):
+            if not name.endswith(".svg"):
+                continue
+            with self.subTest(diagram=name), \
+                    open(os.path.join(self.docs, name), encoding="utf-8") as fh:
+                ET.fromstring(fh.read())
+
+    def test_no_diagram_text_runs_off_its_own_canvas(self):
+        """Text that overflows the viewBox is invisible in a browser and
+        clipped in a deck, and neither shows up in a byte comparison. The width
+        estimate is deliberately generous (0.55em per character against the
+        ~0.5 of a real Helvetica run) so this fires on a genuine overflow
+        rather than on a long-but-fitting line."""
+        import re
+        for name in sorted(os.listdir(self.docs)):
+            if not name.endswith(".svg"):
+                continue
+            with self.subTest(diagram=name):
+                with open(os.path.join(self.docs, name), encoding="utf-8") as fh:
+                    svg = fh.read()
+                width = int(re.search(r'width="(\d+)"', svg).group(1))
+                height = int(re.search(r'height="(\d+)"', svg).group(1))
+                spilled = []
+                for element in re.finditer(
+                        r'<text x="([-\d.]+)" y="([-\d.]+)"[^>]*'
+                        r'font-size="([\d.]+)"[^>]*?>(.*?)</text>', svg):
+                    x, y = float(element.group(1)), float(element.group(2))
+                    size, body = float(element.group(3)), element.group(4)
+                    anchor = re.search(r'text-anchor="(\w+)"', element.group(0))
+                    run = len(body) * size * 0.55
+                    left = {"end": x - run, "middle": x - run / 2}.get(
+                        anchor.group(1) if anchor else "start", x)
+                    if left < -2 or left + run > width + 2 or y > height:
+                        spilled.append(body[:60])
+                self.assertEqual(spilled, [], f"{name}: text outside the canvas")
+
     def test_a_rule_without_a_diagram_label_stops_generation(self):
         """A rule added to the registry must not quietly vanish from the
         picture. That is exactly how the sequence diagram came to show eleven

@@ -14,8 +14,19 @@ codebase:
    prints the live values and where each came from, so nobody has to read source
    to learn what the build is actually checking.
 
-Precedence, lowest to highest: defaults here, then `archtrace.toml` at the
-repository root, then `ARCHTRACE_*` environment variables. Standard library
+Precedence, lowest to highest: defaults here, then `archtrace.toml` in the
+**process working directory**, then `ARCHTRACE_*` environment variables.
+
+This docstring said "at the repository root", which is the intent and is true
+only because `make` and CI always run from there. `DEFAULT = load()` resolves at
+import with `root="."`, so the file that is actually read is the one where the
+operator is standing: `cd engagements/aurora && archtrace check` reads no
+configuration at all, and `cd ~ && archtrace --root /work/proj check` applies
+whatever `~/archtrace.toml` happens to say. `--root` does not reach this layer.
+Threading a `Config` through `gate.run` and its rules is the fix and is a change
+of its own; see `docs/tech-debt.md`. Describing it accurately costs nothing.
+
+Standard library
 only; TOML is read with `tomllib`, which is 3.11+. On 3.9/3.10 a config file
 that is *present* is refused rather than ignored -- silently dropping it meant
 the same repository enforced different thresholds on different interpreters --

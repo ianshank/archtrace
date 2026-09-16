@@ -123,7 +123,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **69 tests** (183 → 252) covering exactly the gaps that let the above through:
+- **73 tests** (183 → 256) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

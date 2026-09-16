@@ -31,6 +31,49 @@ plain that they existed at all.
 
 ## Open tech debt, ranked
 
+### 0. Configuration resolves from the process CWD, not from `--root` [Certain]
+
+`config.DEFAULT = load()` runs at import with `root="."`, and `gate.py` binds
+`MIN_QUOTE_WORDS`, `MIN_QUOTE_CHARS` and `GENERIC_PHRASES` from it at import
+too. So the `archtrace.toml` that takes effect is the one in the directory the
+operator is standing in, and `--root` never reaches this layer.
+
+Two consequences, both reproduced:
+
+```
+$ cd engagements/aurora && archtrace check      # reads NO configuration
+$ cd ~ && archtrace --root /work/proj check     # applies ~/archtrace.toml
+```
+
+```
+$ printf '[citation]\nmin_quote_words = 99\n' > archtrace.toml
+$ make test
+FAILED (failures=26)
+  BLOCK G2 REQ-001.provenance[0]
+    quote is 13 words / 60 chars; minimum is 99 / 500
+```
+
+That second one is the sharper statement of the problem: **a repository that
+legitimately configures archtrace cannot run archtrace's own test suite.** The
+suite is green today only because this repo has no `archtrace.toml` and `make`
+runs from the root. Twenty-six assertions depend on the developer's working
+directory, which makes them assertions about the environment rather than about
+the gate. `ARCHTRACE_CITATION_MIN_QUOTE_WORDS=99 make test` fails identically —
+nothing scrubs `ARCHTRACE_*` from the environment either.
+
+**Why it was not fixed in this pass:** the fix is to thread a `Config` through
+`gate.run` and into the rules, and every rule is registered by `@rule` with the
+signature `(eng) -> Iterator[Finding]`. Changing all fifteen plus the registry
+plus every call site is a change of its own, and doing it badly would move the
+thresholds somewhere less visible rather than more. The docstring in
+`config.py` now describes what the code does instead of what was intended,
+which is the part that was costing nothing to fix.
+
+**Risk of leaving it:** moderate, and it is the highest-ranked item here for a
+reason. It is a correctness defect for anyone running from a subdirectory, and
+a reproducibility defect for the suite. It has not bitten yet because every
+entry point happens to run from the repository root.
+
 ### 1. `renders.py` is now the largest module at 598 lines [Certain]
 
 `cli.py` went from 1,008 to 248; `renders.py` inherited the title. It contains
@@ -46,17 +89,23 @@ already carried a decomposition. Splitting it into `renders/` mirroring
 **Risk of leaving it:** low. It is cohesive by output type, fully covered (98%),
 and changes rarely.
 
-### 2. The docs generators are untested and unmeasured [Certain]
+### 2. The docs generators are still unmeasured, now partly tested [Certain]
 
-`docs/gen_architecture.py` (308 lines) and `gen_sequence.py` (254) have no tests
-and are outside the coverage measurement, which scopes to `tools/archtrace`.
-They are presentation code that produces committed artifacts, so a break is
-visible immediately — but "visible immediately" assumes somebody looks.
+`docs/gen_architecture.py` and `gen_sequence.py` remain outside the coverage
+measurement, which scopes to `tools/archtrace`.
 
-**Honest assessment:** three rendering defects in these were caught this session
-only because I rasterised the output and looked at it. That is not a process.
-Minimum viable fix: assert the SVG parses and contains the expected element
-count, which would have caught two of the three.
+**Partly closed.** "Visible immediately assumes somebody looks", written here
+earlier, turned out to be the whole problem: nobody did, and both diagrams had
+drifted — one drew a test count four releases old, both named eleven of fifteen
+gate rules. `make docs-fresh` now asks of `docs/` what G6 asks of `render/`, and
+`DocsFreshness` exercises the target's failure paths. `tools/repo_facts.py`
+removes the class of defect that produced the stale count.
+
+**Still open:** nothing asserts the emitted SVG *parses*, or that its text stays
+inside the canvas. Both were checked by hand while writing that change, which is
+the same "not a process" this entry complained about. The generators' own
+drawing logic — `wrap`, `arrow`, the self-message overflow flip in
+`gen_sequence.py:176` — has no test at all.
 
 ### 3. Line coverage only, not branch [Certain]
 
