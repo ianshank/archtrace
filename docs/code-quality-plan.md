@@ -1,520 +1,531 @@
-# Code quality and tech-debt remediation plan
+# Code quality and tech-debt remediation plan — v2
 
-Written 2026-09-16 against `55fddb5`. Every finding below was verified by running
-something, and the command that produced it is named. Confidence tags follow the
-house convention: **[Certain]** verified by execution, **[Likely]** reasoned from
-the code, **[Guessing]** judgement.
+Written 2026-09-16 against `e34727e`. Every finding was verified by running
+something; the command is named in the [appendix](#appendix--how-each-finding-was-produced).
+Confidence tags follow the house convention: **[Certain]** verified by
+execution, **[Likely]** reasoned from the code, **[Guessing]** judgement.
 
-This plan supersedes the *ranked* list in [`tech-debt.md`](tech-debt.md) but not
-its history section. Where the two disagree, this document is the current one —
-see [§7](#7-the-tech-debt-doc-has-itself-drifted).
+Supersedes the ranked list in [`tech-debt.md`](tech-debt.md), and supersedes v1
+of this document — see [§1](#1-peer-review-of-v1-of-this-plan), which is a
+correction of it.
 
 ---
 
-## 0. Executive summary
+## 1. Peer review of v1 of this plan
 
-The codebase is small (6,848 Python LOC), well-commented, dependency-free by
-design, and 94% line-covered. The structure is sound. **The problem is not the
-code; it is that three of the seven quality gates cannot fail**, and two CI
-workflows have been red since the repository's first push.
+v1 audited **structure and CI**. It did not audit **behaviour**, and said so
+nowhere — which is how it reached a confident headline that was wrong.
+
+### 1.1 The v1 headline was wrong [Certain]
+
+> *"The codebase is in good shape. The problem is not the code; it is that three
+> of the seven quality gates cannot fail."*
+
+The gate finding was real and is now fixed. The first clause was not earned. A
+behavioural pass over the same code found three defects in the trust path, one
+of them critical (§3). An audit that reads for shape and does not execute the
+thing will always produce that sentence, because shape is what it looked at.
+
+**Correction:** the gates were the most *urgent* problem. They were not the
+worst one.
+
+### 1.2 The coverage figure was arithmetically wrong [Certain]
+
+v1 said folding the untested generators in would put the repository "nearer
+**73%** than 94%". That divided covered *statements* by statements **plus
+lines**, which is not a denominator. Measured consistently:
+
+| | statements | covered | |
+|---|---|---|---|
+| measured today | 2,027 | 1,912 | 94% |
+| unmeasured (`docs/gen_*.py`, `coverage_gate.py`) | 316 | 0 | — |
+| **honest total** | **2,343** | **1,912** | **81%** |
+
+81%, not 73%. Still below the 85% floor the project sets for itself, so the
+conclusion survives — but the number was wrong and was stated as though
+measured.
+
+### 1.3 The sequencing had an ordering defect that would have caused harm [Certain]
+
+v1 put "split `renders.py` into `renders/`" at phase 5 and called it "low risk,
+**verifiable**". It is neither, in that order. `coverage.measure()` walks the
+package root plus a hardcoded `commands/` subdirectory and is **not recursive**
+(§5.1). Creating `renders/` silently drops all 314 of its statements out of the
+report — the largest module, at 98% — while the gate still prints *"coverage
+gate passed"*.
+
+v1 would have destroyed the measurement that was supposed to make the refactor
+safe, and nothing would have said so. **Fixed by reordering: §5.1 now gates §6.1.**
+
+### 1.4 The `renders/` split was over-specified [Guessing]
+
+v1 proposed eight modules for 656 lines — an average of 82 lines each. That is
+fragmentation, not decomposition; it trades one navigation problem for another.
+Revised to four in §6.1.
+
+### 1.5 What v1 got right
+
+The gate defect and its fix; the CI root-causes; the dead code, drifted enum and
+duplication findings in §7 — all verified and unchanged. Phases 0–2 landed and
+`ci` is green.
+
+---
+
+## 2. Executive summary
 
 | | Finding | Severity | Status |
 |---|---|---|---|
-| **F1** | `make lint`, `make types` and `make secrets` **exit 0 when the tool fails**. Three of seven `pre-pr` gates are decorative. | **Critical** | **fixed** |
-| **F2** | `.gitleaks.toml` uses a regex construct Go's engine cannot compile. The `ci / quality` job has never passed. | **Critical** | **fixed** |
-| **F2b** | `GITHUB_TOKEN` missing from the gitleaks step — invisible until F2 was fixed. | **High** | **fixed** |
-| **F3** | `.github/workflows/archtrace.yml` contains a literal `exit 1`. It fails on every PR and every push, by construction. | **High** | **fixed** (option A) |
-| **F4** | 8 lint violations in the tree, masked by F1. | **High** | **fixed** |
+| **T1** | `release --verify` reports *"Safe to publish"* on a tampered deliverable | **Critical** | open |
+| **T2** | Every stakeholder quote in every deliverable is casefolded, not verbatim | **High** | open |
+| **T3** | Citation offsets cannot be mapped back to the source document by hand | **High** | open |
+| **T4** | The coverage gate is blind to any new subpackage | **High** | open |
+| **T5** | Malformed JSON produces a Python traceback, not a refusal | **Medium** | open |
+| **T6** | The agent authority check is a five-phrase substring tripwire | **Medium** | open |
+| **F1** | `make lint`/`types`/`secrets` exited 0 when the tool failed | Critical | **fixed** |
+| **F2/F2b** | gitleaks config uncompilable; then `GITHUB_TOKEN` missing | Critical | **fixed** |
+| **F3** | `archtrace.yml` red by construction | High | **fixed** |
+| **F4** | 8 lint violations masked by F1 | High | **fixed** |
 
-F1 is the one that mattered. It is the exact defect class this tool exists to
-prevent — a control that is present, documented, and enforcing nothing — and it
-was sitting inside archtrace's own build.
-
-**Sequencing constraint (observed):** F1 and F4 had to ship together. Fixing the
-Makefile without fixing the violations turns CI red; fixing the violations
-without the Makefile leaves the gate decorative. They were one change.
-
----
-
-## 1. Critical — gates that cannot fail
-
-### F1. `make lint` / `types` / `secrets` swallow failure [Certain]
-
-`Makefile:58-69` uses the `A && B || C` idiom:
-
-```make
-lint:
-	@command -v ruff >/dev/null 2>&1 \
-	  && ruff check tools docs \
-	  || echo "SKIP lint: ruff not installed (pip install -e \".[dev]\")"
-```
-
-In shell, `||` fires when **anything** to its left fails — tool absent *or* tool
-found violations. The `echo` then exits 0 and the recipe succeeds.
-
-Verified:
-
-```console
-$ make lint
-... Found 8 errors.
-SKIP lint: ruff not installed (pip install -e ".[dev]")   # ruff IS installed
->>> make lint exit code: 0
-```
-
-The message is not merely unhelpful, it is false: ruff was installed, ran, and
-reported 8 errors. Consequences:
-
-- `ci / quality` runs `make lint` and `make types` — **both always pass**.
-- `make pre-pr` steps 1/7, 2/7 and 3/7 cannot go red.
-- `pre-pr`'s closing line, *"pre-pr passed. 'Green' means grounded and
-  internally consistent"*, is not true of lint, types or secrets.
-
-**Fix.** Separate "absent" from "failed", and keep the graceful skip:
-
-```make
-lint:
-	@if command -v ruff >/dev/null 2>&1; then ruff check tools docs; \
-	 else echo "SKIP lint: ruff not installed (pip install -e \".[dev]\")"; fi
-```
-
-Apply the same shape to `types` and `secrets`.
-
-**Done.** `MakefileGates` in `test_infrastructure.py` drives all three real
-recipes with a stubbed tool and asserts the three states stay distinguishable:
-violations fail, a clean run passes, an absent tool skips. A fourth test asserts
-a *failing* tool is never reported as a *missing* one — that message is what sent
-people looking for the wrong problem.
-
-The tests are deliberately free of ruff/mypy/gitleaks: the `gate` CI job runs
-`make test` with nothing installed, and a test needing the dev extras would
-silently stop running exactly where this defect lived.
-
-Verified by mutation — restoring the old `&& ... || echo` idiom fails two of the
-four with *"a gate that cannot go red is not a gate"*.
-
-### F4. Eight lint violations, currently masked [Certain]
-
-`ruff 0.15.8` reports:
-
-| Rule | Location | Note |
-|---|---|---|
-| `RUF046` | `docx_shapes.py:44` | `int(round(...))` — `round` already returns `int` |
-| `PERF401` ×2 | `docx_shapes.py:203,210` | loop-append → comprehension / `extend` |
-| `ARG001` ×3 | `test_docx_shapes.py:57` | unused `tx`, `ty`, `pad` on a stub |
-| `C408` | `test_docx_shapes.py:69` | `dict()` → literal |
-| `RUF015` | `test_docx_shapes.py:149` | `[...][0]` → `next(...)` |
-
-Seven were fixed in code. The eighth — `ARG001` on the `_boundary` test double —
-became a per-file ignore instead: a stub standing in for `renders._boundary`
-must carry the real signature to be substitutable, so its unused parameters are
-the point rather than an oversight. That is the same rationale under which
-`ARG002` was already ignored for tests.
-
-**Root cause, fixed with it:** `pyproject.toml:25` pinned `ruff>=0.6,<1`. Ruff
-ships new rules in minor releases, so the violation set grew without a code
-change — which is why these eight appeared with nobody having touched the files.
-Invisible while F1 held; a build that breaks on someone else's release schedule
-once F1 is fixed. Now `ruff>=0.15,<0.16` and `mypy>=1.19,<2`: bump deliberately,
-with the new findings in the same commit.
+T1–T3 share a root cause worth naming: **the tool is rigorous about the
+representation it controls and casual at the boundary where that representation
+meets a human.** Hashes, spans and canonical forms are handled with real care.
+What a stakeholder actually reads — the quote in the Word document, the file
+about to be emailed — is where all three defects live.
 
 ---
 
-## 2. Critical — CI has never been green
+## 3. T1 — `release --verify` cannot detect a tampered deliverable [Certain]
 
-Both workflows failed on the last push to `main`
-([run 35050591082](https://github.com/ianshank/archtrace/actions/runs/35050591082),
-[run 35050591013](https://github.com/ianshank/archtrace/actions/runs/35050591013)).
+**Severity: critical.** This is the tool's trust anchor.
 
-### F2. `.gitleaks.toml` cannot compile [Certain]
+`commands/release.py:113-120` states the control's purpose:
 
-`.gitleaks.toml:37`:
+> *"This is the control that matters at publication time. A commit id says a
+> state was approved once; only recomputing the hashes says the artifact in your
+> hand is that state."*
 
-```toml
-path = '''^(?!example/).*\.(json|md|txt)$'''
-```
-
-gitleaks uses Go's RE2 engine, which has no lookahead. It does not warn — it
-panics, produces no `results.sarif`, and the action then fails trying to upload
-the artifact it never wrote:
-
-```
-panic: regexp: Compile(`^(?!example/).*\.(json|md|txt)$`): bad perl operator: `(?!`
-Error: File results.sarif does not exist
-```
-
-The vendor documentation is explicit: *"Note Golang's regex engine does not
-support lookaheads."* The supported way to express "everything except this
-directory" is a rule-level allowlist, not a negated path:
-
-```toml
-[[rules]]
-id = "evidence-content-in-git"
-regex = '''(?i)^\s*\d{2}:\d{2}:\d{2}\s+[A-Z]\.\s+\w+:'''
-path  = '''\.(json|md|txt)$'''
-
-  [[rules.allowlists]]
-  description = "the worked example is invented; its transcripts are fixtures"
-  paths = ['''^example/''']
-```
-
-**Why nobody caught it locally:** `.pre-commit-config.yaml:43` pins gitleaks
-`v8.21.2`, while `ci.yml:67` uses `gitleaks-action@v2`, which resolved `8.24.3`
-on the last run. Two different gitleaks versions guard the same rule. Pin both.
-
-This fix is applied in this PR — it is a config defect with exactly one correct
-form, and it is what makes `ci / quality` capable of passing at all.
-
-### F2b. A second failure the panic was hiding [Certain]
-
-Fixing F2 got gitleaks as far as loading the config and reading the event type,
-and then it stopped on a different error:
-
-```
-🛑 GITHUB_TOKEN is now required to scan pull requests.
-```
-
-`gitleaks-action@v2` enumerates a PR's commits through the API, and `ci.yml:67-69`
-passed only `GITLEAKS_CONFIG`. This was invisible for as long as F2 held, because
-the config panic killed the process before the token check ran.
-
-This is worth recording as its own finding rather than folding into F2. **A step
-that fails for two independent reasons looks exactly like a step that fails for
-one**, and the second only becomes observable once the first is fixed. Expect
-more of this in phase 1: F1 has been masking the true state of lint, types *and*
-secrets simultaneously, so the first honest `make pre-pr` will likely surface
-findings that no one has seen yet. Budget for that rather than treating it as a
-regression.
-
-Also fixed in this PR: `GITHUB_TOKEN` supplied, and `pull-requests: read` added
-at **job** scope — the workflow-level `contents: read` is correct and should stay
-that way, so the extra grant belongs on the one job that needs it.
-
-### F3. `archtrace.yml` is a placeholder shipped enabled [Certain]
-
-`.github/workflows/archtrace.yml:26-28` is the first step of the only job:
-
-```yaml
-run: |
-  echo "::error::wire this step to your evidence store before enabling the gate"
-  exit 1
-```
-
-It triggers on every `pull_request` and every push to `main`, so the repository
-has a permanently red check that no change can turn green. A check that is
-always red trains reviewers to ignore red checks, which costs more than the
-check was ever worth.
-
-This needed a decision rather than a patch, because the `exit 1` is *intentional*
-(SPEC §0.4 — evidence content is never in git). Three options were put forward:
-
-| Option | Effect |
-|---|---|
-| **A.** `on: workflow_dispatch` only | Stops the noise; template stays available and honest |
-| **B.** Gate on a repo variable (`if: vars.EVIDENCE_STORE_URL != ''`) | Self-enabling once an adopter wires it |
-| **C.** Move to `docs/` as an example | Removes it from Actions entirely |
-
-**Option A was chosen and applied.** The workflow keeps its `exit 1` and its
-explanation, and is runnable on demand. The header now carries the two-line
-recipe for re-enabling the triggers, and the PR-diff step is already conditioned
-on a `pull_request` event, so it resumes working with no further edit.
-
-Its missing `permissions:` and `concurrency:` blocks were added in the same
-change.
-
-### CI hardening, same pass [Certain]
-
-- `archtrace.yml` has **no `permissions:` block**, so it inherits the repository
-  default token scope. `ci.yml:13-14` correctly sets `contents: read`; mirror it.
-- `archtrace.yml` has no `concurrency:` block, so superseded runs are not
-  cancelled. Mirror `ci.yml:16-18`.
-- All actions are tag-pinned (`@v4`, `@v5`, `@v2`), not SHA-pinned. Tags are
-  mutable. SHA-pin with a comment naming the version.
-- `actions/checkout@v4`, `setup-python@v5` and `gitleaks-action@v2` all target
-  Node 20, which is deprecated and already forced onto Node 24 by the runner.
-  Track the majors.
-
----
-
-## 3. Hardening
-
-### H1. `shell=True` in `cmd_mine` [Certain — open, previously accepted]
-
-`commands/evidence.py:125-130`:
+It does not hash the artifact in your hand. `release.py:134` re-renders from the
+model:
 
 ```python
-completed = subprocess.run(  # noqa: S602
-    args.command, cwd=repo, shell=True,  # nosec
+outputs = render_all(eng)          # fresh render, NOT render/ on disk
+for name, expected in manifest.get("outputs", {}).items():
+    data = outputs.get(name)
+    if "sha256:" + hashlib.sha256(data).hexdigest() != expected:
 ```
 
-The reasoning at the call site is sound today: the command is operator-supplied
-via `--command` or the Makefile and never derived from evidence content. But the
-safety property is *"no caller ever routes file content into `--command`"*,
-which is a convention, not a control — and this repository's whole thesis is that
-conventions are not controls.
+So it verifies *"the model still renders to what was approved"* — not *"the file
+I am about to send is what was approved"*. Those differ in exactly one case:
+someone edited a build output. Which is the case the control exists to catch.
 
-**Fix.** Accept `argv` as a list and use `shell=False` by default; reserve the
-shell for an explicit `--shell` flag that has to be typed. That converts the
-guarantee from documented to structural, and lets the targeted `S602`
-suppression be deleted rather than justified.
+### Reproduction
 
-### H2. Supply-chain pinning [Certain, low]
+```console
+$ archtrace release --approved-by "Test Approver" --role architect
+$ archtrace release --verify
+MATCH — every source and output is byte-identical to what was approved.
 
-- `Dockerfile:10` — `FROM python:3.11-slim` is tag-pinned, not digest-pinned.
-  Pin `@sha256:...` for a reproducible gate image.
-- `renders.py:203-204` — the emitted PlantUML embeds
-  `.../C4-PlantUML/master/C4_Context.puml`. Every generated `.puml` carries a
-  reference to a moving branch, so a render that verified today can render
-  differently next month. Pin the tag, and move the URL to `config.RenderPolicy`
-  so it is arguable without a patch.
+$ # edit render/traceability.md, replacing "**none**" with "APPROVED BY LEGAL"
+$ archtrace release --verify
+MATCH — every source and output is byte-identical to what was approved.
+                                                          Safe to publish.
+$ echo $?
+0
+```
 
-### H3. Missing compliance files [Certain]
+A deliverable now carrying a fabricated legal approval is certified safe to
+publish, by name, against a real approver's recorded authority. `archtrace
+check` catches it (G6 reads disk and reports one BLOCK) — but `--verify` does
+not run the gate, and `--verify` is the step documented as the publication-time
+control.
 
-`pyproject.toml:17` and `Dockerfile:14` both declare Apache-2.0, but there is
-**no `LICENSE` file**. Also absent: `SECURITY.md`, `CONTRIBUTING.md`,
-`CODEOWNERS`, `.github/dependabot.yml`, and PR/issue templates. For a repository
-whose selling point is governance, these are cheap and conspicuous.
+### Fix, and why the obvious one is wrong
+
+The obvious fix — hash `render/<name>` from disk and compare to the manifest —
+**introduces false positives**. `release.json` stores `sha256` of the *raw*
+fresh-render bytes, but G6 compares *canonical* form, and two byte-different
+files can be canonically equal:
+
+```
+two byte-different but canonically-equal SVGs:
+  raw bytes equal      : False
+  canonical_bytes equal: True
+```
+
+So a legitimately reformatted tree would fail a naive disk-hash check.
+
+**Do this instead: `--verify` runs `gate.run(eng)` and refuses on any BLOCK.**
+G6 already performs precisely the disk-versus-fresh canonical comparison, it is
+already tested, and it requires **no change to the `release.json` schema** — so
+every existing manifest keeps verifying. Report gate blocks as drift of a third
+kind alongside `source` and `output`.
+
+Keep the existing fresh-render comparison too: it catches model drift, which is
+a different failure and still worth reporting.
 
 ---
 
-## 4. God-file reduction
+## 4. T2 and T3 — the citation boundary
 
-`cli.py` was decomposed in the last pass (1,008 → 248 lines) and `commands/` is a
-good template. Two files inherited the problem.
+### 4.1 T2. Quotes are casefolded in every deliverable [Certain]
 
-### D1. `renders.py` — 656 lines, eight output formats [Certain]
+`canon.normalize()` ends with `.casefold()` (`canon.py:50`). `quote_cached` is a
+slice of that normalised text (`commands/evidence.py:262`), and it flows
+unmodified into all three stakeholder artifacts — `traceability.md`
+(`renders.py:416`), `architecture.docx` (`renders.py:523`) and
+`jira-tickets.json` (`renders.py:597`).
 
-It grew 58 lines since `tech-debt.md` recorded it at 598. It contains SVG,
-PlantUML, Mermaid, draw.io XML, Markdown traceability, CSV traceability, OOXML
-and Jira JSON — eight emitters whose only shared concern is the model they read.
+What is in the repository today:
 
-**Target**, mirroring `commands/`:
+```
+A. Stakeholder: "if the feed drops for half a day we cannot lose those events"
+```
+
+That is rendered inside quotation marks, attributed to a named person, in a
+document going to stakeholders. It is not what they said.
+
+The gate cannot notice. G2 compares `text[start:end]` against `quote_cached`
+where `text` is the same normalised string — they agree by construction
+(`gate.py:189-196`). Meanwhile `gate.py:426-427` tells the user *"both quotes
+are verbatim"*, which is false for every quote the tool has ever emitted.
+
+For a tool whose thesis is that a citation must be checkable, silently altering
+the cited text before showing it is the defect that matters most after T1.
+
+### 4.2 T3. Offsets do not map to the source document [Certain]
+
+`casefold()` is not length-preserving, and neither is the NFKC pass before it:
+
+| input | length | normalised | length |
+|---|---|---|---|
+| `Straße` | 6 | `strasse` | **7** |
+| `ﬁle` | 3 | `file` | **4** |
+| `İstanbul` | 8 | `i̇stanbul` | **9** |
+
+The gate stays self-consistent, because every offset indexes the normalised
+text. But a reviewer handed `[start:end]` cannot find that span in the source
+document, and the drift is unbounded — every character after the first `ß` or
+`ﬁ` ligature is displaced. Neither is exotic: German names, and ligatures from
+any PDF export.
+
+"Verifiable by a human against the system of record" is the claim. These offsets
+are verifiable only by the tool that produced them.
+
+### 4.3 Fix — one change addresses both
+
+Stop casefolding in `normalize()`; match case-insensitively instead. Verified:
+
+```
+case-preserving norm: If the feed drops for half a day we CANNOT lose ...
+same length as casefolded: True
+case-insensitive match at 33: 'we CANNOT lose those events'
+```
+
+Offsets stay valid, the quote displays verbatim, determinism is unaffected, and
+T3's largest contributor disappears. (NFKC still shifts offsets for ligatures;
+that residue is small and should be *documented* rather than fixed — undoing
+NFKC would cost more than it buys.)
+
+**This is the plan's one breaking change.** `sha256_normalized` changes for
+every existing evidence record, so G1 blocks every engagement until they are
+re-hashed. Handle it properly:
+
+1. Add `normalization_version` to the evidence record, defaulting to `1`.
+2. `canon.normalize(text, version=...)` keeps v1 behaviour reachable, so old
+   records keep verifying — the same courtesy `SUPPORTED_SCHEMA_VERSIONS`
+   already extends to the model.
+3. `archtrace fmt` re-hashes v1 records to v2 and rewrites `quote_cached` from
+   the now case-preserving text.
+4. Refuse an unknown version, matching G10's existing posture.
+
+Without step 2 this is a flag day for every adopter. With it, it is a migration.
+
+---
+
+## 5. T4–T6 — measurement and refusal
+
+### 5.1 T4. The coverage gate is blind to new subpackages [Certain]
+
+`coverage.py:154-162` walks `package_dir`, then one hardcoded subdirectory:
+
+```python
+modules = [_module(package_dir, entry) for entry in sorted(os.listdir(package_dir)) ...]
+sub = os.path.join(package_dir, "commands")
+if os.path.isdir(sub):
+    modules.extend(...)
+```
+
+A synthetic package containing `top.py`, `commands/c.py` and `renders/svg.py`
+reports exactly two modules: `top` and `commands.c`. `renders.*` is absent, and
+the gate prints *"coverage gate passed"*.
+
+The failure mode is the dangerous one: coverage does not drop, it **shrinks the
+denominator**, so a module can leave measurement entirely while the headline
+number stays flat or improves.
+
+**Fix.** Walk recursively (`os.walk`), derive the module name from the relative
+path, and — because the whole point is that silence should not be safe — fail
+the gate if the set of measured modules shrinks relative to a committed
+baseline. Do this **before** §6.1, not after.
+
+### 5.2 T5. Malformed JSON produces a traceback [Certain]
+
+`canon.load_json` (`canon.py:138`) has no error handling, and `cli.main`
+(`cli.py:233-244`) catches only `BrokenPipeError` and `KeyboardInterrupt`. A
+single stray comma in `model.json`:
+
+```
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes:
+line 1 column 22 (char 21)
+```
+
+— eleven frames of traceback, exit 1. Every other refusal in this codebase names
+the file, the rule and the fix; `config.py:94-102` has a nine-line docstring on
+exactly this principle. This path does not follow it.
+
+**Fix.** Catch `JSONDecodeError` in `load_json`, re-raise as a typed error
+carrying the path and position, and have `cli.main` render it as a refusal with
+exit 2 (usage) rather than a traceback. The same treatment covers the unguarded
+`open()` calls in `release.py:73-75` and `release.py:127`.
+
+`config.ConfigError` — dead in §7.3 — is the natural base class. That turns a
+deletion into a use.
+
+### 5.3 T6. The agent authority check is a tripwire, not a control [Certain]
+
+`agents.py` opens with: *"A control that lives only in prose is a control nobody
+is enforcing."* Its structural checks earn that — `ALLOWED_TOOLS` and
+`REQUIRED_DENY` are real. `A7-no-authority-claims` does not:
+
+```python
+FORBIDDEN_CLAIMS = ("i approve", "you may merge", "auto-merge",
+                    "sets the exit code", "blocks the build")
+for phrase in FORBIDDEN_CLAIMS:
+    if phrase in lowered:
+```
+
+Five substrings against the lowercased body. "I will approve", "once I am
+satisfied this can land" and "I'll merge it" all pass; a document quoting a
+forbidden phrase *in order to forbid it* fails. It is prose-matching used to
+enforce a rule about prose — the thing the module's own docstring identifies as
+insufficient.
+
+**Fix.** Stop calling it a control. Rename to `A7-authority-language-smell`,
+downgrade to WARN, and say in the docstring that it is a prompt to read the
+file. Then put the real control where it can hold: the structural checks already
+prevent an agent from writing or gating, whatever its prose claims.
+
+---
+
+## 6. God-file reduction
+
+### 6.1 `renders.py` — 656 lines, eight emitters [Certain]
+
+**Blocked by §5.1.** Do not start this until the coverage gate walks
+subpackages, or 314 statements leave measurement silently.
+
+Four modules, not v1's eight:
 
 ```
 renders/
-  __init__.py      render_all() + the output registry
-  _shared.py       palette, _wrap, _boundary, _kind, _grounding_ref
-  svg.py           _svg
-  diagrams.py      _puml, _mermaid  (one C4 macro table, not two)
-  drawio.py        _drawio
-  trace.py         _traceability_md, _traceability_csv
-  docx.py          _docx, _diagram
-  jira.py          _jira
+  __init__.py   render_all() + the output registry
+  _shared.py    palette, _wrap, _boundary, _kind, grounding-ref resolution
+  diagrams.py   SVG, PlantUML, Mermaid, draw.io  — the four coordinate emitters
+  documents.py  traceability md/csv, docx, jira  — the four narrative emitters
 ```
+
+The seam is real: `diagrams.py` consumes `layout.x/y` and a palette;
+`documents.py` consumes requirements, grounding and provenance. They share
+almost nothing beyond `_shared`, which is why the palette and `wrap` duplication
+(§7.1, §7.2) resolves naturally once it exists.
 
 **The constraint that makes this safe:** every emitter is under G6, which
-byte-compares output. Do the move in one commit that changes *no bytes* — if
-`make check` passes, the refactor is provably behaviour-preserving. That is a
-stronger guarantee than a test suite, and it is the reason to do this refactor
-rather than fear it. Any behavioural change goes in a separate, later commit.
+byte-compares output. Do the move in one commit changing **no bytes** — if `make
+check` passes, the refactor is provably behaviour-preserving. That is a stronger
+guarantee than a test suite. Any behavioural change goes in a later commit.
 
-### D2. `test_gate.py` — 669 lines [Certain]
+### 6.2 `test_gate.py` — 669 lines [Certain]
 
-Split along the same seams: `test_gate_evidence.py` (G1, G2, G11),
+Split along the rule seams: `test_gate_evidence.py` (G1, G2, G11),
 `test_gate_model.py` (G3–G5, G7, G9), `test_gate_render.py` (G6, G13),
-`test_gate_nfr.py` (G12, G12n). Pure churn, zero risk, do it after D1.
+`test_gate_nfr.py` (G12, G12n). Pure churn, zero risk, after §6.1.
 
 ---
 
-## 5. Duplication, dead code and hardcoded values
+## 7. Duplication, dead code and hardcoded values
 
-### R1. Three copies of `wrap()`, already drifted [Certain]
+Unchanged from v1 and re-verified. Condensed.
 
-`renders.py:39`, `docs/gen_architecture.py:44`, `docs/gen_sequence.py:99`.
+### 7.1 Three copies of `wrap()`, already drifted [Certain]
 
-The first two are line-for-line identical modulo variable names. The third is
-**not** — it handles `\n`-separated paragraphs and appends `current`
-unconditionally, so an empty paragraph yields an empty line where the other two
-skip it. Three copies, two behaviours, no test pinning any of them to the others.
-This is the drift the prior pass predicted, already arrived.
+`renders.py:39`, `docs/gen_architecture.py:44`, `docs/gen_sequence.py:99`. The
+first two are identical modulo variable names. The third handles `\n` paragraphs
+**and appends `current` unconditionally**, so an empty paragraph yields an empty
+line where the others skip it. Three copies, two behaviours, nothing pinning
+them together.
 
-**Fix.** One `archtrace.svgtext.wrap` with the paragraph behaviour as a flag.
-Sequence it *after* D1, so the gated and ungated paths merge once rather than
-twice.
-
-### R2. Identical C4 macro tables [Certain]
-
-`renders.py:198` `_PUML_MACRO` and `renders.py:222` `_MMD_MACRO` are byte-identical
-five-entry dicts. Collapse to one.
-
-### R3. The palette exists twice [Certain]
+### 7.2 The palette exists twice [Certain]
 
 `FILL` (`renders.py:31-34`) and `_DRAWIO_STYLE` (`renders.py:244-250`) hardcode
-the *same five* hex colours; `#33415c` appears 6 times across the module and
-`#c7d7ee` 3 times. Change a colour in one and the SVG and the `.drawio` disagree
-silently — G6 will not catch it, because both are regenerated from the same
-divergent source.
+the same five colours; `#33415c` appears six times in the module. Change one and
+the SVG and the `.drawio` disagree silently — G6 cannot catch it, because both
+regenerate from the same divergent source. One `PALETTE` in `renders/_shared.py`.
 
-**Fix.** One `PALETTE` mapping in `renders/_shared.py`; `_DRAWIO_STYLE` becomes a
-format string over it. Whether the palette belongs in `config.RenderPolicy` is a
-judgement — geometry already moved there, and colour is the same kind of value.
+### 7.3 Dead code [Certain]
 
-### R4. Grounding-ref extraction, twice [Certain]
+- **`model.EVIDENCE_SOURCES`** — zero references anywhere. Worse than dead: it
+  looks like the enum that validates an evidence record's `source`, and **no
+  gate validates `source` at all**. The CLI's hardcoded `choices` is the only
+  enforcement, and it applies solely at `evidence add`. A hand-edited
+  `index.json` can carry any `source` string past every gate.
+- **`config.ConfigError`** — defined with a nine-line docstring, never raised,
+  caught or referenced. §5.2 gives it a job.
 
-The five-way `or` chain over `req / from / standard / evidence_id /
-open_question` appears at `renders.py:298-299` and again at `renders.py:432-433`.
-Add a `grounding_kind` to `model.GROUNDING_KINDS` lookups instead — the mapping
-already exists at `model.py:59-65` and encodes exactly this.
+### 7.4 A hardcoded enum that has already drifted [Certain]
 
-### R5. Dead code [Certain]
-
-A static sweep of every top-level symbol in `tools/archtrace` against all of
-`tools/` and `docs/` found two genuinely unreferenced (the decorator-registered
-`g*` rules and `agents._*` checks are false positives and were discounted):
-
-- **`model.EVIDENCE_SOURCES`** (`model.py:43-46`) — **zero** references. Nothing
-  validates an evidence record's `source` against it. See R6; this one is worse
-  than dead, it is *misleadingly* dead.
-- **`config.ConfigError`** (`config.py:94`) — defined with a nine-line docstring
-  explaining why config errors are collected rather than raised, then never
-  raised, caught or referenced. The `errors` tuple holds plain strings. Either
-  use it or delete it; the docstring is worth keeping either way.
-
-### R6. A hardcoded enum that has already drifted [Certain]
-
-`cli.py:142-147` and `cli.py:153-155` hardcode argparse `choices` that duplicate
-`model.EVIDENCE_AUTHORITY` and `model.EVIDENCE_SOURCES`. Verified:
+`cli.py:142-147` and `:153-155` duplicate `model.EVIDENCE_AUTHORITY` and
+`model.EVIDENCE_SOURCES`:
 
 ```
-model EVIDENCE_AUTHORITY : [authoritative-document, observed-implementation,
-                            stakeholder-confirmed, third-party]
-cli   --authority choices: [ ...identical... ]            → IDENTICAL (today)
-
-model EVIDENCE_SOURCES   : [code-mining, document, email, interview,
-                            sharepoint, teams-transcript]
-cli   --source choices   : [document, email, interview, sharepoint,
-                            teams-transcript]              → DRIFTED
+model EVIDENCE_AUTHORITY : identical to the CLI's choices — today
+model EVIDENCE_SOURCES   : has `code-mining`; the CLI's --source does not — DRIFTED
 ```
 
-`--authority` is the dangerous one: it is identical today, nothing binds it, and
-`G11` validates against the model constant. Add an authority tier to the model
-and the CLI silently refuses it — with a message pointing at the wrong list.
+`--authority` is the dangerous one: identical now, nothing binding it, and G11
+validates against the model constant. Add an authority tier and the CLI refuses
+it with a message naming the wrong list. Fix with
+`choices=sorted(EVIDENCE_AUTHORITY)`; where a subset is intended, derive it
+explicitly (`sorted(EVIDENCE_SOURCES - {"code-mining"})`) and test the
+agreement.
 
-**Fix.** `choices=sorted(EVIDENCE_AUTHORITY)`. Where a CLI surface intentionally
-exposes a *subset* — `code-mining` is reached via `add-facts`/`mine`, not
-`evidence add`, so its omission is probably correct — derive the subset
-explicitly (`sorted(EVIDENCE_SOURCES - {"code-mining"})`) so the intent is in the
-code and a new member cannot be forgotten. Add a test asserting the two agree.
+### 7.5 Small redundancies [Certain, low]
 
-### R7. Small redundancies [Certain, low]
-
-- `renders.py:632-633` and `:641-642` build the same two `(title, nodes, edges)`
-  tuples twice. Build once, pass twice.
-- `renders.py:654` writes `.manifest.json` with `json.dumps(...)` while every
-  other JSON output goes through `canon.canonical_json`. Two canonicalisers is
-  one too many for a project whose gate is byte-comparison.
+`_PUML_MACRO` and `_MMD_MACRO` (`renders.py:198`, `:222`) are byte-identical.
+The grounding-ref `or`-chain appears at `:298` and `:432`. `render_all` builds
+the same `(title, nodes, edges)` tuples twice (`:632`, `:641`).
+`.manifest.json` uses `json.dumps` while every other JSON output goes through
+`canon.canonical_json` — two canonicalisers is one too many in a project whose
+gate is byte-comparison.
 
 ---
 
-## 6. Coverage
+## 8. Hardening
 
-Reported: **94% total, 85% floor, per-module floor 70%** — genuinely good, and
-the per-module floor is the right shape.
+### 8.1 `shell=True` in `cmd_mine` [Certain, open]
 
-Three caveats, in order of how much they overstate the number:
+`commands/evidence.py:125-130`. The call-site reasoning is sound *today*: the
+command comes from operator flags, never from evidence. But that is a
+convention, and this repository's whole thesis is that conventions are not
+controls. Accept `argv` as a list, `shell=False` by default, reserve the shell
+for an explicit `--shell` flag. Then the `S602` suppression can be deleted
+rather than justified.
 
-### C1. 565 lines are outside the measurement entirely [Certain]
+### 8.2 Supply chain [Certain]
 
-`coverage_gate.py:33` scopes measurement to `tools/archtrace`.
-`docs/gen_architecture.py` (311) and `docs/gen_sequence.py` (254) have **no
-tests, no coverage measurement, and no Makefile or CI target**. They are linted
-and nothing else. They do still run (verified: both exit 0, and neither drifts
-from its committed SVG), but nothing would notice if that stopped being true.
+- Actions are tag-pinned, not SHA-pinned. gitleaks' own workflow SHA-pins;
+  follow it.
+- `.pre-commit-config.yaml:43` pins gitleaks `v8.21.2`; CI resolved `8.24.3`.
+  Two versions guard the same rule — which is why F2 was never caught locally.
+- `Dockerfile:10` — `python:3.11-slim` is tag-pinned, not digest-pinned.
+- `renders.py:203` — emitted PlantUML embeds a `master` branch URL, so a render
+  that verified today can render differently next month. Pin the tag; move the
+  URL into `config.RenderPolicy`.
 
-Folding them into the denominator at 0% would put the repository nearer **73%**
-than 94%. The honest move is not to lower the floor — it is to test them.
+### 8.3 Compliance files [Certain]
 
-**Minimum viable:** assert each generator's output parses as XML and contains the
-expected element count. `tech-debt.md` notes that two of three rendering defects
-found last pass would have been caught by exactly that.
-
-**Then:** add a `make docs` target, run it in CI, and add a freshness check —
-regenerate and compare, the same rule G6 applies to `example/render/`. Right now
-archtrace does not apply its own central invariant to its own build outputs.
-
-### C2. Line coverage, not branch [Certain, structurally hard]
-
-A half-tested `if` counts as covered. Already documented and honestly stated;
-the constraint is real (`coverage.py` would split the number between
-environments; `sys.monitoring` needs 3.12+ against a 3.9 floor). **Recommendation:
-leave it.** Re-evaluate when the Python floor moves past 3.12. Not worth breaking
-the zero-dependency invariant for.
-
-### C3. Untested seams [Certain]
-
-- The `./archtrace` shell shim — every test drives `main()` in-process.
-- The Makefile gate recipes — F1 is precisely a defect no test could have caught,
-  because nothing tests the Makefile.
-- `commands.evidence` is the weakest module at 85% and holds the `shell=True`
-  path (H1).
+`pyproject.toml:17` and `Dockerfile:14` both declare Apache-2.0 and there is
+**no `LICENSE` file**. Also absent: `SECURITY.md`, `CONTRIBUTING.md`,
+`CODEOWNERS`, `dependabot.yml`, PR/issue templates. Cheap, and conspicuous in a
+governance tool.
 
 ---
 
-## 7. The tech-debt doc has itself drifted
+## 9. Coverage
 
-`docs/tech-debt.md` is a good document making claims that are no longer true
-[Certain]:
+94% measured; **81% honest** (§1.2). Three gaps, in order of severity:
 
-| Claim | Stated | Actual |
-|---|---|---|
-| `renders.py` | 598 lines | **656** |
-| "largest module is now 312" | 312 | **656** |
-| `cli.py` | 215 lines | **248** |
-| `test_gate.py` | 666 lines | **669** |
-| `gen_architecture.py` | 308 lines | **311** |
-| "Magic numbers: fixed" | fixed | palette still duplicated (R3) |
+1. **T4 (§5.1)** — the gate cannot see a new subpackage. Fix first; everything
+   else in this section assumes the measurement is trustworthy.
+2. **316 unmeasured statements** — `docs/gen_*.py` and `coverage_gate.py` are
+   linted and never executed, tested or measured. They do run today (both exit
+   0, neither drifts from its committed SVG), but nothing would notice if that
+   changed. Minimum viable: assert the output parses as XML and has the expected
+   element count. Then add `make docs`, run it in CI, and apply a freshness
+   check — **archtrace does not currently apply G6's own invariant to its own
+   build outputs.**
+3. **Line coverage, not branch** — a half-tested `if` counts as covered.
+   Honestly documented, and the constraint is real (`coverage.py` splits the
+   number between environments; `sys.monitoring` needs 3.12+ against a 3.9
+   floor). **Recommendation: leave it**, and revisit when the floor moves.
 
-None is serious alone. Together they are the documentation equivalent of a stale
-render — and this repository has a strong opinion about those. Either stop
-putting line counts in prose, or generate that table. Given what archtrace *is*,
-generating it is the more consistent answer.
+Untested seams worth naming: the `./archtrace` shim (every test drives `main()`
+in-process), and `commands.evidence` at 85% — the weakest module, and the one
+holding the `shell=True` path.
 
 ---
 
-## 8. Sequencing
+## 10. Sequencing
 
-Ordered so each phase leaves the build greener than it found it, and so no phase
-depends on a later one.
+Reordered from v1. The dependency that v1 got wrong is **§5.1 before §6.1**.
 
-| Phase | Work | Why here | Effort | Risk | Status |
+| Phase | Work | Depends on | Effort | Risk | Status |
 |---|---|---|---|---|---|
-| **0** | F2 + F2b — gitleaks config and token | Nothing else can be verified while `quality` cannot run | 10 min | none | **done** |
-| **1** | F1 + F4 together; pin ruff and mypy | The gates must be able to fail before any refactor can be trusted. **Must be one commit.** | 2 h | low | **done** |
-| **2** | F3 (option A) + `permissions`/`concurrency` on `archtrace.yml` | Gets every check green and keeps the token scoped | 1 h | low | **done** |
-| **2b** | SHA-pin all actions; align the two gitleaks versions | Tags are mutable; pre-commit and CI currently run different binaries | 1 h | low | open |
-| **3** | C1 — test the docs generators, `make docs`, freshness check | Closes the largest measurement hole; eat the dog food | 4 h | low | open |
-| **4** | R5, R6, R7 — dead code, enum binding, small redundancies | Small, independent, each with a test | 3 h | low | open |
-| **5** | D1 — split `renders.py`, byte-identical | Now safe: gates work (1), G6 proves it | 1 d | low, **verifiable** | open |
-| **6** | R1–R4 — palette, wrap, macro tables, ref chain | Needs D1's `_shared.py` to land in | 4 h | low | open |
-| **7** | H1 — `shell=False` by default | Independent; sequence by appetite | 3 h | medium — CLI surface change | open |
-| **8** | D2, H2, H3 — test split, pinning, compliance files | Cleanup | 4 h | none | open |
+| **0** | F2, F2b — gitleaks config and token | — | 10 min | none | **done** |
+| **1** | F1 + F4 — gates can fail; pin ruff/mypy | — | 2 h | low | **done** |
+| **2** | F3 — `archtrace.yml` manual-only; `permissions`/`concurrency` | — | 1 h | low | **done** |
+| **3** | **T1** — `--verify` runs the gate | — | 2 h | low | **next** |
+| **4** | **T4** — recursive coverage walk + shrink detection | — | 3 h | low | |
+| **5** | T5 — typed refusal for malformed JSON (revives `ConfigError`) | — | 2 h | low | |
+| **6** | §9.2 — test the docs generators; `make docs`; freshness check | 4 | 4 h | low | |
+| **7** | §7.3–7.5 — dead code, enum binding, small redundancies | — | 3 h | low | |
+| **8** | **§6.1** — split `renders.py`, byte-identical | **4** | 1 d | low, verifiable | |
+| **9** | §7.1, §7.2 — palette, `wrap`, macro tables, ref chain | 8 | 4 h | low | |
+| **10** | **T2 + T3** — case-preserving normalisation **+ migration** | 3, 4 | 1 d | **medium — breaking** | |
+| **11** | T6 — reclassify A7; §8.1 `shell=False` | — | 4 h | medium | |
+| **12** | §6.2, §8.2, §8.3 — test split, pinning, compliance | — | 4 h | none | |
 
-Phases 0–2 were the ones that changed what "green" means, and they have landed:
-`ci` is green, `make lint` can fail, and no workflow is red by construction.
-Everything from 2b on is ordinary improvement.
+Three ordering constraints, each for a reason:
 
-**One thing to expect in phase 3 and after.** F1 masked lint, types *and* secrets
-simultaneously for the whole life of the repository, and fixing F2 immediately
-revealed F2b underneath it. A gate that has never been able to fail has never
-been telling you anything, so treat the first findings from a newly-honest gate
-as backlog that was always there — not as a regression someone introduced.
+- **T1 first among the open work.** It is the only finding where the tool
+  actively certifies something false. Everything else degrades quality; this one
+  manufactures unwarranted confidence.
+- **T4 before §6.1 and before §9.2.** Both create or move modules. Measuring
+  them with a gate that cannot see subpackages is how the largest module leaves
+  coverage without a sound.
+- **T2/T3 late, and last among the behavioural fixes.** It is the only breaking
+  change, it needs the migration path in §4.3, and it rewrites `quote_cached`
+  across every engagement — which is far safer once `--verify` actually verifies
+  (phase 3) and coverage is trustworthy (phase 4).
 
-## 9. Acceptance criteria
+**Expect newly-visible findings, not regressions.** F1 masked lint, types and
+secrets for the repository's entire life, and fixing F2 immediately revealed
+F2b beneath it. A gate that has never been able to fail has never been telling
+you anything. Treat the first output of a newly-honest gate as backlog that was
+always there.
 
-The plan is done when all of the following hold:
+---
 
-1. A deliberately broken lint rule, type error, or secret makes `make pre-pr`
-   exit non-zero — each verified by a test, not by inspection.
-2. Both workflows are green on `main`, and no workflow is red by construction.
-3. `make lint` with the tool uninstalled still exits 0 with an accurate message.
-4. Coverage is measured over every executable line the repository ships,
-   `docs/gen_*.py` included, with the floor held at 85%.
-5. `make docs` regenerates `docs/*.svg` and a freshness check fails on drift.
-6. No module exceeds 400 lines.
-7. `grep -c '#[0-9a-f]\{6\}' tools/archtrace/renders.py` returns 0 — the palette
-   has one home.
-8. A new member of `EVIDENCE_AUTHORITY` is accepted by the CLI with no CLI edit,
-   and a test fails if that stops being true.
-9. `tech-debt.md`'s figures are generated, or absent.
+## 11. Acceptance criteria
+
+1. `release --verify` exits non-zero on a hand-edited file in `render/`, with a
+   test that tampers with a real deliverable and asserts the refusal.
+2. A quote in `traceability.md`, `architecture.docx` and `jira-tickets.json`
+   is byte-identical to the source transcript, capitalisation included.
+3. An evidence record written before the normalisation change still verifies,
+   proven by a fixture committed at `normalization_version: 1`.
+4. Adding a module under a new subpackage changes the coverage denominator; a
+   test asserts the module set cannot silently shrink.
+5. Coverage is measured over every executable statement the repository ships,
+   with the floor held at 85% — the honest figure, not a re-based one.
+6. A malformed JSON document produces a named refusal and exit 2. No traceback
+   reaches a user from any CLI path.
+7. `make docs` regenerates `docs/*.svg`, and a freshness check fails on drift.
+8. No module exceeds 400 lines.
+9. `grep -c '#[0-9a-f]\{6\}' tools/archtrace/renders/*.py` returns 0 outside
+   `_shared.py`.
+10. A new member of `EVIDENCE_AUTHORITY` is accepted by the CLI with no CLI
+    edit, and a test fails if that stops being true.
+11. `tech-debt.md`'s line-count figures are generated, or absent.
 
 ---
 
@@ -522,12 +533,15 @@ The plan is done when all of the following hold:
 
 | Finding | Command |
 |---|---|
-| F1 | `make lint` with ruff installed; exit code inspected |
-| F2 | `mcp__github__get_job_logs` on run 35050591082; gitleaks docs via Context7 |
-| F3 | `mcp__github__get_job_logs` on run 35050591013 |
-| F4 | `ruff check tools docs` |
-| C1 | `python3 docs/gen_*.py` + `git status`; `coverage_gate.py:33` read |
-| R1–R4 | `grep -n` across the three emitters; side-by-side diff |
-| R5 | AST sweep of top-level symbols vs. references in `tools/` + `docs/` |
-| R6 | `python3 -c` comparing `model` constants to `cli.py` choice lists |
-| §7 | `wc -l` against the figures quoted in `tech-debt.md` |
+| T1 | `release` then `--verify` on a clean tree; edit `render/traceability.md`; `--verify` again |
+| T1 fix shape | `canonical_bytes` on two byte-different, canonically-equal SVGs |
+| T2 | read `quote_cached` from `example/requirements/requirements.json`; `grep` the same string in `example/render/traceability.md` |
+| T3 | `canon.normalize` over `Straße`, `ﬁle`, `İstanbul`; compared lengths |
+| T4 | `coverage.measure()` against a synthetic package containing `renders/` |
+| T5 | `./archtrace --root <tmp> check` with a stray comma in `model.json` |
+| T6 | read `agents.py FORBIDDEN_CLAIMS` and `_authority` |
+| §1.2 | `coverage.executable_lines()` over `docs/gen_*.py` and `coverage_gate.py` |
+| F1 | `make lint` with ruff installed; exit code inspected; mutation-tested |
+| F2/F2b | `get_job_logs` on runs 35050591082 and 35051293467; gitleaks docs via Context7 |
+| §7.1–7.5 | `grep -n` across the three emitters; AST sweep of top-level symbols |
+| §7.4 | `python3 -c` comparing `model` constants to `cli.py` choice lists |
