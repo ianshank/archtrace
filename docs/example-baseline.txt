@@ -5,7 +5,7 @@ elements                                10
   legitimately grounded otherwise        5    50%
       assumption                        1
       derived                           1
-      existing                          2
+      existing                          1
       standard                          2
   UNEXPLAINED                            0     0%   <- the decision number
 

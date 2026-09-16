@@ -33,7 +33,7 @@ plain that they existed at all.
 
 ### 1. `renders.py` is now the largest module at 598 lines [Certain]
 
-`cli.py` went from 1,008 to 215; `renders.py` inherited the title. It contains
+`cli.py` went from 1,008 to 248; `renders.py` inherited the title. It contains
 five unrelated emitters — SVG, PlantUML/Mermaid, draw.io XML, OOXML, and the
 traceability tables — sharing only the model they read.
 

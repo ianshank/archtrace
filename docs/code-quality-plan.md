@@ -1130,11 +1130,28 @@ future phase, since each was mechanical and low-risk:
   the same command (`existing: 1` committed vs `2` live — `example/model.json`
   gained a second `existing`-kind grounding entry since the file was
   committed, and nothing regenerates this artifact). Regenerated from the
-  live tool.
+  live tool — which is where a second, follow-up CodeRabbit review (on this
+  same push) caught that the regenerated numbers were *themselves* internally
+  inconsistent: the four grounding-kind rows summed to 6, not the 5 the
+  subtotal above them stated. That traced to a real, previously-uncaught
+  counting bug in `cmd_baseline` (`verify.py`), not to anything wrong with
+  the doc: the subtotal counts *elements* with a non-`satisfies` kind, once
+  each, but the breakdown below it counted every grounding *entry* — so an
+  element citing two separate pieces of evidence for the same kind (real,
+  legitimate, independently gate-checked — exactly `s_mam`'s case) inflated
+  its row past what the subtotal it explains could account for. Fixed at the
+  root: the breakdown now tallies the identical bucket the subtotal does,
+  deduplicated per kind per element, with a regression test that parses the
+  printed output and asserts the invariant generically (not today's specific
+  numbers) — mutation-tested against the original bug to confirm it fails
+  the way it should (`6 != 5`).
 
-None of these affected a top-line number (the 50%/0%-unexplained figures
-were unaffected throughout) — but a repository whose thesis is "verified by
-running it" should not fail that standard on its own worked example.
+None of this affected the two numbers the baseline instrument actually
+decides on (50% traceability, 0% unexplained — both computed at the element
+level throughout, never touched by the entry-counting bug) — but a
+repository whose thesis is "verified by running it" should not fail that
+standard on its own worked example, and CodeRabbit's arithmetic check found
+a real bug my own regeneration had missed.
 
 ### 12.12 Live CI/CD state — confirmed clean [Certain]
 
