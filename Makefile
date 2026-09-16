@@ -71,6 +71,17 @@ engagements:
 # and it needs no evidence content -- so it works on engagements whose evidence
 # lives outside the repository.
 freshness:
+	@# Discovery finding nothing must be an error, not a pass. A rename of
+	@# engagements/, a bad ENGAGEMENT_GLOBS or an unexpected checkout layout
+	@# would otherwise make this target succeed while gating nothing -- a gate
+	@# incapable of failing, which is the defect this target exists to close.
+	@# It also keeps the `git diff -- $(ENGAGEMENTS)` below from degrading to a
+	@# whole-tree diff when the path list is empty.
+	@test -n "$(strip $(ENGAGEMENTS))" || { \
+	  echo "no engagements found under: $(ENGAGEMENT_GLOBS)"; \
+	  echo "an engagement is a directory containing model/model.json."; \
+	  echo "nothing was checked, so this is a failure, not a pass."; \
+	  exit 1; }
 	@# Refuse to judge a tree that is already modified. This target RE-RENDERS,
 	@# which overwrites an uncommitted hand edit before the diff can see it --
 	@# the same trap `make gate` falls into. Rendering over a dirty tree would
