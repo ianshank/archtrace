@@ -121,6 +121,38 @@ class ConfigOverrides(unittest.TestCase):
         self.assertTrue(cfg.errors)
         self.assertIn("could not be read", cfg.errors[0])
 
+    @unittest.skipIf(sys.version_info < (3, 11), "tomllib is 3.11+")
+    def test_a_misspelled_section_is_refused_too(self):
+        """Caught reviewing the misspelled-key fix: it left an asymmetry.
+
+        A typo'd key stopped the run, but a typo'd SECTION name still
+        evaporated in silence -- `[citaton]` matched nothing and the whole
+        block was dropped, which is the same defect one level up.
+        """
+        self._toml("[citaton]\nmin_quote_words = 99\n")
+        cfg = config.load(root=self.tmp, env={})
+        self.assertTrue(cfg.errors)
+        self.assertIn("citaton", cfg.errors[0])
+        self.assertIn("no such configuration section", cfg.errors[0])
+
+    @unittest.skipIf(sys.version_info < (3, 11), "tomllib is 3.11+")
+    def test_a_valid_config_file_still_loads_without_errors(self):
+        """The regression guard for both refusals above."""
+        self._toml("[citation]\nmin_quote_words = 10\n"
+                   "[baseline]\nmax_unexplained_pct = 15\n")
+        cfg = config.load(root=self.tmp, env={})
+        self.assertEqual(cfg.errors, ())
+        self.assertEqual(cfg.citation.min_quote_words, 10)
+        self.assertEqual(cfg.baseline.max_unexplained_pct, 15)
+
+    def test_sources_and_errors_are_not_configurable_sections(self):
+        """They are outputs of a load, not settings. Two places filtered them
+        and disagreed, so ARCHTRACE_ERRORS_* parsed into a phantom section."""
+        cfg = config.load(root=self.tmp, env={"ARCHTRACE_ERRORS_FOO": "1",
+                                              "ARCHTRACE_SOURCES_BAR": "2"})
+        self.assertEqual(cfg.errors, ())
+        self.assertEqual(cfg.sources, ())
+
     def test_environment_overrides_and_is_recorded(self):
         cfg = config.load(root=self.tmp, env={
             "ARCHTRACE_CITATION_MIN_QUOTE_WORDS": "12",

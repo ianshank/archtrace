@@ -214,9 +214,17 @@ def _from_toml(path: str, errors: list) -> dict:
         return {}
 
 
+def _policy_sections() -> set:
+    """The configurable sections. `sources` and `errors` are outputs of a load,
+    not settings, so they are never overridable -- and the two places that
+    filter them used to disagree, leaving `ARCHTRACE_ERRORS_*` parsed into a
+    phantom section that `load` then silently dropped."""
+    return {f.name for f in fields(Config) if f.name not in {"sources", "errors"}}
+
+
 def _from_env(env: Mapping[str, str]) -> dict:
     """ARCHTRACE_CITATION_MIN_QUOTE_WORDS=10 -> {citation: {min_quote_words: 10}}."""
-    sections = {f.name for f in fields(Config) if f.name != "sources"}
+    sections = _policy_sections()
     out: dict = {}
     for key, value in env.items():
         if not key.startswith(ENV_PREFIX):
@@ -237,7 +245,16 @@ def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
     errors: list = []
     layers = [_from_toml(os.path.join(root, CONFIG_FILENAME), errors),
               _from_env(resolved_env)]
+    known = _policy_sections()
     for layer in layers:
+        # A misspelled SECTION was as silent as a misspelled key used to be:
+        # `[citaton]` simply never matched and the whole block evaporated. Only
+        # the TOML layer can produce one -- `_from_env` matches against known
+        # names before it emits anything -- but flagging it here covers both.
+        errors.extend(
+            f"{name}: no such configuration section "
+            f"(known: {', '.join(sorted(known))})"
+            for name in sorted(layer) if name not in known)
         updates = {}
         for section in fields(config):
             if section.name in {"sources", "errors"}:
