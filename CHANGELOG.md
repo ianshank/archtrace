@@ -5,6 +5,82 @@ Versioning is semantic, with one project-specific rule: **a new blocking gate
 rule is a MINOR bump, never a PATCH.** A rule that starts failing builds is a
 behaviour change however small the diff.
 
+## [0.5.0] — 2026-09-16
+
+Both controls that were supposed to refuse a hand-edited artifact could not see
+one.
+
+### Fixed
+
+- **`release --verify` reported "Safe to publish" on a tampered deliverable**
+  (closes T1 in `docs/code-quality-plan.md`, previously the plan's only open
+  Critical with a phase number). `_verify_release` hashed `render_all(eng)` — a
+  fresh render *from the model* — instead of the files in `render/`. It answered
+  "could the model still produce this?" when the question at publication time is
+  "is the artifact in my hand the one that was approved?". Sources were already
+  hashed from disk; outputs now are too, through one shared helper so signing
+  and verifying cannot drift apart. "Has the model moved since approval?" is
+  still reported, separately — conflating the two questions is what hid this.
+- **Nothing in CI could fail a hand-edited render.** `make gate` is
+  `fmt render check`, so it regenerates every artifact *before* checking it: the
+  edit is overwritten, not reported, and the job goes green. CI ran only
+  `make gate`; the one workflow running a bare `check` is `workflow_dispatch`-only
+  and exits 1 at its evidence step by design. CI now runs `make check` against
+  the bytes as committed.
+- **`engagements/archtrace-self` carried renders from renderer 1.1.0** after the
+  renderer moved to 1.2.0, and CI could not see it: `ROOT` defaults to `example`
+  and nothing enumerated the others. Regenerated, and `make freshness` now fails
+  on it.
+- **An unparseable or unreadable module scored 100% coverage and passed the
+  floor.** `executable_lines` returned an empty set on error, which `percent`
+  treats as "nothing to cover, therefore complete" — a correct answer for a
+  genuinely empty module and a silent bypass for one that could not be read.
+- **A misspelled configuration key, and a misspelled section, were both
+  discarded in silence** while a bad *value* was refused loudly.
+- **`archtrace.toml` was silently ignored on Python 3.9/3.10**, because
+  `tomllib` is 3.11+. 3.9 is the declared floor and CI tests it, so two runners
+  could enforce two different policies for the same repository while
+  `archtrace config` printed advice that could not work there.
+- **Ordinary punctuation in a model field corrupted three artifacts.** PlantUML
+  and Mermaid took model text raw into quoted C4 macro arguments, so a name
+  containing `"` terminated the argument and the diagram stopped parsing
+  entirely; the Markdown table took a `|` straight into a cell, turning a
+  five-column row into six and shifting every cell after it.
+
+### Added
+
+- **`make freshness`** — re-renders every engagement *discovered* in the repo
+  (any directory with a `model/model.json`) and fails if the committed bytes
+  move. It refuses a dirty tree, because it re-renders and would otherwise
+  destroy the evidence it is looking for, and it fails when discovery finds
+  nothing rather than reporting success for having checked none. `make
+  engagements` lists what it found.
+- **21 tests** (183 → 204) covering exactly the gaps that let the above through:
+  edits seeded into `render/` rather than into a source; `HostileModelText`
+  pushing quotes, pipes and ampersands through every renderer; the G6 drift and
+  hand-edit messages and the unreadable-manifest fallback; and the config
+  refusals. Each was verified to fail with its fix reverted.
+
+### Changed
+
+- **`RENDERER_VERSION` 1.2.0 → 1.3.0.** Output is byte-identical for content
+  without `"`, `|` or `&`, so no adopter's renders change meaning — but the
+  renderer does now produce different bytes for some inputs, and without the
+  bump G6's new message would tell an adopter with a pipe in an element name
+  that they had hand-edited something they never touched.
+- **G6 names toolchain drift *as* toolchain drift.** `.manifest.json` has
+  recorded `renderer_version` since it existed; G6 never read it, so a renderer
+  upgrade and a hand edit produced one hedging message about two situations
+  needing different actions. An absent or corrupt manifest falls back to the
+  plain byte comparison, so the diagnosis can never make a stale render pass.
+- `pyproject.toml` version was 0.3.0 while this file was already at 0.4.0.
+  Aligned at 0.5.0.
+
+### Test hygiene
+
+- 17 temp directories leaked per suite run; now 0. An uncaptured `main()` no
+  longer spews render output into the suite.
+
 ## [0.4.0] — 2026-09-16
 
 The Word deliverable stops being an appendix.

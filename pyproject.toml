@@ -10,7 +10,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "archtrace"
-version = "0.3.0"
+version = "0.5.0"
 description = "Evidence-grounded architecture pipeline: the model lives in git, everything downstream is a build output"
 readme = "README.md"
 requires-python = ">=3.9"
