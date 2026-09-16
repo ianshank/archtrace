@@ -27,7 +27,7 @@ make test              # runs the suite
 make coverage          # the suite under the stdlib tracer, against floors
 make agents            # deterministic validation of the agent definitions
 make config            # print the thresholds this build actually enforces
-make pre-pr            # everything, in the order CI runs it (nine steps)
+make pre-pr            # everything, cheapest-first (ten steps)
 
 ./archtrace --root engagements/aurora init "Project Aurora"   # a real one
 ```

@@ -411,9 +411,9 @@ def g6_render_freshness(eng: Engagement) -> Iterator[Finding]:
                     "something you edited: run `archtrace render` and commit "
                     "the result.")
             elif written_by is None:
-                # No manifest, or one that records no version. Which of the two
-                # causes this is cannot be known, so claiming either would be
-                # guessing -- and claiming "the same renderer" would point the
+                # No manifest, or one that records no version. Which of those
+                # two it is cannot be known from here, so naming either would
+                # be a guess -- and guessing "the same renderer" points the
                 # operator at the model when the renderer may well have moved.
                 yield Finding(
                     "G6", BLOCK, f"render/{name}",

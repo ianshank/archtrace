@@ -672,11 +672,16 @@ class Release(unittest.TestCase):
             fh.write("content nobody approved\n")
         self.assertNotEqual(self._verify(), 0)
 
-    def test_verify_reports_a_model_that_moved_without_failing_an_intact_one(self):
-        """Two different questions, deliberately not conflated.
+    def test_verify_judges_render_on_its_own_bytes_not_a_re_render(self):
+        """The name, docstring and assertion here used to disagree.
 
-        An intact artifact whose model has since changed is still the thing
-        that was approved: it verifies, and says the model moved.
+        It described `--verify` reporting that the model had moved while still
+        verifying -- behaviour that was removed when `--verify` stopped loading
+        the engagement. What it actually exercises: model.json is a SOURCE, and
+        sources have always been hashed from disk, so editing one is drift by
+        the source rule. The point of the assertion is that render/ reached
+        that verdict WITHOUT being re-rendered. "Has the model moved?" is G6's
+        question now, asked by `archtrace check`.
         """
         self.assertEqual(self._release(), 0)
         path = os.path.join(self.root, "model", "model.json")
