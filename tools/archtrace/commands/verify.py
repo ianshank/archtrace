@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 
-from .. import gate
+from .. import baseline, gate
 from ..config import DEFAULT as CONFIG
 from ..log import get_logger
 from ..model import (
@@ -66,9 +66,8 @@ def cmd_baseline(args) -> int:
 
     Two numbers decide whether this program is worth running at all:
 
-      traceability — what share of your architecture can be tied to something a
-                     stakeholder actually said. Under 60%, the problem was never
-                     automation.
+      unexplained  — what share of your architecture you can neither quote nor
+                     justify. This is the decision number.
       naive-reject — what share a satisfies-only rule would have thrown out.
                      This is the direct measurement of whether grounding kinds
                      were the right call.
@@ -77,6 +76,11 @@ def cmd_baseline(args) -> int:
     only means something if the model PREDATES the measurement. Score a model
     and an evidence set that were authored together and you are measuring your
     own consistency, not your grounding.
+
+    The arithmetic and the decision rules live in `archtrace.baseline`; this
+    function orchestrates and prints. They were one 156-line body carrying 54
+    `print` calls, which meant the numbers §9a turns on could be tested only by
+    capturing stdout -- and §9a is the measurement NEXT-STEPS calls blocking.
     """
     import csv as _csv
 
@@ -84,117 +88,41 @@ def cmd_baseline(args) -> int:
         return _blank_worksheet(args)
 
     eng = _engagement(args)
-    elements = list(eng.elements())
-    if not elements:
+    scored = baseline.measure(eng)
+    if not scored.total:
         print("archtrace: no elements to measure", file=sys.stderr)
         return EXIT_USAGE
-
-    confirmed = {r["id"]: r for r in eng.confirmed_requirements}
-    rows: list = []
-    quotable = 0
-    by_kind: dict = {}
-    for element in elements:
-        kinds = [g.get("kind") for g in element.grounding]
-        # `by_kind` breaks down the SAME bucket `otherwise` counts below, so it
-        # must tally exactly the elements `otherwise` does (no `satisfies`
-        # present), once each, regardless of how many grounding entries an
-        # element carries. Counting every entry double-counts an element that
-        # cites two pieces of evidence for the same kind (both real; each
-        # entry is independently gate-checked), and would also count an entry
-        # belonging to an element that DOES have `satisfies` and so is not in
-        # this bucket at all. Either way the per-kind rows would no longer sum
-        # to the subtotal printed above them.
-        if kinds and "satisfies" not in kinds:
-            for kind in set(kinds):
-                by_kind[kind] = by_kind.get(kind, 0) + 1
-        quote = speaker = evidence_id = req_id = ""
-        for entry in element.grounding:
-            if entry.get("kind") != "satisfies":
-                continue
-            req = confirmed.get(entry.get("req", ""))
-            if not req or not req.get("provenance"):
-                continue
-            prov = req["provenance"][0]
-            req_id, quote = req["id"], prov.get("quote_cached", "")
-            speaker, evidence_id = prov.get("speaker", ""), prov["evidence_id"]
-            break
-        if quote:
-            quotable += 1
-        rows.append({
-            "element_id": element.id, "level": element.level,
-            "name": element.name, "grounding_kinds": "|".join(kinds),
-            "traces_to_requirement": req_id,
-            "quotable_statement": "yes" if quote else "no",
-            "quote": quote, "speaker": speaker, "evidence_id": evidence_id,
-        })
-
-    total = len(elements)
-    claims_req = sum(1 for r in rows if "satisfies" in r["grounding_kinds"])
-    otherwise = sum(1 for r in rows
-                    if r["grounding_kinds"] and "satisfies" not in r["grounding_kinds"])
-    unexplained = sum(1 for r in rows if not r["grounding_kinds"])
-    traceability = 100 * quotable // total
-    unexplained_pct = 100 * unexplained // total
-    backed = 100 * quotable // claims_req if claims_req else 100
-
-    modelled = eng.requirements_grounded()
-    excluded = {o["req"] for o in eng.out_of_scope}
-    accounted = len([r for r in confirmed if r in modelled or r in excluded])
-    coverage = 100 * accounted // len(confirmed) if confirmed else 0
+    verdict = baseline.decide(scored, CONFIG.baseline)
 
     name = eng.model.get("workspace", {}).get("name", "")
     print(f"§9a baseline — {name}\n")
-    print(f"elements                              {total:>4}")
-    print(f"  trace to a quotable statement       {quotable:>4}   "
-          f"{traceability:>3}%")
-    print(f"  legitimately grounded otherwise     {otherwise:>4}   "
-          f"{100 * otherwise // total:>3}%")
-    for kind in sorted(k for k in by_kind if k != "satisfies"):
-        print(f"      {kind:<14}                 {by_kind[kind]:>4}")
-    print(f"  UNEXPLAINED                         {unexplained:>4}   "
-          f"{unexplained_pct:>3}%   <- the decision number")
-    print(f"\nconfirmed requirements                {len(confirmed):>4}")
-    print(f"  modelled or explicitly out of scope {accounted:>4}   {coverage:>3}%")
+    print(f"elements                              {scored.total:>4}")
+    print(f"  trace to a quotable statement       {scored.quotable:>4}   "
+          f"{scored.traceability:>3}%")
+    print(f"  legitimately grounded otherwise     {scored.otherwise:>4}   "
+          f"{scored.otherwise_pct:>3}%")
+    for kind in sorted(k for k in scored.by_kind if k != "satisfies"):
+        print(f"      {kind:<14}                 {scored.by_kind[kind]:>4}")
+    print(f"  UNEXPLAINED                         {scored.unexplained:>4}   "
+          f"{scored.unexplained_pct:>3}%   <- the decision number")
+    print(f"\nconfirmed requirements                {scored.confirmed:>4}")
+    print(f"  modelled or explicitly out of scope {scored.accounted:>4}   "
+          f"{scored.coverage:>3}%")
 
     print("\nDECISION RULES (SPEC §9a, corrected)")
-    ok = True
-    if unexplained_pct > CONFIG.baseline.max_unexplained_pct:
-        ok = False
-        print(f"  [STOP]  unexplained {unexplained_pct}% vs <= "
-              f"{CONFIG.baseline.max_unexplained_pct}%")
-        print("          Elements you can neither quote nor justify. The problem "
-              "was never\n          automation — this pipeline would "
-              "industrialise that gap at speed.")
-    else:
-        print(f"  [PASS]  unexplained {unexplained_pct}% vs <= "
-              f"{CONFIG.baseline.max_unexplained_pct}%")
-    if backed < CONFIG.baseline.min_citation_backed_pct:
-        ok = False
-        print(f"  [FIX]   {backed}% of requirement-linked elements have a real "
-              "quote behind them")
-        print("          An element claiming to satisfy a requirement that has "
-              "no citation is\n          the exact fabrication this gate exists "
-              "to stop.")
-    else:
-        print(f"  [PASS]  every requirement-linked element has a real quote "
-              f"({claims_req}/{claims_req})")
-    if coverage < CONFIG.baseline.min_coverage_pct:
-        ok = False
-        print(f"  [FIX SCHEMA] coverage {coverage}% vs >= "
-                  f"{CONFIG.baseline.min_coverage_pct}%")
-    else:
-        print(f"  [PASS]  coverage {coverage}%")
+    for line in verdict.lines:
+        print(line)
 
-    print(f"\n  Raw traceability is {traceability}%, and that is INFORMATIONAL, "
-          "not a bar.")
+    print(f"\n  Raw traceability is {scored.traceability}%, and that is "
+          "INFORMATIONAL, not a bar.")
     print("  v1 of this spec made it a >= 60% stop condition. Running the "
           "instrument showed\n  that is wrong: it fails a healthy "
           "infrastructure-heavy architecture, where half\n  the elements are "
           "load balancers and incumbent systems that legitimately have\n  no "
           "stakeholder requirement. The number that decides is UNEXPLAINED.")
 
-    print(f"\n  A satisfies-only rule would have rejected {otherwise + unexplained} "
-          f"of {total} elements.")
+    print(f"\n  A satisfies-only rule would have rejected "
+          f"{scored.otherwise + scored.unexplained} of {scored.total} elements.")
     print("  Rejecting them is what pressures an architect into inventing "
           "requirements.")
 
@@ -208,13 +136,14 @@ def cmd_baseline(args) -> int:
           "can rationalise")
     print("     every box as a standard, unexplained goes to zero and this "
           "measures nothing.")
-    print(f"\n  verdict: {'proceed to §9b' if ok else 'do not proceed'}")
+    print(f"\n  verdict: "
+          f"{'proceed to §9b' if verdict.passed else 'do not proceed'}")
 
     if args.worksheet:
         with open(args.worksheet, "w", encoding="utf-8", newline="") as fh:
-            writer = _csv.DictWriter(fh, fieldnames=list(rows[0]))
+            writer = _csv.DictWriter(fh, fieldnames=list(scored.rows[0]))
             writer.writeheader()
-            writer.writerows(rows)
+            writer.writerows(scored.rows)
         print(f"\nwrote {args.worksheet}")
     return EXIT_OK
 
