@@ -51,6 +51,9 @@ help:
 	@echo "  make config     print the thresholds this build enforces"
 	@echo "  make test       full test suite"
 	@echo "  make coverage   test suite under the stdlib tracer + floors"
+	@echo "  make docs       regenerate the documentation diagrams"
+	@echo "  make docs-fresh the committed diagrams match their generators"
+	@echo "  make facts      the numbers the documents are allowed to cite"
 	@echo ""
 	@echo "Needs dev extras (pip install -e \".[dev]\"):"
 	@echo "  make lint       ruff"
@@ -182,6 +185,44 @@ test:
 	@$(PY) -m unittest discover -s tools/tests -t tools
 coverage:
 	@$(PY) tools/coverage_gate.py
+facts:
+	@$(PY) tools/repo_facts.py
+
+# The two documentation diagrams are generated, and until now nothing
+# regenerated them. `docs/architecture.svg` drew "157 tests" for four releases
+# and the sequence diagram named eleven of the fifteen gate rules -- both
+# correct when written, both stale within a release. G6 asks exactly this
+# question of `render/`; `docs/` was on the honour system.
+#
+# `docs-fresh` is the check and is NON-MUTATING: the generators emit to stdout
+# under `--stdout` so the comparison cannot destroy the evidence it is looking
+# for. That is the same defect `make freshness` had, and the reason it is worth
+# stating twice.
+DOC_DIAGRAMS = architecture:gen_architecture.py workflow-sequence:gen_sequence.py
+
+.PHONY: docs docs-fresh facts
+docs:
+	@$(PY) docs/gen_architecture.py
+	@$(PY) docs/gen_sequence.py
+docs-fresh:
+	@# The scratch file goes to mktemp, NOT to `docs/<name>.svg.expected`. The
+	@# first version wrote it beside the artifact, which means a check that
+	@# writes into the directory it is checking -- and an interrupted run left a
+	@# stray untracked file behind. Nothing under docs/ is touched here.
+	@tmp=$$(mktemp) || exit 1; \
+	trap 'rm -f "$$tmp"' EXIT INT TERM; \
+	failed=; for pair in $(DOC_DIAGRAMS); do \
+	  svg=docs/$${pair%%:*}.svg; gen=docs/$${pair##*:}; \
+	  $(PY) "$$gen" --stdout > "$$tmp" || { \
+	    echo "generator failed: $$gen"; exit 1; }; \
+	  if cmp -s "$$tmp" "$$svg"; then :; else \
+	    echo "STALE  $$svg is not what $$gen produces"; failed=1; fi; \
+	done; \
+	test -z "$$failed" || { \
+	  echo ""; \
+	  echo "run 'make docs' and commit the result."; \
+	  exit 1; }; \
+	echo "documentation diagrams match their generators"
 
 # --- developer tooling, optional -------------------------------------------
 #
@@ -220,18 +261,19 @@ secrets:
 
 .PHONY: pre-pr
 pre-pr:
-	@echo "== 1/10 lint ==";          $(MAKE) --no-print-directory lint
-	@echo "== 2/10 types ==";         $(MAKE) --no-print-directory types
-	@echo "== 3/10 secrets ==";       $(MAKE) --no-print-directory secrets
-	@echo "== 4/10 agents ==";        $(MAKE) --no-print-directory agents
-	@echo "== 5/10 evidence ==";      $(MAKE) --no-print-directory evidence-guard
-	@echo "== 6/10 tests ==";         $(MAKE) --no-print-directory test
-	@echo "== 7/10 coverage ==";      $(MAKE) --no-print-directory coverage
+	@echo "== 1/11 lint ==";          $(MAKE) --no-print-directory lint
+	@echo "== 2/11 types ==";         $(MAKE) --no-print-directory types
+	@echo "== 3/11 secrets ==";       $(MAKE) --no-print-directory secrets
+	@echo "== 4/11 agents ==";        $(MAKE) --no-print-directory agents
+	@echo "== 5/11 evidence ==";      $(MAKE) --no-print-directory evidence-guard
+	@echo "== 6/11 docs ==";          $(MAKE) --no-print-directory docs-fresh
+	@echo "== 7/11 tests ==";         $(MAKE) --no-print-directory test
+	@echo "== 8/11 coverage ==";      $(MAKE) --no-print-directory coverage
 	@# `check` before `gate`: `gate` regenerates the renders, so it cannot
 	@# report a hand edit. This is the step that can.
-	@echo "== 8/10 check ==";         $(MAKE) --no-print-directory check
-	@echo "== 9/10 freshness ==";     $(MAKE) --no-print-directory freshness
-	@echo "== 10/10 gate ==";          $(MAKE) --no-print-directory gate
+	@echo "== 9/11 check ==";         $(MAKE) --no-print-directory check
+	@echo "== 10/11 freshness ==";    $(MAKE) --no-print-directory freshness
+	@echo "== 11/11 gate ==";         $(MAKE) --no-print-directory gate
 	@echo ""
 	@echo "pre-pr passed. 'Green' means grounded and internally consistent."
 	@echo "It never means correct."

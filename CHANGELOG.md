@@ -102,7 +102,28 @@ one.
   warnings outstanding, and never prints the whole-gate claim.
 - The pre-commit hook now runs `freshness` as well as `gate`, and fires on
   `render/` — editing a build output previously triggered no hook at all.
-- **43 tests** (183 → 226) covering exactly the gaps that let the above through:
+- **Nothing regenerated or checked the documentation diagrams.** G6 asks of
+  `render/` exactly the question nothing asked of `docs/`, and both generated
+  SVGs had drifted from what a document should say: `architecture.svg` drew
+  "157 tests" across four releases, and both it and `workflow-sequence.mmd`
+  named eleven of the fifteen registered gate rules — a picture of the gate with
+  four rules missing. `make docs` regenerates them, `make docs-fresh` refuses a
+  stale one, and both are in `pre-pr` and CI. `docs-fresh` is non-mutating by
+  construction (`--stdout` into a `mktemp`, never into `docs/`), because the
+  first draft wrote its comparison file beside the artifact it was checking —
+  the same mistake `make freshness` made, caught this time before it shipped.
+- **Every number a document states about this repository is now derived.**
+  `tools/repo_facts.py` computes the test count, rule count, renderer version
+  and coverage floors; the diagram generators read from it, and
+  `CountedClaims` fails the suite when the changelog or readme states a count
+  the suite does not run. This was never carelessness — the count in this very
+  entry was correct the day it was typed (226 at `a02eb09`) and wrong two
+  commits later. `gen_sequence.py` now refuses to generate at all when a
+  registered rule has no diagram label, so a new rule breaks the build instead
+  of quietly vanishing from the picture. The diagrams cite the coverage
+  **floor** rather than a measured percentage, because a floor is a claim the
+  build keeps on every commit and a measurement is a snapshot.
+- **69 tests** (183 → 252) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

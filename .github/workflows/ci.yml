@@ -40,6 +40,12 @@ jobs:
       # quality job. Until now the only enforcement that recording
       # content stays out of git was a local pre-commit hook.
       - run: make evidence-guard
+      # The same question G6 asks of `render/`, asked of `docs/`. Both
+      # generated diagrams had drifted: one drew a test count four releases
+      # old, both named eleven of fifteen gate rules. Non-mutating, so it can
+      # run here beside the other read-only checks.
+      - name: Documentation diagrams match their generators
+        run: make docs-fresh
       - run: make test
       # `check` BEFORE `gate`, and it is not redundant. `gate` is
       # `fmt render check`, so it regenerates every artifact before checking

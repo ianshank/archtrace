@@ -45,8 +45,10 @@ sequenceDiagram
 
     rect rgb(249, 243, 235)
     Note over AR, PUB: Loop 3 — before anything leaves the repo (seconds)
+    AR->>AT: make check (reads the committed bytes; writes nothing)
+    AT->>AT: G10 schema version · G1 evidence hash · G2 citation · G3 coverage · G4 grounding<br/>G5 C4 form · G5e external containers · G6 render freshness · G7 ADR linkage · G8 orphan evidence<br/>G9 conflicts · G11 authority · G12 NFR silence · G12n NFR reason · G13 symbols
+    Note over AR, AT: `check` runs BEFORE `gate`, and the order is the control.<br/>`gate` is fmt + render + check — it regenerates the renders,<br/>so by the time it checks them a hand edit is already gone.
     AR->>AT: make gate (fmt · render · check)
-    AT->>AT: G1 hash · G2 citation · G3 coverage · G4 grounding<br/>G5 C4 form · G6 render freshness · G7 ADR<br/>G9 conflicts · G10 schema · G11 authority · G12 NFR
     alt any blocking finding
         AT-->>AR: exit 1 — named rule, named fix
         AR->>MO: fix the model, never the render
@@ -67,6 +69,7 @@ sequenceDiagram
     RV-->>GIT: independent approval (branch protection)
 
     AR->>AT: release --verify
+    AT->>AT: re-read render/ FROM DISK — never re-render
     alt MATCH
         AT-->>AR: byte-identical to the approved state
         AR->>PUB: publish

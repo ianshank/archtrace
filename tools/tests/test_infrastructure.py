@@ -714,5 +714,264 @@ class DocumentedContract(unittest.TestCase):
                          "disagree about what version this is")
 
 
+class DocsFreshness(unittest.TestCase):
+    """`make docs-fresh`, held to what `make freshness` had to learn.
+
+    That target shipped three times before it was right: it re-rendered before
+    diffing, it passed when it discovered nothing, and it overwrote committed
+    deliverables. A check that writes to what it is checking has destroyed its
+    own evidence, so the non-mutating property is asserted here rather than
+    assumed from reading the recipe.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    # Enough of the repository for the generators to import and for
+    # `repo_facts` to discover the same suite. `example/` and `engagements/`
+    # are the bulk of the tree and none of these targets read them.
+    NEEDED = ("Makefile", "pyproject.toml", "docs", "tools")
+
+    def setUp(self):
+        """Every negative case here edits a diagram, and the diagrams are
+        tracked files. Working on a copy keeps a killed test run from leaving
+        the real tree dirty -- no other test in this suite mutates it, and this
+        one should not be the exception that teaches people to expect it."""
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.repo = os.path.join(self.tmp, "repo")
+        os.makedirs(self.repo)
+        for name in self.NEEDED:
+            source = os.path.join(self.REPO, name)
+            target = os.path.join(self.repo, name)
+            if os.path.isdir(source):
+                shutil.copytree(source, target,
+                                ignore=shutil.ignore_patterns("__pycache__"))
+            else:
+                shutil.copy(source, target)
+        self.docs = os.path.join(self.repo, "docs")
+
+    def _make(self, target: str):
+        return subprocess.run(
+            ["make", "-C", self.repo, "--no-print-directory", target],
+            capture_output=True, text=True, check=False)
+
+    def _stamps(self) -> dict:
+        return {name: os.stat(os.path.join(self.docs, name)).st_mtime_ns
+                for name in sorted(os.listdir(self.docs))
+                if name.endswith(".svg")}
+
+    def test_docs_fresh_passes_on_the_committed_tree(self):
+        done = self._make("docs-fresh")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("match their generators", done.stdout)
+
+    def test_docs_fresh_writes_nothing(self):
+        """Compared by mtime, not by content. A re-render that happens to
+        produce identical bytes leaves `git status` clean, so a content
+        comparison would pass on precisely the mutation that matters -- which is
+        how the first version of the equivalent freshness test missed it."""
+        before = self._stamps()
+        self.assertTrue(before, "no diagrams found to check")
+        self._make("docs-fresh")
+        self.assertEqual(self._stamps(), before,
+                         "docs-fresh wrote into the directory it checks")
+        strays = [n for n in os.listdir(self.docs) if n.endswith(".expected")]
+        self.assertEqual(strays, [], "docs-fresh left scratch files behind")
+
+    def test_docs_fresh_fails_on_a_hand_edited_diagram(self):
+        """The whole point. A target that cannot go red is not a check."""
+        with open(os.path.join(self.docs, "architecture.svg"), "ab") as fh:
+            fh.write(b"<!-- an edit nobody generated -->\n")
+        done = self._make("docs-fresh")
+        self.assertNotEqual(done.returncode, 0,
+                            "docs-fresh passed on an edited diagram")
+        self.assertIn("STALE", done.stdout)
+        self.assertIn("make docs", done.stdout)
+
+    def test_docs_fresh_fails_when_a_generator_crashes(self):
+        """A generator that cannot run must stop the build, not be read as
+        "no drift found". `make freshness` shipped a version that reported a
+        pass for a check it had not managed to perform."""
+        with open(os.path.join(self.docs, "gen_sequence.py"), "a",
+                  encoding="utf-8") as fh:
+            fh.write("\nraise SystemExit('deliberate failure')\n")
+        done = self._make("docs-fresh")
+        self.assertNotEqual(done.returncode, 0,
+                            "a crashing generator was read as a clean check")
+        self.assertIn("generator failed", done.stdout)
+
+    def test_a_rule_without_a_diagram_label_stops_generation(self):
+        """A rule added to the registry must not quietly vanish from the
+        picture. That is exactly how the sequence diagram came to show eleven
+        of fifteen: nothing failed, the rule simply was not drawn."""
+        sys.path.insert(0, os.path.join(self.REPO, "docs"))
+        import gen_sequence
+        with mock.patch("repo_facts.rule_ids",
+                        return_value=[*gen_sequence.RULE_LABELS, "G99"]), \
+                self.assertRaises(SystemExit) as caught:
+            gen_sequence._gate_lines()
+        self.assertIn("G99", str(caught.exception))
+
+    def test_a_label_for_a_rule_that_no_longer_runs_stops_generation(self):
+        """The other direction: a diagram drawing a gate step the gate does not
+        take is a different lie, told just as confidently."""
+        sys.path.insert(0, os.path.join(self.REPO, "docs"))
+        import gen_sequence
+        keep = list(gen_sequence.RULE_LABELS)[:-1]
+        with mock.patch("repo_facts.rule_ids", return_value=keep), \
+                self.assertRaises(SystemExit) as caught:
+            gen_sequence._gate_lines()
+        self.assertIn(list(gen_sequence.RULE_LABELS)[-1], str(caught.exception))
+
+
+class CountedClaims(unittest.TestCase):
+    """Numbers the documents state about this repository, checked against it.
+
+    Every one of these was typed correctly and went stale anyway. The test count
+    in CHANGELOG 0.5.0 was right the day it was written and wrong two commits
+    later; `docs/architecture.svg` drew "157 tests" across four releases; the
+    gate rule list in two diagrams named eleven of fifteen ids. Nobody was
+    careless -- a hand-written measurement of a repository that changes every
+    day simply cannot stay true, so the fix is a check rather than a correction.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+
+    @staticmethod
+    def _facts():
+        sys.path.insert(0, os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        import repo_facts
+        return repo_facts
+
+    def _read(self, *parts):
+        with open(os.path.join(self.REPO, *parts), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_facts_module_counts_what_the_suite_runs(self):
+        """The count this whole mechanism rests on. Discovery must find the
+        same cases `make test` runs, or every claim below is checked against a
+        number that is itself wrong."""
+        facts = self._facts()
+        loaded = unittest.TestLoader().discover(
+            os.path.dirname(os.path.abspath(__file__)),
+            top_level_dir=os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))
+
+        def leaves(suite):
+            return (sum(leaves(child) for child in suite)
+                    if isinstance(suite, unittest.TestSuite) else 1)
+
+        self.assertEqual(facts.test_count(), leaves(loaded))
+
+    def test_a_module_that_fails_to_import_refuses_rather_than_undercounts(self):
+        """`unittest.discover` substitutes a `_FailedTest` placeholder for a
+        module it cannot load. That still counts as one case, so a broken import
+        would quietly shrink the count by however many tests the module held and
+        report a smaller number that looks entirely plausible."""
+        facts = self._facts()
+        broken = unittest.TestSuite([unittest.TestSuite(
+            [unittest.loader._FailedTest("test_thing", ImportError("boom"))])])
+        with mock.patch.object(unittest.TestLoader, "discover",
+                               return_value=broken), \
+                self.assertRaises(RuntimeError) as caught:
+            facts.test_cases()
+        self.assertIn("test discovery failed", str(caught.exception))
+
+    # `**43 tests** (183 → 226)` — a delta and the range it came from. Both
+    # halves are checked: the new total against the suite, and the delta
+    # against the range, because a hand-updated total with an untouched delta
+    # is a document that contradicts itself in the same sentence.
+    DELTA_CLAIM = re.compile(r"\*\*(\d+) tests\*\*\s*\((\d+)\s*(?:→|->)\s*(\d+)\)")
+    TOTAL_CLAIM = re.compile(r"\*\*(\d+) tests\*\*(?!\s*\()")
+
+    def test_every_stated_test_count_matches_the_suite(self):
+        """Only the CURRENT release section of the changelog, and the readme.
+        Older entries record what was true when they were written; rewriting
+        them would be falsifying history, not fixing a stale number."""
+        facts = self._facts()
+        actual = facts.test_count()
+        wrong = []
+        for name in ("CHANGELOG.md", "README.md"):
+            text = self._read(name)
+            current = text.split("\n## ")[1] if name == "CHANGELOG.md" else text
+            for delta, before, after in self.DELTA_CLAIM.findall(current):
+                if int(after) != actual:
+                    wrong.append(f"{name}: '({before} → {after})' vs {actual}")
+                if int(after) - int(before) != int(delta):
+                    wrong.append(f"{name}: '**{delta} tests** ({before} → "
+                                 f"{after})' does not add up")
+            for claimed in self.TOTAL_CLAIM.findall(current):
+                if int(claimed) != actual:
+                    wrong.append(f"{name}: '**{claimed} tests**' vs {actual}")
+        self.assertEqual(
+            wrong, [],
+            "`make facts` prints the real numbers; `make docs` fixes the "
+            "diagrams. Only the newest CHANGELOG section is checked, so this "
+            "is the section you are already editing.")
+
+    def test_the_readme_states_the_real_number_of_pre_pr_steps(self):
+        """This one has now gone stale twice: the readme said nine when the
+        Makefile ran ten, and ten when it ran eleven. Both were correct when
+        typed. The recipe's own `N/M` labels are the source of truth, and they
+        are checked for internal consistency first -- a recipe whose steps are
+        numbered 1/10, 2/11, 3/11 would otherwise let this pass on a typo."""
+        recipe = self._read("Makefile").split("\npre-pr:")[1].split("\n\n")[0]
+        steps = re.findall(r'== (\d+)/(\d+) ', recipe)
+        self.assertTrue(steps, "no numbered steps found in the pre-pr recipe")
+        totals = {total for _n, total in steps}
+        self.assertEqual(len(totals), 1,
+                         f"the pre-pr steps disagree on the total: {totals}")
+        total = int(totals.pop())
+        self.assertEqual(
+            [int(n) for n, _t in steps], list(range(1, len(steps) + 1)),
+            "the pre-pr steps are not numbered 1..N in order")
+        self.assertEqual(len(steps), total,
+                         f"the recipe has {len(steps)} steps labelled /{total}")
+        claimed = re.search(r"make pre-pr\s+#[^\n]*?\((\d+) steps\)",
+                            self._read("README.md"))
+        self.assertIsNotNone(
+            claimed, "README.md no longer states a pre-pr step count in the "
+                     "form '(N steps)'; this test cannot check what it cannot "
+                     "find, so restore the form or delete the claim")
+        self.assertEqual(int(claimed.group(1)), total,
+                         "README.md and the Makefile disagree about how many "
+                         "steps `make pre-pr` runs")
+
+    def test_the_sequence_diagram_names_every_gate_rule(self):
+        """`docs/workflow-sequence.mmd` is hand-authored on purpose -- it is the
+        editable source GitHub renders -- so a generator cannot keep it honest
+        and this does. It listed eleven of fifteen ids while claiming to show
+        what the gate runs."""
+        facts = self._facts()
+        mermaid = self._read("docs", "workflow-sequence.mmd")
+        drawn = set(re.findall(r"\b(G\d+[a-z]?)\b", mermaid))
+        self.assertEqual(
+            set(facts.rule_ids()) - drawn, set(),
+            "these rules run and do not appear in workflow-sequence.mmd")
+        self.assertEqual(
+            drawn - set(facts.rule_ids()), set(),
+            "workflow-sequence.mmd draws rules the gate does not run")
+
+    def test_the_generated_diagrams_match_their_generators(self):
+        """G6 asks this of `render/`; nothing asked it of `docs/`. A committed
+        SVG whose generator has moved on is a diagram nobody can trust, and the
+        only way to notice was to run the generator and look at `git status`."""
+        for script, svg in (("gen_architecture.py", "architecture.svg"),
+                            ("gen_sequence.py", "workflow-sequence.svg")):
+            with self.subTest(diagram=svg):
+                committed = self._read("docs", svg)
+                proc = subprocess.run(
+                    [sys.executable,
+                     os.path.join(self.REPO, "docs", script), "--stdout"],
+                    capture_output=True, text=True, cwd=self.REPO, check=False)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertEqual(
+                    proc.stdout, committed,
+                    f"docs/{svg} is not what docs/{script} produces; "
+                    f"run `make docs`")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
