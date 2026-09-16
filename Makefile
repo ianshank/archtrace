@@ -64,47 +64,52 @@ engagements:
 	@for e in $(ENGAGEMENTS); do echo "$$e"; done
 
 # Are the renders committed in EVERY engagement what the current renderer
-# produces? This is the half of G6 that `make gate` cannot answer about itself:
-# `gate` is `fmt render check`, so it regenerates the artifact before checking
-# it and a hand edit is overwritten rather than reported. Re-rendering and then
-# asking git whether anything moved catches both a hand edit and a stale commit,
-# and it needs no evidence content -- so it works on engagements whose evidence
-# lives outside the repository.
+# produces? `make check` answers this for ROOT only, which defaults to
+# `example`; that is how `engagements/archtrace-self` sat in the tree carrying
+# renders from an older renderer with nothing looking at it. This asks G6, and
+# only G6, of each engagement found -- so it still answers on an engagement
+# whose evidence content is not on this machine, where G1 and G2 legitimately
+# cannot verify and would otherwise drown the result.
 freshness:
 	@# Discovery finding nothing must be an error, not a pass. A rename of
 	@# engagements/, a bad ENGAGEMENT_GLOBS or an unexpected checkout layout
 	@# would otherwise make this target succeed while gating nothing -- a gate
 	@# incapable of failing, which is the defect this target exists to close.
-	@# It also keeps the `git diff -- $(ENGAGEMENTS)` below from degrading to a
-	@# whole-tree diff when the path list is empty.
 	@test -n "$(strip $(ENGAGEMENTS))" || { \
 	  echo "no engagements found under: $(ENGAGEMENT_GLOBS)"; \
 	  echo "an engagement is a directory containing model/model.json."; \
 	  echo "nothing was checked, so this is a failure, not a pass."; \
 	  exit 1; }
-	@# Refuse to judge a tree that is already modified. This target RE-RENDERS,
-	@# which overwrites an uncommitted hand edit before the diff can see it --
-	@# the same trap `make gate` falls into. Rendering over a dirty tree would
-	@# therefore report "fresh" on an edit it had just destroyed. An uncommitted
-	@# edit is `make check`'s job; this target answers the other question,
-	@# whether the COMMITTED bytes are what the renderer produces.
-	@git diff --quiet HEAD -- $(ENGAGEMENTS) || { \
-	  echo "engagement files are already modified, so re-rendering would"; \
-	  echo "overwrite them and this check would be meaningless."; \
-	  echo "Commit or stash them first, then re-run. To gate an uncommitted"; \
-	  echo "edit instead, run 'make check'."; \
-	  git --no-pager diff --stat HEAD -- $(ENGAGEMENTS); \
-	  exit 1; }
+	@# Make splits variables on whitespace, so a path containing a space would
+	@# silently become two engagements: `git diff` would match neither, the
+	@# check would pass, and `render` would write junk directories. Refusing is
+	@# honest; pretending to have checked is the failure mode this target is
+	@# about. (Quoting "$$e" in the loop does not help -- the split happens when
+	@# Make expands $(ENGAGEMENTS) into the recipe, before the shell sees it.)
 	@for e in $(ENGAGEMENTS); do \
-	  ./archtrace --root "$$e" render >/dev/null || exit 1; \
+	  test -d "$$e" || { \
+	    echo "engagement path is not a directory: '$$e'"; \
+	    echo "paths containing spaces are not supported here; rename it."; \
+	    exit 1; }; \
 	done
-	@# `diff HEAD`, not bare `diff`: a bare diff compares against the index, so
-	@# a stale render that was `git add`ed would pass. The question is whether
-	@# the COMMITTED bytes are what the renderer produces.
-	@git diff --quiet HEAD -- $(ENGAGEMENTS) || { \
-	  echo "stale or hand-edited renders -- the committed bytes are not what"; \
-	  echo "the renderer produces. Re-run 'make freshness' and commit:"; \
-	  git --no-pager diff --stat HEAD -- $(ENGAGEMENTS); \
+	@# Non-mutating, deliberately. An earlier version re-rendered onto disk and
+	@# diffed afterwards, which (a) reproduced the `make gate` defect this
+	@# target exists to close, by overwriting an uncommitted hand edit before
+	@# the diff could see it, and (b) on any machine where the evidence content
+	@# lives outside the repository -- the documented normal -- rewrote three
+	@# committed deliverables with degraded placeholder versions and left them
+	@# there. G6 already answers this question against the committed bytes
+	@# without touching them, so ask G6.
+	@failed=; for e in $(ENGAGEMENTS); do \
+	  ./archtrace --root "$$e" check --only G6 >/dev/null 2>&1 \
+	    || { echo "STALE  $$e"; ./archtrace --root "$$e" check --only G6 \
+	           2>&1 | sed -n 's/^BLOCK/  BLOCK/p;s/^        /      /p'; \
+	         failed=1; }; \
+	done; \
+	test -z "$$failed" || { \
+	  echo ""; \
+	  echo "committed renders are not what the renderer produces."; \
+	  echo "run 'make render ROOT=<engagement>' for each and commit."; \
 	  exit 1; }
 	@echo "renders are fresh in: $(ENGAGEMENTS)"
 test:

@@ -8,11 +8,13 @@ this gap, which is the argument for having it.
 from __future__ import annotations
 
 import builtins
+import contextlib
 import dataclasses
 import io
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -21,6 +23,10 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from archtrace import config, coverage, log
+
+EXAMPLE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "example")
 
 
 class ConfigDefaults(unittest.TestCase):
@@ -146,12 +152,41 @@ class ConfigOverrides(unittest.TestCase):
         self.assertEqual(cfg.baseline.max_unexplained_pct, 15)
 
     def test_sources_and_errors_are_not_configurable_sections(self):
-        """They are outputs of a load, not settings. Two places filtered them
-        and disagreed, so ARCHTRACE_ERRORS_* parsed into a phantom section."""
+        """They are outputs of a load, not settings.
+
+        Two places filtered them and disagreed, so ARCHTRACE_ERRORS_* parsed
+        into a phantom section that `load` then silently dropped. They are now
+        refused like any other name that is not a section -- which is the point:
+        there is no such setting, so pretending to accept one is the failure.
+        """
         cfg = config.load(root=self.tmp, env={"ARCHTRACE_ERRORS_FOO": "1",
                                               "ARCHTRACE_SOURCES_BAR": "2"})
-        self.assertEqual(cfg.errors, ())
+        self.assertEqual(len(cfg.errors), 2, cfg.errors)
+        self.assertTrue(all("no such configuration section" in e
+                            for e in cfg.errors))
         self.assertEqual(cfg.sources, ())
+
+    def test_a_misspelled_environment_section_is_refused(self):
+        """The layer the missing-tomllib error tells 3.9/3.10 users to use.
+
+        `_from_env` dropped anything whose prefix matched no section before
+        `load` could see it, so ARCHTRACE_CITATON_… (one letter) changed
+        nothing and said nothing. Nothing else in the environment wears this
+        prefix, so an unmatched one is a typo, not a coincidence.
+        """
+        cfg = config.load(root=self.tmp,
+                          env={"ARCHTRACE_CITATON_MIN_QUOTE_WORDS": "99"})
+        self.assertTrue(cfg.errors)
+        self.assertIn("ARCHTRACE_CITATON_MIN_QUOTE_WORDS", cfg.errors[0])
+        self.assertEqual(cfg.citation.min_quote_words, 8)
+
+    def test_unprefixed_environment_variables_are_never_touched(self):
+        """The regression guard for the check above: only ARCHTRACE_* is ours."""
+        cfg = config.load(root=self.tmp,
+                          env={"PATH": "/usr/bin", "HOME": "/root",
+                               "ARCHTRACE_CITATION_MIN_QUOTE_WORDS": "12"})
+        self.assertEqual(cfg.errors, ())
+        self.assertEqual(cfg.citation.min_quote_words, 12)
 
     def test_environment_overrides_and_is_recorded(self):
         cfg = config.load(root=self.tmp, env={
@@ -446,3 +481,122 @@ class MakefileGates(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class FreshnessTarget(unittest.TestCase):
+    """`make freshness` and `--only`, which shipped with no tests at all.
+
+    The same argument `MakefileGates` makes: nothing caught the lint recipe's
+    defect because nothing tested the Makefile. This target was added to close
+    a gate that could not fail, and its first two versions each reintroduced
+    one -- re-rendering over the evidence before diffing, then reporting
+    success when discovery found nothing. Both were found by hand.
+    """
+
+    REPO = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+
+    def _make(self, target: str, *overrides: str):
+        return subprocess.run(
+            ["make", "-C", self.REPO, "--no-print-directory", target,
+             *overrides],
+            capture_output=True, text=True, check=False)
+
+    def test_freshness_passes_on_the_committed_tree(self):
+        done = self._make("freshness")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("renders are fresh", done.stdout)
+
+    def test_freshness_does_not_write_to_the_tree(self):
+        """It must not re-render.
+
+        An earlier version did, which overwrote an uncommitted hand edit before
+        the check could see it -- and, where the evidence content is not on this
+        machine, rewrote committed deliverables with degraded placeholders and
+        left them there.
+
+        Asserted on mtimes rather than on `git status`, because re-rendering an
+        up-to-date engagement writes byte-identical content: a content check
+        passes while the target is still writing, and would only fail in the
+        very case (evidence absent) this test cannot arrange.
+        """
+        rendered = [os.path.join(dirpath, name)
+                    for engagement in ("example", "engagements/archtrace-self")
+                    for dirpath, _dirs, files in
+                    os.walk(os.path.join(self.REPO, engagement, "render"))
+                    for name in files]
+        self.assertTrue(rendered, "expected committed renders to assert on")
+        before = {path: os.stat(path).st_mtime_ns for path in rendered}
+        self._make("freshness")
+        after = {path: os.stat(path).st_mtime_ns for path in rendered}
+        rewritten = sorted(os.path.relpath(p, self.REPO)
+                           for p in before if before[p] != after[p])
+        self.assertEqual(rewritten, [],
+                         "freshness wrote to render/; it must only read")
+
+    def test_freshness_fails_when_it_discovers_no_engagements(self):
+        """Checking nothing is a failure, not a pass."""
+        done = self._make("freshness", "ENGAGEMENT_GLOBS=no/such/place")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("no engagements found", done.stdout)
+
+    def test_engagements_lists_what_freshness_would_check(self):
+        done = self._make("engagements")
+        self.assertEqual(done.returncode, 0)
+        found = done.stdout.split()
+        self.assertIn("example", found)
+        for path in found:
+            self.assertTrue(
+                os.path.isfile(os.path.join(self.REPO, path, "model",
+                                            "model.json")),
+                f"{path} was listed but holds no model/model.json")
+
+
+class RuleSubset(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.root = os.path.join(self.tmp, "example")
+        shutil.copytree(EXAMPLE, self.root)
+
+    def _check(self, *extra):
+        from archtrace.cli import main
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            code = main(["--root", self.root, "check", *extra])
+        return code, out.getvalue()
+
+    def test_only_runs_the_named_rule_and_still_blocks_on_it(self):
+        path = os.path.join(self.root, "render", "traceability.md")
+        with open(path, encoding="utf-8") as fh:
+            body = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body.replace("Dailies", "Substituted"))
+        code, out = self._check("--only", "G6")
+        self.assertEqual(code, 1, out)
+        self.assertIn("G6", out)
+
+    def test_only_does_not_run_the_rules_it_was_not_given(self):
+        os.remove(os.path.join(self.root, "_evidence_root",
+                               "EV-001-kickoff.txt"))
+        full_code, full_out = self._check()
+        self.assertEqual(full_code, 1, "G1 should block on missing evidence")
+        self.assertIn("G1", full_out)
+        code, out = self._check("--only", "G6")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("G1", out)
+
+    def test_a_subset_pass_never_claims_the_whole_gate_passed(self):
+        """'Grounded and internally consistent' is a statement about every
+        rule. Printing it after `--only G6` would be the same false green in a
+        smaller costume."""
+        code, out = self._check("--only", "G6")
+        self.assertEqual(code, 0, out)
+        self.assertIn("SUBSET", out)
+        self.assertNotIn("grounded and internally consistent", out)
+
+    def test_an_unknown_rule_id_is_refused_and_names_the_known_ones(self):
+        code, out = self._check("--only", "G99")
+        self.assertEqual(code, 2)
+        self.assertIn("G99", out)
+        self.assertIn("G6", out, "the message should list the real rule ids")

@@ -16,8 +16,11 @@ codebase:
 
 Precedence, lowest to highest: defaults here, then `archtrace.toml` at the
 repository root, then `ARCHTRACE_*` environment variables. Standard library
-only; TOML is read with `tomllib` where available and skipped where not, so the
-tool still runs on Python 3.9.
+only; TOML is read with `tomllib`, which is 3.11+. On 3.9/3.10 a config file
+that is *present* is refused rather than ignored -- silently dropping it meant
+the same repository enforced different thresholds on different interpreters --
+while its absence stays silent, because the file is optional. Use `ARCHTRACE_*`
+variables on those versions.
 """
 
 from __future__ import annotations
@@ -222,16 +225,27 @@ def _policy_sections() -> set:
     return {f.name for f in fields(Config) if f.name not in {"sources", "errors"}}
 
 
-def _from_env(env: Mapping[str, str]) -> dict:
-    """ARCHTRACE_CITATION_MIN_QUOTE_WORDS=10 -> {citation: {min_quote_words: 10}}."""
+def _from_env(env: Mapping[str, str], errors: list) -> dict:
+    """ARCHTRACE_CITATION_MIN_QUOTE_WORDS=10 -> {citation: {min_quote_words: 10}}.
+
+    An `ARCHTRACE_`-prefixed name that matches no section is a typo, not a
+    coincidence: nothing else in the environment wears this prefix. It used to
+    be dropped here, before `load` could see it, so `ARCHTRACE_CITATON_…` (one
+    letter) changed nothing and said nothing -- and the env layer is the one the
+    missing-tomllib error explicitly tells 3.9/3.10 users to use instead.
+    """
     sections = _policy_sections()
     out: dict = {}
-    for key, value in env.items():
+    for key, value in sorted(env.items()):
         if not key.startswith(ENV_PREFIX):
             continue
         remainder = key[len(ENV_PREFIX):].lower()
         section = next((s for s in sections if remainder.startswith(s + "_")), None)
         if section is None:
+            errors.append(
+                f"{key}: no such configuration section "
+                f"(expected {ENV_PREFIX}<SECTION>_<KEY> with SECTION one of "
+                f"{', '.join(sorted(s.upper() for s in sections))})")
             continue
         out.setdefault(section, {})[remainder[len(section) + 1:]] = value
     return out
@@ -244,13 +258,13 @@ def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
     seen: list = []
     errors: list = []
     layers = [_from_toml(os.path.join(root, CONFIG_FILENAME), errors),
-              _from_env(resolved_env)]
+              _from_env(resolved_env, errors)]
     known = _policy_sections()
     for layer in layers:
         # A misspelled SECTION was as silent as a misspelled key used to be:
-        # `[citaton]` simply never matched and the whole block evaporated. Only
-        # the TOML layer can produce one -- `_from_env` matches against known
-        # names before it emits anything -- but flagging it here covers both.
+        # `[citaton]` simply never matched and the whole block evaporated.
+        # `_from_env` reports its own (it can only emit known section names),
+        # so in practice this catches the TOML layer.
         errors.extend(
             f"{name}: no such configuration section "
             f"(known: {', '.join(sorted(known))})"

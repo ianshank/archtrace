@@ -69,6 +69,21 @@ repos:
         files: '^\.github/agents/.*\.agent\.md$'
         entry: ./archtrace agents
 
+      - id: archtrace-freshness
+        name: archtrace render freshness (every engagement)
+        language: system
+        pass_filenames: false
+        # Also fires on render/, which the gate hook below never did: editing a
+        # build output was the one change that triggered nothing at all.
+        files: '^(engagements/.*/|example/)?(model|requirements|evidence|render)/'
+        # `make gate` is `fmt render check`: it regenerates every artifact
+        # before checking it, so a hand-edited render is overwritten rather
+        # than reported and the hook passes. `freshness` asks G6 of every
+        # engagement DISCOVERED in the repo, without writing to the tree --
+        # so it does not depend on ARCHTRACE_ROOT pointing at the engagement
+        # that actually changed.
+        entry: make freshness
+
       - id: archtrace-gate
         name: archtrace gate
         language: system

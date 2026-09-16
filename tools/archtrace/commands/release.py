@@ -45,10 +45,13 @@ def digest_file(path: str) -> str | None:
 
 
 def published_outputs(root: str) -> set:
-    """Every file actually sitting in render/, dotfiles included.
+    """Every file sitting directly in render/, dotfiles included.
 
-    `.manifest.json` is a real approved output, so a listing that skips dotfiles
-    would let it be swapped without notice.
+    Used to spot a file on disk that no approval covers. Dotfiles are listed
+    because `.manifest.json` is a real approved output and a listing that
+    skipped it would let it be swapped without notice; callers decide what to
+    do with the *other* dotfiles, and `_verify_release` follows G6 in ignoring
+    them. Not recursive, matching G6's own stray check.
     """
     render_dir = os.path.join(root, RENDER_DIRNAME)
     if not os.path.isdir(render_dir):
@@ -71,10 +74,15 @@ def cmd_release(args) -> int:
     """
     import datetime
 
-    eng = _engagement(args)
     path = os.path.join(args.root, "release.json")
     if args.verify:
-        return _verify_release(args, eng, path)
+        # Deliberately BEFORE the engagement is loaded. Verification compares
+        # bytes on disk against the manifest and needs neither the model nor a
+        # renderer, so `--verify` still answers when the model will not load --
+        # which is exactly when someone most needs to know whether the artifact
+        # in their hand is the approved one.
+        return _verify_release(args, path)
+    eng = _engagement(args)
     if not (args.approved_by and args.role):
         print("archtrace: --approved-by and --role are required to create a "
               "release", file=sys.stderr)
@@ -115,15 +123,23 @@ def cmd_release(args) -> int:
             raise OSError(f"cannot read {os.path.join(*parts)} to hash it")
         return value
 
-    # Sign the bytes on disk, which is what `--verify` will later re-hash. The
-    # gate has already run, and G6 proves disk matches a fresh render, so this
-    # is the same content -- but taking it from the same place keeps the two
-    # halves of the control from drifting apart.
+    # The approved SET is the renderer's contract; the approved BYTES come from
+    # disk. Taking the set from disk too meant a stray dotfile -- .DS_Store, an
+    # editor swap file -- was signed into an audit manifest as an approved
+    # deliverable, and then deleting that junk reported DRIFT and blocked
+    # publication of an intact deliverable set. G6 deliberately exempts dotfiles
+    # from its stray rule, so release must not disagree with it.
     approved_outputs = {}
-    for name in sorted(published_outputs(args.root)):
+    for name in sorted(render_all(eng)):
         value = digest_file(os.path.join(args.root, RENDER_DIRNAME, name))
-        if value is not None:
-            approved_outputs[name] = value
+        if value is None:
+            # G6 has already passed, so every output exists. If one has become
+            # unreadable since, say so rather than silently shrinking the set
+            # an approval covers.
+            print(f"archtrace: cannot read render/{name} to hash it; refusing "
+                  "to sign an approval that silently omits it", file=sys.stderr)
+            return EXIT_BLOCKED
+        approved_outputs[name] = value
 
     manifest = {
         "engagement": eng.model.get("workspace", {}).get("name", ""),
@@ -160,7 +176,7 @@ def cmd_release(args) -> int:
           "does not match, it was not the thing that was approved.")
     return EXIT_OK
 
-def _verify_release(args, eng, path: str) -> int:
+def _verify_release(args, path: str) -> int:
     """Does what is on disk still match what was approved?
 
     This is the control that matters at publication time. A commit id says a
@@ -198,16 +214,12 @@ def _verify_release(args, eng, path: str) -> int:
         elif actual != expected:
             drift.append(("output", name))
     drift.extend(("output", f"{extra} (not in the approved set)")
-                 for extra in sorted(published_outputs(args.root) - set(approved)))
+                 for extra in sorted(published_outputs(args.root) - set(approved))
+                 # G6 exempts dotfiles from its stray rule; release must agree
+                 # with it, or a .DS_Store blocks publication of an intact set.
+                 if not extra.startswith("."))
     LOG.debug("verified %d source(s) and %d output(s) against %s; %d drifted",
               len(manifest.get("sources", {})), len(approved), path, len(drift))
-
-    # A separate, weaker question, reported separately: has the MODEL moved on
-    # since approval? Folding this into drift is what hid the defect above.
-    reproducible = {name: digest_bytes(data)
-                    for name, data in render_all(eng).items()}
-    moved = sorted(name for name, expected in approved.items()
-                   if reproducible.get(name) != expected)
 
     print(f"release.json  approved by {manifest.get('approved_by')} "
           f"({manifest.get('authority_role')}) at {manifest.get('approved_at')}")
@@ -215,12 +227,6 @@ def _verify_release(args, eng, path: str) -> int:
     if not drift:
         print(f"\nMATCH — every source and output in {RENDER_DIRNAME}/ is "
               "byte-identical to what was approved. Safe to publish.")
-        if moved:
-            print(f"\n  note — the model no longer reproduces {len(moved)} "
-                  "approved output(s); the approved artifact is intact, but a "
-                  "re-render would change it:")
-            for name in moved:
-                print(f"    {name}")
         return EXIT_OK
     print(f"\nDRIFT — {len(drift)} item(s) differ from the approved state:")
     for kind, name in drift:

@@ -389,7 +389,7 @@ def _traceability_md(eng: Engagement) -> bytes:
             f"({excluded.get('decided_by', '?')}, {excluded.get('date', '?')})_"
             if excluded else "**none**")
         out.append(f"| {req['id']} | {req.get('status')} | {req.get('priority')} "
-                   f"| {_md_cell(req.get('statement'))} | {cell} |")
+                   f"| {_md_cell(req.get('statement'))} | {_md_cell(cell)} |")
     out += ["", "## Elements to grounding", "",
             "`source` resolves a cited symbol to where it lives in the mined",
             "codebase. Blank means the element is not grounded in code.", "",
@@ -399,7 +399,8 @@ def _traceability_md(eng: Engagement) -> bytes:
         cell = ", ".join(_grounding_text(g) for g in element.grounding)
         locator = _element_locators(eng, element.grounding)
         out.append(f"| `{element.id}` | {element.level} "
-                   f"| {_md_cell(element.name)} | {cell} | {locator} |")
+                   f"| {_md_cell(element.name)} | {_md_cell(cell)} "
+                   f"| {_md_cell(locator)} |")
     out += ["", "## Non-functional coverage", "",
             "Three honest positions, not two. `open` is a tracked gap; it is not",
             "the same claim as `not_applicable`.", "",
@@ -429,7 +430,8 @@ def _traceability_md(eng: Engagement) -> bytes:
         out += ["", "## Open questions", "", "| id | question | owner |",
                 "|---|---|---|"]
         for question in eng.open_questions:
-            out.append(f"| {question['id']} | {_md_cell(question['question'])} "
+            out.append(f"| {_md_cell(question['id'])} "
+                       f"| {_md_cell(question['question'])} "
                        f"| {_md_cell(question.get('owner', ''))} |")
     code_records = [r for r in eng.evidence
                     if r.get("content_kind") == "structured"]
@@ -444,7 +446,7 @@ def _traceability_md(eng: Engagement) -> bytes:
             symbols = len(facts.symbols) if facts else "?"
             relations = len(facts.relations) if facts else "?"
             commit = (record.get("commit") or (facts.commit if facts else "") or "")
-            out.append(f"| {record['id']} "
+            out.append(f"| {_md_cell(record['id'])} "
                        f"| {_md_cell(record.get('source_uri', ''))} "
                        f"| `{commit[:12]}` | {symbols} | {relations} |")
     out += ["", "## Citations", "",
@@ -459,8 +461,8 @@ def _traceability_md(eng: Engagement) -> bytes:
             # same way rather than wherever somebody remembered to.
             quote = _md_cell(prov.get("quote_cached", ""))
             record = eng.evidence_by_id(prov["evidence_id"]) or {}
-            out.append(f"| {req['id']} | {prov['evidence_id']} "
-                       f"| {record.get('authority', '?')} "
+            out.append(f"| {req['id']} | {_md_cell(prov['evidence_id'])} "
+                       f"| {_md_cell(record.get('authority', '?'))} "
                        f"| {_md_cell(prov.get('speaker', ''))} "
                        f"| \"{quote}\" |")
     return ("\n".join(out) + "\n").encode("utf-8")

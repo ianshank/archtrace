@@ -19,7 +19,12 @@ LOG = get_logger("verify")
 
 def cmd_check(args) -> int:
     eng = _engagement(args)
-    findings, code = gate.run(eng, strict=args.strict)
+    only = getattr(args, "only", None)
+    try:
+        findings, code = gate.run(eng, strict=args.strict, only=only)
+    except ValueError as exc:
+        print(f"archtrace: {exc}", file=sys.stderr)
+        return EXIT_USAGE
     blocks = [f for f in findings if f.severity == gate.BLOCK]
     warns = [f for f in findings if f.severity == gate.WARN]
     for finding in findings:
@@ -33,6 +38,12 @@ def cmd_check(args) -> int:
     # the false-green failure this whole design exists to avoid.
     if code != EXIT_OK:
         pass
+    elif only:
+        # A subset run must never claim what a full run claims. "Grounded and
+        # internally consistent" is a statement about every rule; printing it
+        # after `--only G6` would be the same false green in a smaller costume.
+        print(f"archtrace: {', '.join(sorted(only))} passed. This was a SUBSET "
+              "of the gate — it says nothing about the rules that did not run.")
     elif not eng.confirmed_requirements:
         print("archtrace: nothing to check yet — no confirmed requirements. "
               "This is an empty pass, not a clean one.")

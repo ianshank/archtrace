@@ -45,29 +45,60 @@ one.
   and Mermaid took model text raw into quoted C4 macro arguments, so a name
   containing `"` terminated the argument and the diagram stopped parsing
   entirely; the Markdown table took a `|` straight into a cell, turning a
-  five-column row into six and shifting every cell after it.
+  five-column row into six and shifting every cell after it. Every free-text
+  Markdown cell now escapes — element names, requirement statements, grounding
+  references, mined source locators, open questions, speakers and source URIs —
+  not only the ones somebody remembered.
+- **`release` signed stray dotfiles into the approved deliverable set.** A
+  `.DS_Store` in `render/` was hashed into the audit manifest as an approved
+  output; every later `--verify` then reported the model no longer reproduced
+  it, and deleting the junk blocked publication of an intact set. The approved
+  *set* is now the renderer's contract while the approved *bytes* still come
+  from disk, and `--verify` follows G6 in ignoring dotfile strays.
+- **`release --verify` needed the model to load.** It compares bytes on disk
+  against the manifest and needs neither the model nor a renderer, so it now
+  runs before the engagement is loaded — it answers when the model will not
+  load, which is when someone most needs it.
+- **A misspelled `ARCHTRACE_*` section was still silent** after the key and
+  file-section fixes, in the one layer the missing-`tomllib` error tells
+  3.9/3.10 users to use instead.
 
 ### Added
 
-- **`make freshness`** — re-renders every engagement *discovered* in the repo
-  (any directory with a `model/model.json`) and fails if the committed bytes
-  move. It refuses a dirty tree, because it re-renders and would otherwise
-  destroy the evidence it is looking for, and it fails when discovery finds
-  nothing rather than reporting success for having checked none. `make
-  engagements` lists what it found.
-- **21 tests** (183 → 204) covering exactly the gaps that let the above through:
+- **`make freshness`** — asks G6, and only G6, of every engagement *discovered*
+  in the repo (any directory with a `model/model.json`). It is non-mutating:
+  an earlier version re-rendered onto disk and diffed afterwards, which
+  reproduced the `make gate` defect it exists to close and, on any machine
+  where the evidence content lives outside the repository, rewrote three
+  committed deliverables with degraded placeholder versions and left them
+  there. It fails when discovery finds nothing rather than reporting success
+  for having checked none, and refuses a path it cannot resolve rather than
+  silently checking a different one. `make engagements` lists what it found.
+- **`archtrace check --only RULE…`** — run a subset of the gate by rule id,
+  taken from the registry rather than a hardcoded list. For callers that can
+  answer one question but not another: render freshness is checkable on an
+  engagement whose evidence content is not on this machine, where G1 and G2
+  legitimately cannot verify. A subset run says so in its verdict and never
+  prints the whole-gate claim.
+- The pre-commit hook now runs `freshness` as well as `gate`, and fires on
+  `render/` — editing a build output previously triggered no hook at all.
+- **21 tests** (183 → 206) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config
-  refusals. Each was verified to fail with its fix reverted.
+  refusals. Reverting any one fix fails tests written for it. Three of the
+  `HostileModelText` cases guard `escape()`/`quoteattr()` in the SVG and docx
+  paths, which this release did not change — they close a mutation that
+  previously survived rather than covering new code.
 
 ### Changed
 
-- **`RENDERER_VERSION` 1.2.0 → 1.3.0.** Output is byte-identical for content
-  without `"`, `|` or `&`, so no adopter's renders change meaning — but the
-  renderer does now produce different bytes for some inputs, and without the
-  bump G6's new message would tell an adopter with a pipe in an element name
-  that they had hand-edited something they never touched.
+- **`RENDERER_VERSION` 1.2.0 → 1.3.0.** Markdown output changes for any element
+  name, requirement statement, grounding reference, open question, speaker or
+  source URI containing a pipe, a backslash or a newline; PlantUML output for a
+  quote or ampersand; Mermaid for a quote. Everything else is byte-identical.
+  Without the bump G6's new message would tell an adopter with a pipe in an
+  element name that they had hand-edited something they never touched.
 - **G6 names toolchain drift *as* toolchain drift.** `.manifest.json` has
   recorded `renderer_version` since it existed; G6 never read it, so a renderer
   upgrade and a hand edit produced one hedging message about two situations

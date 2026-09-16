@@ -78,6 +78,11 @@ def build_parser() -> argparse.ArgumentParser:
     check = sub.add_parser("check", help="run the deterministic gates")
     check.add_argument("--strict", action="store_true",
                        help="promote warnings to blocking")
+    check.add_argument("--only", nargs="+", metavar="RULE",
+                       help="run only these rule ids (e.g. --only G6). For "
+                            "callers that can answer one question but not "
+                            "another, such as checking render freshness where "
+                            "the evidence content is not on this machine")
     check.set_defaults(fn=commands.verify.cmd_check)
 
     init = sub.add_parser("init", help="scaffold an engagement")

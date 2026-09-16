@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Callable
 
@@ -616,9 +616,30 @@ def g13_symbol_citations(eng: Engagement) -> Iterator[Finding]:
 
 # --- runner ----------------------------------------------------------------
 
-def run(eng: Engagement, strict: bool = False) -> tuple[list[Finding], int]:
+def run(eng: Engagement, strict: bool = False,
+        only: Iterable[str] | None = None) -> tuple[list[Finding], int]:
+    """Run the registered rules, optionally only the ones named in `only`.
+
+    `only` takes rule ids from the registry rather than a hardcoded list, so
+    selecting a subset needs no change here when a rule is added. It exists for
+    callers that can answer one question but not another -- checking render
+    freshness across engagements whose evidence content is not on this machine,
+    where G1 and G2 legitimately cannot verify and would drown the answer.
+
+    Selecting a subset never turns a blocking rule into a passing one: the
+    findings a selected rule produces are graded exactly as they always were.
+    """
+    selected = None if only is None else set(only)
+    if selected is not None:
+        unknown = selected - {rid for rid, _s, _f in RULES}
+        if unknown:
+            raise ValueError(
+                f"unknown rule id(s): {sorted(unknown)} "
+                f"(known: {sorted({rid for rid, _s, _f in RULES})})")
     findings: list[Finding] = []
     for rid, _sev, fn in RULES:
+        if selected is not None and rid not in selected:
+            continue
         produced = list(fn(eng))
         LOG.debug("rule %s produced %d finding(s)", rid, len(produced))
         findings.extend(produced)
