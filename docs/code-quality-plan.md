@@ -147,11 +147,36 @@ path  = '''\.(json|md|txt)$'''
 ```
 
 **Why nobody caught it locally:** `.pre-commit-config.yaml:43` pins gitleaks
-`v8.21.2`, while `ci.yml:67` uses `gitleaks-action@v2`, which resolves a floating
-binary. Two different gitleaks versions guard the same rule. Pin both.
+`v8.21.2`, while `ci.yml:67` uses `gitleaks-action@v2`, which resolved `8.24.3`
+on the last run. Two different gitleaks versions guard the same rule. Pin both.
 
 This fix is applied in this PR — it is a config defect with exactly one correct
 form, and it is what makes `ci / quality` capable of passing at all.
+
+### F2b. A second failure the panic was hiding [Certain]
+
+Fixing F2 got gitleaks as far as loading the config and reading the event type,
+and then it stopped on a different error:
+
+```
+🛑 GITHUB_TOKEN is now required to scan pull requests.
+```
+
+`gitleaks-action@v2` enumerates a PR's commits through the API, and `ci.yml:67-69`
+passed only `GITLEAKS_CONFIG`. This was invisible for as long as F2 held, because
+the config panic killed the process before the token check ran.
+
+This is worth recording as its own finding rather than folding into F2. **A step
+that fails for two independent reasons looks exactly like a step that fails for
+one**, and the second only becomes observable once the first is fixed. Expect
+more of this in phase 1: F1 has been masking the true state of lint, types *and*
+secrets simultaneously, so the first honest `make pre-pr` will likely surface
+findings that no one has seen yet. Budget for that rather than treating it as a
+regression.
+
+Also fixed in this PR: `GITHUB_TOKEN` supplied, and `pull-requests: read` added
+at **job** scope — the workflow-level `contents: read` is correct and should stay
+that way, so the extra grant belongs on the one job that needs it.
 
 ### F3. `archtrace.yml` is a placeholder shipped enabled [Certain]
 

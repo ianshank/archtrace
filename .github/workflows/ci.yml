@@ -54,6 +54,12 @@ jobs:
   quality:
     name: lint, types, secrets
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks-action enumerates the PR's commits through the API on a
+      # pull_request event, so the scan needs to read the PR itself. Scoped to
+      # this job rather than widened at the workflow level.
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,6 +72,10 @@ jobs:
       - run: make types
       - uses: gitleaks/gitleaks-action@v2
         env:
+          # Required since v2 for pull_request scans; without it the action
+          # stops before scanning anything. This was previously masked: the
+          # config panicked on an unsupported regex before the token was read.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
   container:
