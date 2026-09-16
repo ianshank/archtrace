@@ -1,0 +1,21 @@
+# Evidence content must never enter an image any more than it enters git.
+_evidence_root/
+**/_evidence_root/
+
+.git/
+.github/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+docs/patches/
+*.zip
+*.tar.gz

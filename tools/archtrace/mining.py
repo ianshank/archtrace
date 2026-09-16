@@ -59,8 +59,8 @@ class CodeFacts:
         symbol = self.symbols.get(symbol_id)
         if symbol is None:
             return symbol_id
-        return f"{symbol.get('path', '?')}:{symbol.get('start_line', '?')} " \
-               f"({symbol.get('kind', '?')} {symbol.get('name', '?')})"
+        return (f"{symbol.get('path', '?')}:{symbol.get('start_line', '?')}"
+                f" ({symbol.get('kind', '?')} {symbol.get('name', '?')})")
 
 
 def parse_facts(data: bytes | str) -> CodeFacts:

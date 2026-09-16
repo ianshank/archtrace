@@ -109,7 +109,7 @@ def arrow(x1, y1, x2, y2, label=None, dash=None, colour=BLUE):
     if label:
         mx, my = (x1 + x2) / 2, (y1 + y2) / 2
         lines = label.split("\n")
-        plate = max(len(l) for l in lines) * 5.6 + 10
+        plate = max(len(line) for line in lines) * 5.6 + 10
         out.append(f'<rect x="{mx - plate / 2}" y="{my - 10 * len(lines) - 4}" '
                    f'width="{plate}" height="{14 * len(lines) + 4}" '
                    f'fill="#ffffff"/>')
@@ -128,6 +128,8 @@ text(30, 46, "archtrace", 30, INK, "bold")
 text(30, 72, "Evidence-grounded architecture pipeline.", 13, MUTED)
 text(30, 90, "The model lives in git; everything downstream is a build output.",
      13, MUTED)
+text(30, 106, "Zero runtime dependencies · 157 tests · 94% line coverage",
+     11, FAINT)
 
 # --- input & evidence -----------------------------------------------------
 
@@ -180,7 +182,8 @@ text(990, 137, "branch protection, named approver", 10.5, MUTED)
 badge(958, 152, 268, "Human approval required", GREEN_BG, "#9ccbb0", GREEN)
 text(958, 192, "Refuses a blocking gate or a dirty tree.", 10, FAINT)
 
-badge(590, 216, 258, "LLM review is advisory — always exit 0",
+badge(590, 216, 400, "LLM review is advisory — always exit 0  ·  agent "
+      "definitions validated deterministically",
       "#ffffff", "#9ccbb0", GREEN)
 arrow(890, 143, 940, 143)
 
@@ -199,8 +202,8 @@ STAGES = [
      "Single agent, read-only by harness. Proposes verifiable byte spans. "
      "Never confirms anything."),
     ("3", "Deterministic gate",
-     "G1–G12, fail-closed, exit code. Citation integrity, grounding kinds, "
-     "coverage, render freshness."),
+     "G1–G13 + agent checks, fail-closed, exit code. Citation integrity, "
+     "grounding kinds, render freshness."),
     ("4", "Renderer",
      "SVG · draw.io · PlantUML · Mermaid · docx · Jira payloads. A pure "
      "function of the model."),

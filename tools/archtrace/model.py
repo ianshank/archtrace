@@ -8,8 +8,8 @@ holds only claims about it, so the content root is supplied at call time.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Iterator, Optional
 
 from . import canon
 
@@ -71,7 +71,7 @@ LEVELS = ("person", "system", "container", "component")
 class Element:
     """A C4 element flattened out of the model's nesting."""
     level: str
-    parent: Optional[str]
+    parent: str | None
     data: dict
 
     @property
@@ -106,7 +106,7 @@ class Engagement:
     # --- construction ------------------------------------------------------
 
     @classmethod
-    def load(cls, root: str, evidence_root: Optional[str] = None) -> "Engagement":
+    def load(cls, root: str, evidence_root: str | None = None) -> Engagement:
         def read(*parts) -> dict:
             # Tolerant on purpose: bootstrapping an engagement means registering
             # evidence and resolving quotes before requirements or a model
@@ -128,10 +128,10 @@ class Engagement:
     def evidence(self) -> list:
         return self.evidence_index.get("evidence", [])
 
-    def evidence_by_id(self, eid: str) -> Optional[dict]:
+    def evidence_by_id(self, eid: str) -> dict | None:
         return next((e for e in self.evidence if e["id"] == eid), None)
 
-    def evidence_bytes(self, eid: str) -> Optional[bytes]:
+    def evidence_bytes(self, eid: str) -> bytes | None:
         """Raw content for an evidence record, read from the content root.
 
         Returns None when the content is not present locally, which is the
@@ -152,7 +152,7 @@ class Engagement:
         rec = self.evidence_by_id(eid) or {}
         return rec.get("content_kind", CONTENT_PROSE)
 
-    def evidence_text(self, eid: str) -> Optional[str]:
+    def evidence_text(self, eid: str) -> str | None:
         """Normalised prose for an evidence record.
 
         Returns None for structured evidence: a facts file has no byte spans to
@@ -186,7 +186,7 @@ class Engagement:
     def requirements(self) -> list:
         return self.requirements_doc.get("requirements", [])
 
-    def requirement_by_id(self, rid: str) -> Optional[dict]:
+    def requirement_by_id(self, rid: str) -> dict | None:
         return next((r for r in self.requirements if r["id"] == rid), None)
 
     @property
@@ -205,7 +205,7 @@ class Engagement:
                 for component in container.get("components", []):
                     yield Element("component", container["id"], component)
 
-    def element_by_id(self, eid: str) -> Optional[Element]:
+    def element_by_id(self, eid: str) -> Element | None:
         return next((e for e in self.elements() if e.id == eid), None)
 
     @property

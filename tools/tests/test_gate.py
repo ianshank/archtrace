@@ -16,9 +16,9 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from archtrace import canon, gate  # noqa: E402
-from archtrace.model import NFR_CATEGORIES, Engagement  # noqa: E402
-from archtrace.renders import render_all  # noqa: E402
+from archtrace import canon, gate
+from archtrace.model import NFR_CATEGORIES, Engagement
+from archtrace.renders import render_all
 
 EXAMPLE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -199,7 +199,7 @@ class SeededDefect(unittest.TestCase):
 
     def test_g6_hand_edited_render(self):
         path = self._path("render", "c4-context.svg")
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             svg = fh.read()
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(svg.replace("Dailies Ingest Platform", "Dailies Ingest (v2)"))
@@ -215,11 +215,11 @@ class SeededDefect(unittest.TestCase):
         """Canonical comparison, not byte comparison: a reformatted but
         equivalent XML render must not fail the build."""
         path = self._path("render", "model.drawio")
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             xml = fh.read()
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(xml.replace("\n", "\n  "))
-        rules, code, findings = self._rules()
+        _rules, code, findings = self._rules()
         self.assertEqual(code, 0, "\n".join(str(f) for f in findings))
 
     # -- G7 / G9 / G10 ----------------------------------------------------
@@ -547,7 +547,9 @@ class Baseline(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _run(self, *extra):
-        import contextlib, io as _io
+        import contextlib
+        import io as _io
+
         from archtrace.cli import main
         buf = _io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -609,7 +611,8 @@ class Determinism(unittest.TestCase):
             self.assertEqual(first[name], second[name], f"{name} is not stable")
 
     def test_docx_is_a_readable_zip_with_the_required_parts(self):
-        import zipfile, io
+        import io
+        import zipfile
         data = render_all(Engagement.load(EXAMPLE))["architecture.docx"]
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             self.assertIsNone(zf.testzip())
@@ -659,7 +662,7 @@ class Normalisation(unittest.TestCase):
         self.assertEqual(canon.normalize(curly), canon.normalize(straight))
 
     def test_zero_width_characters_are_stripped(self):
-        self.assertEqual(canon.normalize("audit​record"), "auditrecord")
+        self.assertEqual(canon.normalize("audit\u200brecord"), "auditrecord")
 
 
 if __name__ == "__main__":

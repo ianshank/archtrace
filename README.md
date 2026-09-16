@@ -18,18 +18,29 @@ rather than evaluate it.
 ## Run it
 
 ```bash
-make report            # grounding mix and NFR coverage on the worked example
-make check             # the gates; exit 1 on any block
+make help              # every target, grouped by whether it needs dependencies
 make gate              # fmt + render + check, the pre-publish loop
-make test              # 88 tests
+make test              # 157 tests
+make coverage          # the suite under the stdlib tracer, against floors
+make agents            # deterministic validation of the agent definitions
+make config            # print the thresholds this build actually enforces
+make pre-pr            # everything, in the order CI runs it
 
 ./archtrace --root engagements/aurora init "Project Aurora"   # a real one
 ```
 
 Python 3.9+, standard library only. No pip, no venv, no Java, no Node, no
-pandoc, no drawio CLI, no Structurizr CLI, no setup step in CI.
+pandoc, no drawio CLI, no Structurizr CLI, no setup step in CI. CI proves that
+by diffing `pip list` either side of the gate job and failing if anything was
+installed.
 
-`docs/archmine-integration.md` is the plan for folding a code miner in — what it
+`ruff` and `mypy` are development tooling in the `dev` extra; nothing in the
+package imports them, and `tools/tests/test_mining.py::DependencyBoundary`
+fails the build if that ever changes.
+
+`docs/tech-debt.md` is the gap analysis, the defects this pass found, and what
+is knowingly left. `CHANGELOG.md` and `NEXT-STEPS.md` say what changed and what
+is blocking. `docs/archmine-integration.md` is the plan for folding a code miner in — what it
 adds, the four conflicts, and the phase that is already built.
 `docs/architecture.svg` is the platform on one page — the deterministic core,
 where the two human gates sit, and what is deliberately **not** built.

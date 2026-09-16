@@ -13,15 +13,18 @@ import csv
 import hashlib
 import io
 import json
-from typing import Iterable
+from collections.abc import Iterable
 from xml.sax.saxutils import escape, quoteattr
 
 from . import canon
+from .config import DEFAULT as CONFIG
 from .model import NFR_CATEGORIES, RENDERER_VERSION, Element, Engagement
 
-BOX_W, BOX_H = 220, 104
-MARGIN = 40
-CHARS_PER_LINE = 26
+BOX_W, BOX_H = CONFIG.render.box_width, CONFIG.render.box_height
+MARGIN = CONFIG.render.margin
+CHARS_PER_LINE = CONFIG.render.chars_per_line
+LEGEND_H = CONFIG.render.legend_height
+TITLE_CHARS = CONFIG.render.title_chars
 
 # Deliberately literal fills: an SVG committed to a repository is viewed on both
 # light and dark backgrounds, and a filled box with dark text reads on both.
@@ -47,7 +50,7 @@ def _wrap(text: str, width: int = CHARS_PER_LINE) -> list[str]:
     return lines
 
 
-def _kind(element: Element, engagement: Engagement) -> str:
+def _kind(element: Element) -> str:
     if element.level == "system" and element.data.get("external"):
         return "system_ext"
     return element.level
@@ -81,7 +84,7 @@ GROUNDING_BADGE = {
 
 
 def _svg(title: str, nodes: list[tuple[Element, str]], edges: list[dict]) -> bytes:
-    legend_h = 34
+    legend_h = LEGEND_H
     if nodes:
         width = max(n.layout.get("x", 0) for n, _ in nodes) + BOX_W + MARGIN
         height = (max(n.layout.get("y", 0) for n, _ in nodes)
@@ -138,7 +141,7 @@ def _svg(title: str, nodes: list[tuple[Element, str]], edges: list[dict]) -> byt
                        f'font-weight="bold" text-anchor="middle" '
                        f'fill="#ffffff">{letter}</text>')
         line_y = y + 28
-        for line in _wrap(element.name, 20)[:2]:
+        for line in _wrap(element.name, TITLE_CHARS)[:2]:
             out.append(f'<text x="{x + BOX_W // 2}" y="{line_y}" font-size="13" '
                        f'font-weight="bold" text-anchor="middle" '
                        f'fill="{TEXT}">{escape(line)}</text>')
@@ -558,7 +561,7 @@ def _jira(eng: Engagement) -> bytes:
 
 def render_all(eng: Engagement) -> dict:
     people = [(e, "person") for e in eng.elements() if e.level == "person"]
-    systems = [(e, _kind(e, eng)) for e in eng.elements() if e.level == "system"]
+    systems = [(e, _kind(e)) for e in eng.elements() if e.level == "system"]
     containers = [(e, "container") for e in eng.elements() if e.level == "container"]
     external = [(e, k) for e, k in systems if k == "system_ext"]
 

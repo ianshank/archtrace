@@ -72,7 +72,7 @@ SCRIPT = [
     ("band", "gate", "Loop 3 — before anything leaves the repo (seconds)"),
     ("call", "AR", "AT", "make gate   (fmt · render · check)"),
     ("self", "AT", "G1 hash · G2 citation · G3 coverage · G4 grounding · G5 C4 form"),
-    ("self", "AT", "G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR"),
+    ("self", "AT", "G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR · G13 symbols"),
     ("ret", "AT", "AR", "exit 1 + named rule and fix   /   exit 0"),
     ("note", "AT", "AT",
      '"Green" means grounded and internally consistent.\n'

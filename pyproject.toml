@@ -1,0 +1,103 @@
+# archtrace has NO runtime dependencies and that is load-bearing: the gate must
+# run on a bare CI runner with no setup step. Everything below is either
+# metadata or development tooling. Nothing here is imported by the package, and
+# `tools/tests/test_mining.py::DependencyBoundary` fails the build if that ever
+# stops being true.
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "archtrace"
+version = "0.3.0"
+description = "Evidence-grounded architecture pipeline: the model lives in git, everything downstream is a build output"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Ian Cruickshank" }]
+keywords = ["architecture", "c4", "traceability", "governance", "provenance"]
+dependencies = []                      # deliberately empty; see the note above
+
+[project.optional-dependencies]
+# Developer tooling only. `make gate`, `make test` and `make coverage` all run
+# without any of this installed.
+dev = ["ruff>=0.6,<1", "mypy>=1.11,<2"]
+
+[project.scripts]
+archtrace = "archtrace.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tools/archtrace"]
+
+# --- ruff -------------------------------------------------------------------
+# A curated ruleset kept green beats a maximal one drowning in inline
+# suppressions. Every exclusion below has a reason; a rule removed without one
+# is a rule nobody decided about.
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+src = ["tools"]
+exclude = ["example", ".git"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "C4", "RET", "PERF", "RUF",
+          "PLE", "PLW", "PLC", "ARG", "TRY", "DTZ", "S", "A", "COM", "ISC"]
+ignore = [
+  # The punctuation-fold table in canon.py IS curly quotes and en dashes. They
+  # are the data, not a typo -- flagging them would mean deleting the fix for
+  # the defect that would otherwise block every citation.
+  "RUF001", "RUF002", "RUF003",
+  # Long, specific error messages are the product here. A gate that says
+  # "invalid" helps nobody; the message explains the rule and the fix.
+  "TRY003", "EM101", "EM102",
+  # Local imports are deliberate in two places: breaking the gate<->renders
+  # cycle, and keeping `mining` lazy so the dependency boundary holds.
+  "PLC0415",
+  # Trailing-comma churn on wrapped call signatures; not worth the diff noise.
+  "COM812",
+  # `subprocess` with a configured command is the entire point of `mine`; the
+  # command comes from the operator, never from evidence, and that boundary is
+  # documented and tested rather than suppressed inline.
+  "S603", "S607",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Render code builds long literal lists of SVG fragments; a comprehension there
+# is less readable than the loop, and the lines carry coordinate maths that does
+# not wrap cleanly.
+"tools/archtrace/renders.py" = ["PERF401", "E501"]
+# Argparse help text and the module docstring's command table are tables;
+# wrapping them makes them harder to read, not easier.
+"tools/archtrace/cli.py" = ["E501"]
+"tools/coverage_gate.py" = ["E501"]
+# Tests deliberately import inside methods to exercise fresh module state, and
+# assert on private helpers.
+"tools/tests/*" = ["S101", "SLF001", "ARG002", "PLR2004", "S108", "TRY301",
+                   "S314", "SIM115", "PERF401", "E501"]
+# Diagram generators are presentation code: long literal strings and a module
+# level render pipeline are clearer than a class here.
+"docs/gen_*.py" = ["E501", "PLR0915", "C901", "PERF401", "B007"]
+
+
+[tool.ruff.lint.isort]
+known-first-party = ["archtrace"]
+
+# --- mypy -------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.9"
+files = ["tools/archtrace"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+# Not `strict`: annotating every argparse `args` namespace with a Protocol adds
+# ceremony without catching a defect. Type checking is aimed at the data
+# structures the gate reasons over, which is where a type error would be real.
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "archtrace.commands.*"
+# Command bodies are argparse glue; their types are exercised by the CLI suite.
+check_untyped_defs = false

@@ -115,8 +115,8 @@
 <text x="1016" y="1106" font-size="11" text-anchor="start" fill="#16202e">G1 hash · G2 citation · G3 coverage · G4 grounding · G5 C4 form</text>
 <path d="M 982 1134 h 26 v 18 h -26" fill="none" stroke="#33415c" stroke-width="1.3"/>
 <path d="M 988 1148 L 982 1152 L 988 1156 z" fill="#33415c"/>
-<rect x="1012" y="1134" width="426" height="15" fill="#ffffff" opacity="0.9"/>
-<text x="1016" y="1146" font-size="11" text-anchor="start" fill="#16202e">G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR</text>
+<rect x="464" y="1134" width="510" height="15" fill="#ffffff" opacity="0.9"/>
+<text x="970" y="1146" font-size="11" text-anchor="end" fill="#16202e">G6 render freshness · G7 ADR · G9 conflicts · G11 authority · G12 NFR · G13 symbols</text>
 <line x1="982" y1="1182" x2="555" y2="1182" stroke="#33415c" stroke-width="1.4" stroke-dasharray="5 4"/>
 <path d="M 555 1177 L 550 1182 L 555 1187 z" fill="#33415c"/>
 <rect x="639" y="1165" width="254" height="15" fill="#ffffff"/>

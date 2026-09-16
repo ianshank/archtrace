@@ -8,12 +8,21 @@ module; advisory output lives in review/ and cannot affect the exit code.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Callable, Iterator
+from typing import Callable
 
 from . import canon
-from .mining import (CONTENT_KINDS, CONTENT_PROSE, CONTENT_STRUCTURED,
-                     FactsError, parse_facts, sha256_bytes)
+from .config import DEFAULT as CONFIG
+from .log import get_logger
+from .mining import (
+    CONTENT_KINDS,
+    CONTENT_PROSE,
+    CONTENT_STRUCTURED,
+    FactsError,
+    parse_facts,
+    sha256_bytes,
+)
 from .model import (
     EVIDENCE_AUTHORITY,
     GROUNDING_KINDS,
@@ -27,18 +36,19 @@ from .model import (
     Engagement,
 )
 
+LOG = get_logger("gate")
+
 BLOCK = "block"
 WARN = "warn"
 
-# G2 thresholds. A citation-integrity check with no floor is trivially gamed by
-# quoting short high-frequency fragments; the floor raises the cost of that
-# strategy without pretending to eliminate it (SPEC §7.1).
-MIN_QUOTE_WORDS = 8
-MIN_QUOTE_CHARS = 40
-GENERIC_PHRASES = frozenset({
-    "that makes sense", "i agree", "sounds good", "we need to", "let me",
-    "as i said", "to be clear", "at the end of the day", "going forward",
-})
+# G2 thresholds live in config, not here. A citation-integrity check with no
+# floor is trivially gamed by quoting short high-frequency fragments; the floor
+# raises the cost of that strategy without pretending to eliminate it (SPEC
+# §7.1). Where the line sits is a judgement an organisation should be able to
+# argue about in a config file rather than a patch to the gate.
+MIN_QUOTE_WORDS = CONFIG.citation.min_quote_words
+MIN_QUOTE_CHARS = CONFIG.citation.min_quote_chars
+GENERIC_PHRASES = frozenset(CONFIG.citation.generic_phrases)
 
 
 @dataclass(frozen=True)
@@ -572,8 +582,10 @@ def g13_symbol_citations(eng: Engagement) -> Iterator[Finding]:
 
 def run(eng: Engagement, strict: bool = False) -> tuple[list[Finding], int]:
     findings: list[Finding] = []
-    for _rid, _sev, fn in RULES:
-        findings.extend(fn(eng))
+    for rid, _sev, fn in RULES:
+        produced = list(fn(eng))
+        LOG.debug("rule %s produced %d finding(s)", rid, len(produced))
+        findings.extend(produced)
     blocking = [f for f in findings
                 if f.severity == BLOCK or (strict and f.severity == WARN)]
     return findings, (1 if blocking else 0)

@@ -1,0 +1,218 @@
+"""Every tunable value in one place, overridable without editing code.
+
+Three reasons this module exists rather than constants scattered across the
+codebase:
+
+1. **A threshold buried in a print statement is not a policy.** The SPEC §9a
+   decision numbers lived inside `cmd_baseline`'s formatting, which meant the
+   rule that decides whether the whole programme is worth running could only be
+   changed by editing a function that prints things.
+2. **Different organisations draw these lines differently.** A quote floor of
+   eight words is a judgement, not a law. It should be arguable in a config file
+   and visible in a review, not hidden in a diff of the gate.
+3. **The gate must stay honest about what it enforces.** `archtrace config`
+   prints the live values and where each came from, so nobody has to read source
+   to learn what the build is actually checking.
+
+Precedence, lowest to highest: defaults here, then `archtrace.toml` at the
+repository root, then `ARCHTRACE_*` environment variables. Standard library
+only; TOML is read with `tomllib` where available and skipped where not, so the
+tool still runs on Python 3.9.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass, field, fields
+from typing import Any
+
+CONFIG_FILENAME = "archtrace.toml"
+ENV_PREFIX = "ARCHTRACE_"
+
+
+@dataclass(frozen=True)
+class CitationPolicy:
+    """G2 — what makes a quote substantial enough to support a requirement."""
+
+    min_quote_words: int = 8
+    min_quote_chars: int = 40
+    generic_phrases: tuple = (
+        "that makes sense", "i agree", "sounds good", "we need to", "let me",
+        "as i said", "to be clear", "at the end of the day", "going forward",
+    )
+
+
+@dataclass(frozen=True)
+class BaselinePolicy:
+    """SPEC §9a — the numbers that decide whether to run this programme at all.
+
+    `max_unexplained_pct` is the only stop condition. Raw traceability is
+    reported and deliberately not gated: a healthy infrastructure-heavy
+    architecture scores low on it, which is why v1's 60% bar was wrong.
+    """
+
+    max_unexplained_pct: int = 20
+    min_citation_backed_pct: int = 100
+    min_coverage_pct: int = 80
+
+
+@dataclass(frozen=True)
+class RenderPolicy:
+    """Diagram geometry. Integers only — a computed float destabilises G6."""
+
+    box_width: int = 220
+    box_height: int = 104
+    margin: int = 40
+    chars_per_line: int = 26
+    legend_height: int = 34
+    title_chars: int = 20
+
+
+@dataclass(frozen=True)
+class MiningPolicy:
+    """Phase 2 — driving an external miner as a subprocess."""
+
+    command: str = "archmine index && archmine artifacts"
+    facts_path: str = "docs/architecture/generated/architecture-facts.json"
+    timeout_seconds: int = 900
+    default_miner: str = "archmine"
+
+
+@dataclass(frozen=True)
+class CoveragePolicy:
+    """Line coverage floors, enforced by the stdlib tracer."""
+
+    min_total_pct: int = 85
+    min_module_pct: int = 70
+    # __main__ runs the CLI on import and is never imported by tests.
+    # __init__ modules are re-export shims of one to four lines, where a
+    # percentage is noise rather than signal; they still count toward the total.
+    exclude_modules: tuple = ("__main__", "__init__")
+
+
+class ConfigError(ValueError):
+    """A configuration override could not be honoured.
+
+    Collected rather than raised at import time: the module-level `DEFAULT` is
+    resolved when the package loads, and a traceback there would mean a typo in
+    an environment variable produced a stack trace instead of a message. The CLI
+    refuses to run while any error is outstanding, so nothing silently falls
+    back to a default the operator did not choose.
+    """
+
+
+@dataclass(frozen=True)
+class Config:
+    citation: CitationPolicy = field(default_factory=CitationPolicy)
+    baseline: BaselinePolicy = field(default_factory=BaselinePolicy)
+    render: RenderPolicy = field(default_factory=RenderPolicy)
+    mining: MiningPolicy = field(default_factory=MiningPolicy)
+    coverage: CoveragePolicy = field(default_factory=CoveragePolicy)
+    sources: tuple = ()
+    errors: tuple = ()
+
+    def describe(self) -> list:
+        """Flatten to (section, key, value) for `archtrace config`."""
+        skip = {"sources", "errors"}
+        return [
+            (section.name, item.name, getattr(getattr(self, section.name),
+                                              item.name))
+            for section in fields(self) if section.name not in skip
+            for item in fields(getattr(self, section.name))
+        ]
+
+
+def _coerce(current: Any, raw: Any) -> Any:
+    """Cast an override to the type the default already has.
+
+    Refusing to guess is the rule everywhere else in this codebase, so a value
+    that cannot be cast raises rather than silently falling back to the default
+    — a config typo that is quietly ignored is worse than one that stops you.
+    """
+    if isinstance(current, bool):
+        if isinstance(raw, bool):
+            return raw
+        return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+    if isinstance(current, int):
+        return int(raw)
+    if isinstance(current, tuple):
+        if isinstance(raw, (list, tuple)):
+            return tuple(raw)
+        return tuple(part.strip() for part in str(raw).split(",") if part.strip())
+    return type(current)(raw)
+
+
+def _apply(block: Any, overrides: dict, section: str, seen: list,
+           errors: list) -> Any:
+    if not overrides:
+        return block
+    values = {}
+    for item in fields(block):
+        if item.name not in overrides:
+            continue
+        current = getattr(block, item.name)
+        raw = overrides[item.name]
+        try:
+            values[item.name] = _coerce(current, raw)
+        except (TypeError, ValueError):
+            errors.append(
+                f"{section}.{item.name}: cannot read {raw!r} as "
+                f"{type(current).__name__} "
+                f"(env {ENV_PREFIX}{section.upper()}_{item.name.upper()})")
+            continue
+        seen.append(f"{section}.{item.name}")
+    return type(block)(**{**{f.name: getattr(block, f.name)
+                            for f in fields(block)}, **values})
+
+
+def _from_toml(path: str) -> dict:
+    """Read the optional config file, tolerating an unreadable one loudly."""
+    try:
+        import tomllib  # type: ignore[import-not-found]  # 3.11+ only
+    except ModuleNotFoundError:  # Python 3.9/3.10 — config file is optional.
+        return {}
+    if not os.path.isfile(path):
+        return {}
+    with open(path, "rb") as handle:
+        return tomllib.load(handle)
+
+
+def _from_env(env: Mapping[str, str]) -> dict:
+    """ARCHTRACE_CITATION_MIN_QUOTE_WORDS=10 -> {citation: {min_quote_words: 10}}."""
+    sections = {f.name for f in fields(Config) if f.name != "sources"}
+    out: dict = {}
+    for key, value in env.items():
+        if not key.startswith(ENV_PREFIX):
+            continue
+        remainder = key[len(ENV_PREFIX):].lower()
+        section = next((s for s in sections if remainder.startswith(s + "_")), None)
+        if section is None:
+            continue
+        out.setdefault(section, {})[remainder[len(section) + 1:]] = value
+    return out
+
+
+def load(root: str = ".", env: Mapping[str, str] | None = None) -> Config:
+    """Resolve configuration: defaults, then file, then environment."""
+    resolved_env: Mapping[str, str] = os.environ if env is None else env
+    config = Config()
+    seen: list = []
+    errors: list = []
+    layers = [_from_toml(os.path.join(root, CONFIG_FILENAME)),
+              _from_env(resolved_env)]
+    for layer in layers:
+        updates = {}
+        for section in fields(config):
+            if section.name in {"sources", "errors"}:
+                continue
+            block = getattr(config, section.name)
+            updates[section.name] = _apply(block, layer.get(section.name, {}),
+                                           section.name, seen, errors)
+        config = Config(**updates, sources=tuple(seen), errors=tuple(errors))
+    return config
+
+
+# Module-level default so callers that do not thread config through still get
+# the documented values rather than a second, divergent set of literals.
+DEFAULT = load()

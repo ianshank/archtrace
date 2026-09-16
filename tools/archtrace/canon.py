@@ -18,7 +18,8 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 import zipfile
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 # --- text normalisation ----------------------------------------------------
 
@@ -34,7 +35,7 @@ PUNCTUATION_FOLD = {
 }
 
 # NFKC does not remove these either.
-ZERO_WIDTH = re.compile("[​‌‍⁠﻿]")
+ZERO_WIDTH = re.compile("[\u200b‌‍⁠﻿]")
 WHITESPACE = re.compile(r"\s+")
 
 
@@ -111,7 +112,7 @@ _CHILD = {
 
 
 def _child_kind(parent: str | None, key: str) -> str | None:
-    return _CHILD.get((parent or "", key), None)
+    return _CHILD.get((parent or "", key))
 
 
 ROOT_KINDS = {
@@ -134,8 +135,8 @@ def canonical_json(doc: Mapping[str, Any]) -> str:
     return json.dumps(out, indent=2, ensure_ascii=False) + "\n"
 
 
-def load_json(path) -> dict:
-    with open(path, "r", encoding="utf-8") as fh:
+def load_json(path: Any) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as fh:
         return json.load(fh)
 
 
@@ -159,7 +160,7 @@ def canonical_bytes(name: str, data: bytes) -> bytes:
         return b"\x00".join(parts)
     if lower.endswith((".xml", ".drawio", ".svg")):
         try:
-            root = ET.fromstring(data.decode("utf-8"))
+            root = ET.fromstring(data.decode("utf-8"))  # noqa: S314
         except ET.ParseError:
             return data
         # Conventional but non-deterministic; excluded rather than emitted.

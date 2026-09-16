@@ -21,8 +21,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from archtrace import canon, gate, mining  # noqa: E402
-from archtrace.model import Engagement  # noqa: E402
+from archtrace import canon, gate, mining
+from archtrace.model import Engagement
 
 EXAMPLE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -117,7 +117,7 @@ class StructuredEvidence(unittest.TestCase):
 
     def test_one_changed_byte_in_the_facts_file_blocks(self):
         path = os.path.join(self.root, "_evidence_root", "EV-003-mam-facts.json")
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
         doc["symbols"][0]["name"] += "X"
         with open(path, "w", encoding="utf-8") as fh:
@@ -131,7 +131,7 @@ class StructuredEvidence(unittest.TestCase):
                     record.pop("commit")
         self._patch(("evidence", "index.json"), mutate)
         path = os.path.join(self.root, "_evidence_root", "EV-003-mam-facts.json")
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
         doc["commit"] = None
         body = json.dumps(doc, indent=2) + "\n"
@@ -295,7 +295,7 @@ class Mine(unittest.TestCase):
     def _git(self, *argv):
         import subprocess
         return subprocess.run(["git", "-C", self.repo, *argv],
-                              capture_output=True, text=True)
+                              capture_output=True, text=True, check=False)
 
     def _miner(self, commit="None", exit_code=0):
         path = os.path.join(self.tmp, "fake_miner.py")
@@ -305,7 +305,9 @@ class Mine(unittest.TestCase):
         return f"{sys.executable} {path}"
 
     def _run(self, *extra, command=None):
-        import contextlib, io as _io
+        import contextlib
+        import io as _io
+
         from archtrace.cli import main
         argv = ["--root", self.root, "mine", "--repo", self.repo,
                 "--command", command if command is not None else self._miner(),
