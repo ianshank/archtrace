@@ -41,20 +41,28 @@ by hand before being written down** — the audit was run by a subagent, and a
 finding about this repository's own controls is exactly the kind of claim it
 would be embarrassing to repeat without checking. The backlog, in order:
 
-1. **`assertFires(rule, where=...)`.** The helper asserts only that a rule id
-   appeared *somewhere* in the findings, across 38 call sites. Invert G2's
-   speaker check (`speaker not in participants` → `speaker in participants`)
-   and `test_g2_speaker_not_in_the_room` — the test named for that exact
-   behaviour — still passes. The suite goes red only through 27 *unrelated*
-   tests that break because the clean example now fires a spurious G2. The rule
-   is guarded by collateral damage, not by its own test. Threading a `where`
-   through turns ~29 coarse assertions into precise ones and is the single
-   highest-yield change here.
+1. ~~**`assertFires(rule, where=...)`**~~ — **done.** The helper asserted only
+   that a rule id appeared *somewhere*, across 35 call sites. Inverting G2's
+   speaker check left `test_g2_speaker_not_in_the_room` passing: G2 still fired,
+   on the four requirements whose speakers *are* participants, for the opposite
+   reason. `where` and `message` are now threaded through every site, harvested
+   from the findings the rules actually emit rather than written from memory.
+   Six predicates verified killed by their own test. **This was the
+   prerequisite for everything below it** — there was no point writing tests for
+   the 29 dead branches while the helper could not tell which finding it caught.
 2. **`tools/tests/support.py`.** `sys.path.insert` is copied 7 times,
    `mkdtemp` 20, `copytree(EXAMPLE)` 12, and `run_cli` exists in five divergent
    variants. The duplication is not the cost; the drift is — two copies of
    `assertFires` have already diverged. A shared fixture layer is also where
    the `ARCHTRACE_*` and CWD scrub belongs (see `docs/tech-debt.md` §0).
+2a. ~~**The 29 dead gate branches**~~ — **21 of them done.** Each now has a
+   seeded-defect test, each verified by re-seeding the branch it guards: 21 of
+   21 killed, coverage 94% → 95%. Still open: G1's `FactsError` path inside a
+   structured record, G2's generic-phrase stoplist, G4's relationship-grounding
+   loop and G13's relationship-symbol loop (both replaceable with `for rel in
+   []`), G6's unreadable-facts path, and G13's unknown-record branch. The two
+   relationship loops are the sharpest of the remainder — relationship grounding
+   is unchecked by any test at all.
 3. **One true end-to-end test.** `ColdStart` gets from `init` to a *blocked*
    gate and stops. Nothing drives a scaffolded engagement through
    `quote → promote → model → fmt → render → check → release → verify` to a

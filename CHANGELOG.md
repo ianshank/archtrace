@@ -112,6 +112,24 @@ one.
   construction (`--stdout` into a `mktemp`, never into `docs/`), because the
   first draft wrote its comparison file beside the artifact it was checking —
   the same mistake `make freshness` made, caught this time before it shipped.
+- **Twenty-one blocking gate branches had never fired in a test run.** A
+  mutation audit (208 mutations, 104 survivors) found 29 `Finding` branches that
+  could each be replaced with `if False:` with the suite still green — G1's
+  duplicate-id and required-field checks, G3's status/type/priority validation,
+  five of G4's reference checks, G5's duplicate id and uid, G6's missing-render
+  and stray-file findings, G7, G9's unknown-counterpart, both G12n branches, and
+  G5e's only finding. Each now has a test, and each test was verified by
+  re-seeding the branch it guards: 21 of 21 killed. Line coverage rose 94% → 95%
+  as a side effect, which is the more honest way round — the coverage was
+  missing because the enforcement was.
+- **`assertFires` asserted only that a rule id appeared *somewhere*.** Inverting
+  G2's speaker predicate left `test_g2_speaker_not_in_the_room` passing: G2 still
+  fired, on the four requirements whose speakers *are* participants, for the
+  opposite reason. The suite went red only through 27 unrelated tests breaking on
+  the clean example. `where` and `message` are now threaded through all 35 call
+  sites, harvested from the findings the rules actually emit. The first thing
+  that caught was five of these new tests, written against the assumption that
+  `requirements[0]` is REQ-001 — it is REQ-000.
 - **Every number a document states about this repository is now derived.**
   `tools/repo_facts.py` computes the test count, rule count, renderer version
   and coverage floors; the diagram generators read from it, and
@@ -123,7 +141,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **73 tests** (183 → 256) covering exactly the gaps that let the above through:
+- **94 tests** (183 → 277) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

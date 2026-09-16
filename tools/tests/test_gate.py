@@ -64,6 +64,22 @@ class SeededDefect(unittest.TestCase):
         findings, code = gate.run(eng)
         return {f.rule for f in findings}, code, findings
 
+    @staticmethod
+    def _find(items, ident):
+        """An element of the example by id, never by position.
+
+        `doc["requirements"][0]` is REQ-000, not REQ-001, and five tests
+        written against that assumption failed on the `where` assertion rather
+        than passing for the wrong reason. Ordering is not part of the
+        example's contract; ids are.
+        """
+        match = next((i for i in items if i.get("id") == ident), None)
+        if match is None:
+            raise AssertionError(
+                f"{ident} is not in the example any more; this test is "
+                f"asserting on a fixture that has changed underneath it")
+        return match
+
     def assertFires(self, rule, where=None, message=None):
         """Assert a rule fired, and -- given `where` -- that it fired on the
         thing the test seeded.
@@ -485,6 +501,198 @@ class SeededDefect(unittest.TestCase):
                     entry.pop("open_question", None)
         self._patch(("model", "model.json"), mutate)
         self.assertFires("G12n", message="'not_applicable' is an assertion")
+
+    # -- branches that had never fired ------------------------------------
+    #
+    # A mutation audit found 29 blocking branches whose `Finding` had never
+    # been produced by any test run: each could be replaced with `if False:`
+    # and the suite stayed green. Three were sampled and confirmed before these
+    # were written. They are cheap tests, and their absence is the difference
+    # between a rule that is enforced and a rule that is merely present.
+    #
+    # These could not usefully have been written before `assertFires` learned
+    # `where` -- several of these rules also fire elsewhere in the example when
+    # provoked, so "G4 appeared somewhere" would have proved nothing.
+
+    def test_g1_duplicate_evidence_id(self):
+        """Two records under one id: `evidence_by_id` returns the first, so a
+        citation resolves to a record whose hash belongs to the other."""
+        def mutate(doc):
+            doc["evidence"].append(dict(doc["evidence"][0]))
+        self._patch(("evidence", "index.json"), mutate)
+        self.assertFires("G1", "EV-001", message="duplicate evidence id")
+
+    def test_g1_evidence_missing_its_retention_date(self):
+        """SPEC §0.4 is the whole reason the manifest exists; a record with no
+        retention date records nothing about retention."""
+        def mutate(doc):
+            doc["evidence"][0].pop("retention_until")
+        self._patch(("evidence", "index.json"), mutate)
+        self.assertFires("G1", "EV-001", message="'retention_until'")
+
+    def test_g3_unknown_requirement_status(self):
+        def mutate(doc):
+            self._find(doc["requirements"], "REQ-001")["status"] = "probably-fine"
+        self._patch(("requirements", "requirements.json"), mutate)
+        self.assertFires("G3", "REQ-001", message="unknown status")
+
+    def test_g3_unknown_requirement_type(self):
+        def mutate(doc):
+            self._find(doc["requirements"], "REQ-001")["type"] = "vibes"
+        self._patch(("requirements", "requirements.json"), mutate)
+        self.assertFires("G3", "REQ-001", message="unknown type")
+
+    def test_g3_unknown_requirement_priority(self):
+        def mutate(doc):
+            self._find(doc["requirements"], "REQ-001")["priority"] = "urgent-ish"
+        self._patch(("requirements", "requirements.json"), mutate)
+        self.assertFires("G3", "REQ-001", message="unknown priority")
+
+    def test_g3_superseded_by_a_requirement_that_does_not_exist(self):
+        """Distinct from `superseded` with no successor at all: this one names
+        a successor, so it reads as handled right up until someone follows it."""
+        def mutate(doc):
+            req = self._find(doc["requirements"], "REQ-001")
+            req["status"] = "superseded"
+            req["superseded_by"] = "REQ-999"
+        self._patch(("requirements", "requirements.json"), mutate)
+        self.assertFires("G3", "REQ-001", message="does not exist")
+
+    def test_g4_unknown_grounding_kind(self):
+        """The kind is what decides which domain the reference is checked
+        against, so an unrecognised one is not a typo -- it is an element that
+        skips grounding entirely."""
+        def mutate(doc):
+            doc["people"][0]["grounding"][0]["kind"] = "seems-reasonable"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G4", "p_dit.grounding[0]",
+                         message="unknown grounding kind")
+
+    def test_g4_derived_from_an_element_that_does_not_exist(self):
+        def mutate(doc):
+            containers = doc["systems"][0]["containers"]
+            self._find(containers, "c_worker")["grounding"][0][
+                "from"] = "c_does_not_exist"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G4", "c_worker.grounding[0]",
+                         message="derived from unknown element")
+
+    def test_g4_citing_an_adr_that_does_not_exist(self):
+        def mutate(doc):
+            containers = doc["systems"][0]["containers"]
+            self._find(containers, "c_worker")["grounding"][0][
+                "adr"] = "ADR-999"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G4", "c_worker.grounding[0]", message="unknown ADR")
+
+    def test_g4_citing_a_standard_that_does_not_exist(self):
+        def mutate(doc):
+            containers = doc["systems"][0]["containers"]
+            self._find(containers, "c_edge")["grounding"][0][
+                "standard"] = "STD-999"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G4", "c_edge.grounding[0]",
+                         message="unknown standard")
+
+    def test_g4_citing_an_open_question_that_does_not_exist(self):
+        """An assumption whose open question is fictional is an assumption
+        nobody is tracking, which is the state `assumption` exists to prevent."""
+        def mutate(doc):
+            containers = doc["systems"][0]["containers"]
+            self._find(containers, "c_prefetch")["grounding"][0][
+                "open_question"] = "OQ-999"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G4", "c_prefetch.grounding[0]",
+                         message="unknown open question")
+
+    def test_g4_citing_an_evidence_record_that_does_not_exist(self):
+        def mutate(doc):
+            self._find(doc["systems"], "s_mam")["grounding"][0][
+                "evidence_id"] = "EV-999"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G4", "s_mam.grounding[0]",
+                         message="unknown evidence record")
+
+    def test_g5_duplicate_element_id(self):
+        """Two elements under one id: every reference to it resolves to
+        whichever the lookup reached first."""
+        def mutate(doc):
+            doc["people"].append(dict(doc["people"][0]))
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G5", "p_dit", message="duplicate element id")
+
+    def test_g5_duplicate_element_uid(self):
+        """The uid is the Jira linkage. Two elements sharing one means two
+        model elements silently become one ticket."""
+        def mutate(doc):
+            containers = doc["systems"][0]["containers"]
+            self._find(containers, "c_api")["uid"] = \
+                self._find(containers, "c_edge")["uid"]
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G5", "c_api", message="duplicate element uid")
+
+    def test_g6_a_render_that_is_missing_from_disk(self):
+        """Distinct from a stale one: nothing to compare is not a pass."""
+        os.remove(self._path("render", "c4-context.svg"))
+        self.assertFires("G6", "render/c4-context.svg",
+                         message="render is missing")
+
+    def test_g6_a_stray_file_in_render(self):
+        """`render/` is the renderer's output and nothing else. A file the
+        renderer does not produce is either an edit or a leftover, and
+        `release` would otherwise be asked to sign it."""
+        with open(self._path("render", "appendix.md"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("something the renderer never wrote\n")
+        self.assertFires("G6", "render/appendix.md",
+                         message="the renderer does not produce")
+
+    def test_g7_an_adr_with_no_drivers(self):
+        def mutate(doc):
+            doc["decisions"][0].pop("drivers")
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G7", "ADR-001", message="no drivers")
+
+    def test_g9_conflicts_with_a_requirement_that_does_not_exist(self):
+        """Distinct from an unresolved conflict: this one cannot be resolved,
+        because the counterpart is not there to resolve it against."""
+        def mutate(doc):
+            self._find(doc["requirements"], "REQ-001")["conflicts_with"] = ["REQ-999"]
+        self._patch(("requirements", "requirements.json"), mutate)
+        self.assertFires("G9", "REQ-001",
+                         message="conflicts_with unknown requirement")
+
+    def test_g12n_unknown_nfr_category(self):
+        def mutate(doc):
+            doc["nfr_coverage"][0]["category"] = "vibes"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G12n", "vibes", message="unknown NFR category")
+
+    def test_g12n_unknown_nfr_status(self):
+        def mutate(doc):
+            doc["nfr_coverage"][0]["status"] = "probably-ok"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G12n", "security", message="status must be one of")
+
+    def test_g5e_external_system_with_containers_warns_without_blocking(self):
+        """G5e's only finding, and it had never been produced. It is a WARN, so
+        `assertFires` does not apply -- that helper asserts exit 1, and the
+        whole point of this rule is that it does not block."""
+        def mutate(doc):
+            self._find(doc["systems"], "s_mam")["containers"] = [{
+                "id": "c_mam_api", "uid": "e_ffffffffffff", "name": "MAM API",
+                "description": "Theirs, not ours.",
+                "layout": {"x": 0, "y": 0},
+                "grounding": [{"kind": "existing", "evidence_id": "EV-001"}],
+            }]
+        self._patch(("model", "model.json"), mutate)
+        self._rerender()
+        findings, code = gate.run(Engagement.load(self.root))
+        warned = [f for f in findings if f.rule == "G5e"]
+        self.assertEqual([f.where for f in warned], ["s_mam"],
+                         "\n".join(str(f) for f in findings))
+        self.assertEqual(warned[0].severity, gate.WARN)
+        self.assertEqual(code, 0, "G5e must not block; it is a second look")
 
     # -- G8 warns, does not block -----------------------------------------
 
