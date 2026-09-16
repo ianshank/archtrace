@@ -203,6 +203,38 @@ class StructuredEvidence(unittest.TestCase):
         self._patch(("model", "model.json"), mutate)
         self.assertFires("G13", "s_mam.grounding[1]")
 
+    def test_a_symbol_citing_an_evidence_record_that_does_not_exist(self):
+        """Distinct from citing prose evidence: there is nothing to resolve
+        against at all, so the check cannot even reach the content-kind test."""
+        def mutate(doc):
+            for system in doc["systems"]:
+                if system["id"] == "s_mam":
+                    system["grounding"][1]["evidence_id"] = "EV-999"
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G13", "s_mam.grounding[1]",
+                         message="unknown evidence record")
+
+    def test_g13_checks_relationship_symbols_not_only_elements(self):
+        """G13 ends with `for rel in eng.relationships`, and that loop could be
+        replaced with `for rel in []` while all 277 tests passed -- as could
+        G4's. Relationships carry grounding exactly as elements do, so an
+        unchecked loop leaves half the model's citations ungated.
+
+        The example's relationships are all prose-grounded, so this attaches a
+        symbol citation to one and points it at a symbol that was never mined:
+        the same defect `test_a_symbol_that_was_never_mined_blocks` seeds on an
+        element, reached through the loop nothing exercised.
+        """
+        def mutate(doc):
+            doc["relationships"][0]["grounding"] = [{
+                "kind": "existing", "evidence_id": "EV-003",
+                "symbol": "sym:deadbeefdeadbeef",
+            }]
+        self._patch(("model", "model.json"), mutate)
+        self._rerender()
+        self.assertFires("G13", "p_dit->s_ingest.grounding[0]",
+                         message="does not appear in")
+
     # -- the authority boundary -------------------------------------------
 
     def test_a_requirement_citing_code_evidence_is_refused_twice(self):

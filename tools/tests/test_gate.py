@@ -674,6 +674,97 @@ class SeededDefect(unittest.TestCase):
         self._patch(("model", "model.json"), mutate)
         self.assertFires("G12n", "security", message="status must be one of")
 
+    def test_g4_checks_relationship_grounding_not_only_elements(self):
+        """Both G4 and G13 end with `for rel in eng.relationships`, and both
+        loops could be replaced with `for rel in []` while all 277 tests passed.
+        Relationships carry grounding exactly as elements do -- the example has
+        ten of them, every one grounded -- so an unchecked loop means half the
+        model's claims were never gated.
+        """
+        def mutate(doc):
+            doc["relationships"][0]["grounding"][0]["kind"] = "seems-reasonable"
+        self._patch(("model", "model.json"), mutate)
+        self._rerender()
+        self.assertFires("G4", "p_dit->s_ingest.grounding[0]",
+                         message="unknown grounding kind")
+
+    def test_g4_relationship_satisfying_an_unconfirmed_requirement(self):
+        """The same loop, reached through the reference check rather than the
+        kind check, so a partial restoration of it does not pass."""
+        def mutate(doc):
+            doc["relationships"][0]["grounding"][0]["req"] = "REQ-999"
+        self._patch(("model", "model.json"), mutate)
+        self._rerender()
+        self.assertFires("G4", "p_dit->s_ingest.grounding[0]",
+                         message="not a confirmed requirement")
+
+    def test_g2_a_generic_conversational_phrase_is_not_a_quote(self):
+        """The stoplist branch, which had never fired.
+
+        `GENERIC_PHRASES` is an exact-match set, not a substring scan, so the
+        quote must BE one of its phrases. Writing this turned up that **every
+        phrase in the stoplist is below both default floors** (the longest, "at
+        the end of the day", is 6 words / 21 chars against 8 / 40), and the
+        floor check does not `continue`. So at default configuration the
+        stoplist can never be the only reason a quote is refused -- it is
+        strictly redundant, and only becomes load-bearing for an organisation
+        that lowers `min_quote_words` and `min_quote_chars` in `archtrace.toml`.
+
+        The floors are lowered here for exactly that reason: testing the branch
+        at defaults would assert nothing the floor check does not already cover.
+        Recorded in NEXT-STEPS rather than changed, because whether the stoplist
+        should carry phrases long enough to clear the floors is a policy
+        question, not a defect.
+        """
+        from archtrace import mining
+        phrase = "at the end of the day"
+        path = self._path("_evidence_root", "EV-001-kickoff.txt")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(f"{text}\n00:59:00  A. Stakeholder: {phrase}\n")
+        normalised = canon.normalize(open(path, encoding="utf-8").read())
+
+        def rehash(doc):
+            self._find(doc["evidence"], "EV-001")["sha256_normalized"] = \
+                mining.sha256_bytes(normalised.encode("utf-8"))
+        self._patch(("evidence", "index.json"), rehash)
+
+        start = normalised.rindex(phrase)
+
+        def seed(doc):
+            prov = self._find(doc["requirements"], "REQ-001")["provenance"][0]
+            prov["start"], prov["end"] = start, start + len(phrase)
+            prov["quote_cached"] = phrase
+        self._patch(("requirements", "requirements.json"), seed)
+        self._rerender()
+
+        original = (gate.MIN_QUOTE_WORDS, gate.MIN_QUOTE_CHARS)
+        gate.MIN_QUOTE_WORDS, gate.MIN_QUOTE_CHARS = 1, 1
+        self.addCleanup(setattr, gate, "MIN_QUOTE_WORDS", original[0])
+        self.addCleanup(setattr, gate, "MIN_QUOTE_CHARS", original[1])
+        self.assertFires("G2", "REQ-001.provenance[0]",
+                         message="generic conversational phrase")
+
+    def test_every_stoplist_phrase_is_shorter_than_the_floors(self):
+        """Not a defect, but it must not change without somebody noticing.
+
+        While the floors sit above every stoplist phrase, the stoplist adds
+        nothing at default configuration -- the floor refuses those quotes
+        first, with a different message. If a longer phrase is ever added, or
+        the floors are lowered in the shipped defaults, this fails and the
+        person making that change learns that the stoplist has just become
+        load-bearing.
+        """
+        clears = [p for p in gate.GENERIC_PHRASES
+                  if len(p.split()) >= gate.MIN_QUOTE_WORDS
+                  and len(p) >= gate.MIN_QUOTE_CHARS]
+        self.assertEqual(
+            clears, [],
+            "these stoplist phrases now clear the quote floors, so the "
+            "stoplist has become the only thing refusing them; that is a "
+            "policy change worth making deliberately")
+
     def test_g5e_external_system_with_containers_warns_without_blocking(self):
         """G5e's only finding, and it had never been produced. It is a WARN, so
         `assertFires` does not apply -- that helper asserts exit 1, and the

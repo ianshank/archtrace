@@ -55,14 +55,25 @@ would be embarrassing to repeat without checking. The backlog, in order:
    variants. The duplication is not the cost; the drift is — two copies of
    `assertFires` have already diverged. A shared fixture layer is also where
    the `ARCHTRACE_*` and CWD scrub belongs (see `docs/tech-debt.md` §0).
-2a. ~~**The 29 dead gate branches**~~ — **21 of them done.** Each now has a
-   seeded-defect test, each verified by re-seeding the branch it guards: 21 of
-   21 killed, coverage 94% → 95%. Still open: G1's `FactsError` path inside a
-   structured record, G2's generic-phrase stoplist, G4's relationship-grounding
-   loop and G13's relationship-symbol loop (both replaceable with `for rel in
-   []`), G6's unreadable-facts path, and G13's unknown-record branch. The two
-   relationship loops are the sharpest of the remainder — relationship grounding
-   is unchecked by any test at all.
+2a. ~~**The 29 dead gate branches**~~ — **27 of them done.** Each has a
+   seeded-defect test, each verified by re-seeding the branch it guards: 27 of
+   27 killed, coverage 94% → 95%.
+
+   The two worst were G4's and G13's relationship loops: both end with
+   `for rel in eng.relationships` and both could be replaced with
+   `for rel in []` while the entire suite passed, so **half the model's
+   citations — the ten grounded relationships in the worked example — were
+   ungated by any test.**
+
+   Writing G2's stoplist test turned up that the stoplist **cannot fire alone at
+   default settings**: every phrase in it is below both floors, and the floor
+   check does not `continue`. It is redundant unless the floors are lowered.
+   Left as-is (a policy question, not a defect) with a test that fails if that
+   relationship changes.
+
+   Still open: G1's `FactsError` path inside a structured record, and G6's
+   unreadable-facts path. Both need a deliberately corrupt facts file as a
+   fixture.
 3. **One true end-to-end test.** `ColdStart` gets from `init` to a *blocked*
    gate and stops. Nothing drives a scaffolded engagement through
    `quote → promote → model → fmt → render → check → release → verify` to a

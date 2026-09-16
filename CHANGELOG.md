@@ -112,6 +112,21 @@ one.
   construction (`--stdout` into a `mktemp`, never into `docs/`), because the
   first draft wrote its comparison file beside the artifact it was checking —
   the same mistake `make freshness` made, caught this time before it shipped.
+- **G4 and G13 never checked relationship grounding.** Both rules end with
+  `for rel in eng.relationships`, and both loops could be replaced with
+  `for rel in []` while the whole suite passed. Relationships carry grounding
+  exactly as elements do — the worked example has ten, every one grounded — so
+  half the model's citations were ungated by anything. Three tests now reach
+  those loops, verified by disabling each.
+- **G2's generic-phrase stoplist can never fire alone at default settings.**
+  Writing its first test turned up that every phrase in `GENERIC_PHRASES` is
+  below both default floors — the longest, "at the end of the day", is 6 words
+  and 21 characters against 8 and 40 — and the floor check does not `continue`.
+  The stoplist is therefore strictly redundant unless an organisation lowers the
+  floors in `archtrace.toml`. Recorded rather than changed, because whether the
+  stoplist should carry phrases long enough to clear the floors is a policy
+  question. `test_every_stoplist_phrase_is_shorter_than_the_floors` fails if that
+  relationship ever changes, so whoever changes it finds out.
 - **Twenty-one blocking gate branches had never fired in a test run.** A
   mutation audit (208 mutations, 104 survivors) found 29 `Finding` branches that
   could each be replaced with `if False:` with the suite still green — G1's
@@ -141,7 +156,7 @@ one.
   of quietly vanishing from the picture. The diagrams cite the coverage
   **floor** rather than a measured percentage, because a floor is a claim the
   build keeps on every commit and a measurement is a snapshot.
-- **94 tests** (183 → 277) covering exactly the gaps that let the above through:
+- **100 tests** (183 → 283) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config
