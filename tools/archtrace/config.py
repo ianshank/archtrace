@@ -31,8 +31,17 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from typing import Any
 
+from .log import ENV_LEVEL as LOG_ENV_VAR
+
 CONFIG_FILENAME = "archtrace.toml"
 ENV_PREFIX = "ARCHTRACE_"
+
+# `ARCHTRACE_*` names that are operational rather than policy, and so are not
+# parsed as <SECTION>_<KEY>. Imported from their owning module rather than
+# spelled again here: a copy would be free to drift, and the drift would brick
+# the CLI, because an unmatched name is an error and `cli.main` refuses to run
+# while any error is outstanding.
+RESERVED_ENV = frozenset({LOG_ENV_VAR})
 
 
 @dataclass(frozen=True)
@@ -237,7 +246,7 @@ def _from_env(env: Mapping[str, str], errors: list) -> dict:
     sections = _policy_sections()
     out: dict = {}
     for key, value in sorted(env.items()):
-        if not key.startswith(ENV_PREFIX):
+        if not key.startswith(ENV_PREFIX) or key in RESERVED_ENV:
             continue
         remainder = key[len(ENV_PREFIX):].lower()
         section = next((s for s in sections if remainder.startswith(s + "_")), None)
@@ -245,7 +254,8 @@ def _from_env(env: Mapping[str, str], errors: list) -> dict:
             errors.append(
                 f"{key}: no such configuration section "
                 f"(expected {ENV_PREFIX}<SECTION>_<KEY> with SECTION one of "
-                f"{', '.join(sorted(s.upper() for s in sections))})")
+                f"{', '.join(sorted(s.upper() for s in sections))}; "
+                f"reserved: {', '.join(sorted(RESERVED_ENV))})")
             continue
         out.setdefault(section, {})[remainder[len(section) + 1:]] = value
     return out

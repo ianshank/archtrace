@@ -62,11 +62,30 @@ one.
 - **A misspelled `ARCHTRACE_*` section was still silent** after the key and
   file-section fixes, in the one layer the missing-`tomllib` error tells
   3.9/3.10 users to use instead.
+- **`ARCHTRACE_LOG` was rejected as an unknown configuration section**, which
+  bricked the CLI: `DEFAULT = load()` runs at import and `cli.main` refuses to
+  dispatch while any error stands, so every command exited 2 for anyone who set
+  it -- and the Dockerfile sets it, so the shipped container was broken for any
+  real command (`--help` survived only because argparse exits first). Reserved
+  names are now imported from the module that owns them, so a second spelling
+  cannot drift.
+- **A stray *directory* in `render/` evaded `release --verify`.** G6 blocks it
+  as a stray; verification listed only regular files and reported MATCH. Two
+  controls disagreeing about one tree is the failure this release is about.
+- **A manifest that was valid JSON but not an object** (`null`, `[]`, a string)
+  raised `AttributeError` out of the helper whose contract is to degrade to a
+  byte comparison.
+- **G6 claimed a renderer it could not know.** With no recorded version it said
+  the render came from "the same one running now", pointing the operator at the
+  model when the renderer may have moved.
+- **A `--only` subset reported a WARN as a clean pass.** `--only G12` exits 0
+  with warnings outstanding; the verdict now says so.
 
 ### Added
 
 - **`make freshness`** — asks G6, and only G6, of every engagement *discovered*
-  in the repo (any directory with a `model/model.json`). It is non-mutating:
+  in the repo (glob-driven via `ENGAGEMENT_GLOBS`, covering `engagements/<name>`
+  and one level below by default). It is non-mutating:
   an earlier version re-rendered onto disk and diffed afterwards, which
   reproduced the `make gate` defect it exists to close and, on any machine
   where the evidence content lives outside the repository, rewrote three
@@ -76,13 +95,14 @@ one.
   silently checking a different one. `make engagements` lists what it found.
 - **`archtrace check --only RULE…`** — run a subset of the gate by rule id,
   taken from the registry rather than a hardcoded list. For callers that can
-  answer one question but not another: render freshness is checkable on an
-  engagement whose evidence content is not on this machine, where G1 and G2
-  legitimately cannot verify. A subset run says so in its verdict and never
-  prints the whole-gate claim.
+  answer one question but not another — asking G6 alone keeps G1 and G2 from
+  drowning the result on an engagement whose evidence content is elsewhere,
+  though G6 re-renders and so is not itself independent of that content; see
+  `FRESHNESS_EVIDENCE_ROOT`. A subset run says so in its verdict, reports any
+  warnings outstanding, and never prints the whole-gate claim.
 - The pre-commit hook now runs `freshness` as well as `gate`, and fires on
   `render/` — editing a build output previously triggered no hook at all.
-- **21 tests** (183 → 206) covering exactly the gaps that let the above through:
+- **36 tests** (183 → 219) covering exactly the gaps that let the above through:
   edits seeded into `render/` rather than into a source; `HostileModelText`
   pushing quotes, pipes and ampersands through every renderer; the G6 drift and
   hand-edit messages and the unreadable-manifest fallback; and the config

@@ -45,19 +45,24 @@ def digest_file(path: str) -> str | None:
 
 
 def published_outputs(root: str) -> set:
-    """Every file sitting directly in render/, dotfiles included.
+    """Every direct entry in render/ -- files AND directories, dotfiles included.
 
-    Used to spot a file on disk that no approval covers. Dotfiles are listed
-    because `.manifest.json` is a real approved output and a listing that
-    skipped it would let it be swapped without notice; callers decide what to
-    do with the *other* dotfiles, and `_verify_release` follows G6 in ignoring
-    them. Not recursive, matching G6's own stray check.
+    Used to spot something on disk that no approval covers. Directories are
+    listed because filtering to regular files let a hand-added `render/appendix/`
+    hold unapproved content that `--verify` reported as MATCH while G6 blocked
+    it as a stray: two controls disagreeing about one tree is the failure this
+    whole area is about.
+
+    Dotfiles are listed because `.manifest.json` is a real approved output and a
+    listing that skipped it would let it be swapped without notice; callers
+    decide what to do with the *other* dotfiles, and `_verify_release` follows
+    G6 in ignoring them. Not recursive, matching G6's own stray check -- the
+    top-level entry is enough to report, whatever is beneath it.
     """
     render_dir = os.path.join(root, RENDER_DIRNAME)
     if not os.path.isdir(render_dir):
         return set()
-    return {entry for entry in os.listdir(render_dir)
-            if os.path.isfile(os.path.join(render_dir, entry))}
+    return set(os.listdir(render_dir))
 
 
 def cmd_release(args) -> int:

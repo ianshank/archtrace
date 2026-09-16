@@ -188,6 +188,25 @@ class ConfigOverrides(unittest.TestCase):
         self.assertEqual(cfg.errors, ())
         self.assertEqual(cfg.citation.min_quote_words, 12)
 
+    def test_the_logging_variable_is_reserved_not_a_policy_section(self):
+        """ARCHTRACE_LOG is operational, not policy, and refusing it bricked
+        the CLI.
+
+        `DEFAULT = load()` runs at import and `cli.main` refuses to dispatch
+        while any configuration error stands, so treating ARCHTRACE_LOG as an
+        unknown section made every command exit 2 for anyone who set it -- and
+        the Dockerfile sets it, so the shipped container was bricked for any
+        real command (`--help` survived only because argparse exits first).
+        """
+        cfg = config.load(root=self.tmp, env={"ARCHTRACE_LOG": "debug"})
+        self.assertEqual(cfg.errors, ())
+        self.assertEqual(cfg.sources, ())
+
+    def test_the_reserved_name_is_taken_from_the_module_that_owns_it(self):
+        """A second spelling of it here would be free to drift, and the drift
+        would brick the CLI rather than merely being untidy."""
+        self.assertIn(log.ENV_LEVEL, config.RESERVED_ENV)
+
     def test_environment_overrides_and_is_recorded(self):
         cfg = config.load(root=self.tmp, env={
             "ARCHTRACE_CITATION_MIN_QUOTE_WORDS": "12",
@@ -479,10 +498,6 @@ class MakefileGates(unittest.TestCase):
                 self.assertNotIn("SKIP", result.stdout)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-
 class FreshnessTarget(unittest.TestCase):
     """`make freshness` and `--only`, which shipped with no tests at all.
 
@@ -600,3 +615,7 @@ class RuleSubset(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("G99", out)
         self.assertIn("G6", out, "the message should list the real rule ids")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

@@ -354,10 +354,18 @@ def _committed_renderer(render_dir: str):
     try:
         with open(os.path.join(render_dir, RENDER_MANIFEST),
                   encoding="utf-8") as handle:
-            recorded = json.load(handle).get("renderer_version")
+            document = json.load(handle)
     except (OSError, ValueError) as exc:
         LOG.debug("no readable render manifest in %s: %s", render_dir, exc)
         return None
+    # `null`, `[]` and `"text"` are all valid JSON and none of them has .get.
+    # Catching only OSError/ValueError let those raise an AttributeError out of
+    # a helper whose whole contract is that it degrades to None.
+    if not isinstance(document, dict):
+        LOG.debug("render manifest in %s is %s, not an object",
+                  render_dir, type(document).__name__)
+        return None
+    recorded = document.get("renderer_version")
     return recorded if isinstance(recorded, str) else None
 
 
@@ -393,13 +401,26 @@ def g6_render_freshness(eng: Engagement) -> Iterator[Finding]:
                     f"{RENDERER_VERSION}. This is toolchain drift, not "
                     "something you edited: run `archtrace render` and commit "
                     "the result.")
+            elif written_by is None:
+                # No manifest, or one that records no version. Which of the two
+                # causes this is cannot be known, so claiming either would be
+                # guessing -- and claiming "the same renderer" would point the
+                # operator at the model when the renderer may well have moved.
+                yield Finding(
+                    "G6", BLOCK, f"render/{name}",
+                    "committed render differs from a fresh regeneration, and "
+                    f"render/{RENDER_MANIFEST} records no renderer version, so "
+                    "a hand edit and toolchain drift cannot be told apart here. "
+                    "Run `archtrace render`: if the diff disappears it was "
+                    "drift, and if it persists the model and the artifact "
+                    "disagree.")
             else:
                 yield Finding(
                     "G6", BLOCK, f"render/{name}",
-                    f"committed render differs from a fresh regeneration, and "
-                    f"the renderer that wrote it was {written_by or 'unrecorded'}"
-                    f" -- the same one running now. Renders are build outputs: "
-                    "edit the model, not the artifact.")
+                    "committed render differs from a fresh regeneration, and "
+                    f"the renderer that wrote it was {written_by} -- the same "
+                    "one running now. Renders are build outputs: edit the "
+                    "model, not the artifact.")
     for stray in sorted(os.listdir(render_dir)) if os.path.isdir(render_dir) else []:
         if stray not in fresh and not stray.startswith("."):
             yield Finding("G6", BLOCK, f"render/{stray}",

@@ -42,7 +42,12 @@ def cmd_check(args) -> int:
         # A subset run must never claim what a full run claims. "Grounded and
         # internally consistent" is a statement about every rule; printing it
         # after `--only G6` would be the same false green in a smaller costume.
-        print(f"archtrace: {', '.join(sorted(only))} passed. This was a SUBSET "
+        # It must not swallow warnings either: `--only G12` exits 0 with a WARN
+        # outstanding, and reporting that as simply "passed" is the same defect
+        # one level down.
+        selected = ", ".join(sorted(only))
+        outstanding = (f", {len(warns)} warning(s) outstanding" if warns else "")
+        print(f"archtrace: {selected} passed{outstanding}. This was a SUBSET "
               "of the gate — it says nothing about the rules that did not run.")
     elif not eng.confirmed_requirements:
         print("archtrace: nothing to check yet — no confirmed requirements. "

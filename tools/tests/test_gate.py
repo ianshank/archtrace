@@ -253,6 +253,42 @@ class SeededDefect(unittest.TestCase):
         self.assertFalse(any("toolchain drift" in m for m in messages),
                          "the renderer did not move, so this is not drift")
 
+    def test_g6_survives_a_manifest_that_is_valid_json_but_not_an_object(self):
+        """`null`, `[]` and `"text"` are all valid JSON and none has .get.
+
+        The helper caught only OSError/ValueError, so these raised an
+        AttributeError out of a function whose whole contract is that it
+        degrades to None and lets the byte comparison speak.
+        """
+        from archtrace.model import RENDER_MANIFEST
+        for payload in ("null", "[]", '"a string"', "42"):
+            with self.subTest(payload=payload):
+                with open(self._path("render", RENDER_MANIFEST), "w",
+                          encoding="utf-8") as fh:
+                    fh.write(payload)
+                # Must be a finding, not a traceback.
+                self.assertFires("G6")
+
+    def test_g6_does_not_claim_a_renderer_it_cannot_know(self):
+        """With no recorded version, a hand edit and drift are indistinguishable.
+
+        Saying "the same one running now" there points the operator at the
+        model when the renderer may well have moved.
+        """
+        from archtrace.model import RENDER_MANIFEST
+        path = self._path("render", RENDER_MANIFEST)
+        manifest = canon.load_json(path)
+        manifest.pop("renderer_version", None)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        messages = self._g6_messages()
+        self.assertTrue(messages)
+        self.assertTrue(any("records no renderer version" in m
+                            for m in messages), messages)
+        self.assertFalse(any("the same one running now" in m
+                             for m in messages),
+                         "it cannot know that, so it must not say it")
+
     def test_g6_still_blocks_when_the_manifest_cannot_be_read(self):
         """The diagnosis is a diagnosis, never a gate of its own: an absent or
         corrupt manifest must not make a stale render pass."""
@@ -577,6 +613,17 @@ class Release(unittest.TestCase):
         with open(self._output("extra-appendix.md"), "w",
                   encoding="utf-8") as fh:
             fh.write("an appendix nobody approved\n")
+        self.assertNotEqual(self._verify(), 0)
+
+    def test_verify_detects_an_unapproved_directory_added_to_render(self):
+        """G6 blocks a stray directory; --verify reported MATCH on the same
+        tree because it listed only regular files. Two controls disagreeing
+        about one tree is the failure this whole area is about."""
+        self.assertEqual(self._release(), 0)
+        os.makedirs(self._output("appendix"))
+        with open(os.path.join(self._output("appendix"), "extra.md"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("content nobody approved\n")
         self.assertNotEqual(self._verify(), 0)
 
     def test_verify_reports_a_model_that_moved_without_failing_an_intact_one(self):
