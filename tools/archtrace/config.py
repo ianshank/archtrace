@@ -88,6 +88,30 @@ class BaselinePolicy:
 
 
 @dataclass(frozen=True)
+class AdvisoryPolicy:
+    """SPEC §7.3 — where the advisory worklist draws its lines.
+
+    None of these gate anything, which is exactly why they belong in a config
+    file rather than in the module: a threshold nobody can fail is a threshold
+    nobody argues about, and it will be wrong for somebody's architecture
+    within a week. `archtrace config` prints them.
+    """
+
+    # A quote this close to the G2 floor cleared it by a margin worth reading.
+    # Expressed as a margin rather than an absolute so it tracks a
+    # reconfigured floor instead of quietly inverting against it.
+    near_floor_margin_words: int = 4
+    # Hops from a real reason before a derivation chain is worth a second look.
+    deep_derivation_hops: int = 3
+    # Share of all derived groundings one ADR may hold up before it is called
+    # out as load-bearing.
+    adr_load_share_pct: int = 40
+    # Share of the confirmed requirement set one evidence record may carry
+    # before the engagement is told it rests on a single recording.
+    evidence_share_pct: int = 40
+
+
+@dataclass(frozen=True)
 class RenderPolicy:
     """Diagram geometry. Integers only — a computed float destabilises G6."""
 
@@ -147,6 +171,7 @@ class ConfigError(ValueError):
 class Config:
     citation: CitationPolicy = field(default_factory=CitationPolicy)
     baseline: BaselinePolicy = field(default_factory=BaselinePolicy)
+    advisory: AdvisoryPolicy = field(default_factory=AdvisoryPolicy)
     render: RenderPolicy = field(default_factory=RenderPolicy)
     mining: MiningPolicy = field(default_factory=MiningPolicy)
     coverage: CoveragePolicy = field(default_factory=CoveragePolicy)

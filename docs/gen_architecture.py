@@ -156,14 +156,14 @@ text(44, 164, "Untrusted. Content never enters git.", 11.5, MUTED)
 
 TILES = [
     ("doc", "Teams transcripts · SharePoint · email",
-     "Manual export today — no Graph API. Content stays in the system of "
-     "record that owns its retention; only the manifest is committed."),
+     ("Manual export today — no Graph API. Content stays in the system of "
+     "record that owns its retention; only the manifest is committed.")),
     ("eye", "GitHub repositories",
-     "Read-only mining. Observed implementation is evidence of what exists, "
-     "never of what is required."),
+     ("Read-only mining. Observed implementation is evidence of what exists, "
+     "never of what is required.")),
     ("lock", "Stakeholder documents",
-     "SOW, standards, regulation. Authority requires a named owner and an "
-     "effective date — “the policy says so” is not a citation."),
+     ("SOW, standards, regulation. Authority requires a named owner and an "
+     "effective date — “the policy says so” is not a citation.")),
 ]
 ty = 180
 for kind, title, body in TILES:
@@ -213,20 +213,20 @@ text(404, 348, "Deterministic core — Python standard library only. No network,
 
 STAGES = [
     ("1", "Evidence manifest",
-     "Normalise (NFKC + punctuation fold), SHA-256 the normalised text. "
-     "Manifest in git; content outside it."),
+     ("Normalise (NFKC + punctuation fold), SHA-256 the normalised text. "
+     "Manifest in git; content outside it.")),
     ("2", "Extraction agent",
-     "Single agent, read-only by harness. Proposes verifiable byte spans. "
-     "Never confirms anything."),
+     ("Single agent, read-only by harness. Proposes verifiable byte spans. "
+     "Never confirms anything.")),
     ("3", "Deterministic gate",
-     f"{FACTS['rules']} rules + agent checks, fail-closed, exit code. Citation "
-     "integrity, grounding kinds, render freshness."),
+     (f"{FACTS['rules']} rules + agent checks, fail-closed, exit code. Citation "
+     "integrity, grounding kinds, render freshness.")),
     ("4", "Renderer",
-     "SVG · draw.io · PlantUML · Mermaid · docx · Jira payloads. A pure "
-     "function of the model."),
+     ("SVG · draw.io · PlantUML · Mermaid · docx · Jira payloads. A pure "
+     "function of the model.")),
     ("5", "Release + verify",
-     "Binds approver, commit and SHA-256 of every source and output. "
-     "--verify re-reads the bytes on DISK."),
+     ("Binds approver, commit and SHA-256 of every source and output. "
+     "--verify re-reads the bytes on DISK.")),
 ]
 sx = 404
 for num, title, body in STAGES:
@@ -294,17 +294,17 @@ text(840, 752, "Retrieved documents and model output are evidence, "
 
 PRINCIPLES = [
     ("lock", "Read-only by harness",
-     "--deny-tool=write,shell. Deny beats allow. An agent denied write but "
-     "given shell writes files anyway; prompt text is not a permission."),
+     ("--deny-tool=write,shell. Deny beats allow. An agent denied write but "
+     "given shell writes files anyway; prompt text is not a permission.")),
     ("ban", "No injection detector",
-     "Deliberately. It is trivially evaded and fires on ordinary meeting "
-     "speech. Shipping one would be security theatre."),
+     ("Deliberately. It is trivially evaded and fires on ordinary meeting "
+     "speech. Shipping one would be security theatre.")),
     ("check", "Grounded \u2260 correct",
-     "Green means grounded and internally consistent. Correctness stays with "
-     "the architect, and the tool says so in its own output."),
+     ("Green means grounded and internally consistent. Correctness stays with "
+     "the architect, and the tool says so in its own output.")),
     ("doc", "No LLM in the critical path",
-     "Every agent unavailable means you author the same JSON by hand. Gate, "
-     "renders and traceability all still work."),
+     ("Every agent unavailable means you author the same JSON by hand. Gate, "
+     "renders and traceability all still work.")),
 ]
 px = 60
 for kind, title, body in PRINCIPLES:

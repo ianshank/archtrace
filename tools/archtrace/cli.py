@@ -139,6 +139,18 @@ def build_parser() -> argparse.ArgumentParser:
                    help="print the thresholds this build actually enforces"
                    ).set_defaults(fn=cmd_config)
 
+    review = sub.add_parser(
+        "review", help="write review/advisory.md — advisory, always exits 0")
+    review.add_argument("--findings",
+                        help="JSON from an external reviewer (an NLI support "
+                             "scorer, a defeater generator, a person). Read "
+                             "as a file and never imported; an unreadable or "
+                             "unknown-version one is a usage error, not a "
+                             "silent zero findings")
+    review.add_argument("--stdout", action="store_true",
+                        help="print instead of writing the file")
+    review.set_defaults(fn=commands.review.cmd_review)
+
     baseline = sub.add_parser(
         "baseline", help="SPEC §9a — is this an automation problem at all?")
     baseline.add_argument("--worksheet", help="write the per-element CSV here")

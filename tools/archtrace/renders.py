@@ -98,15 +98,15 @@ def _svg(title: str, nodes: list[tuple[Element, str]], edges: list[dict]) -> byt
     else:
         width, height = 420, 120 + legend_h
     out = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+        (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
         f'height="{height}" viewBox="0 0 {width} {height}" '
-        f'font-family="Helvetica, Arial, sans-serif">',
-        '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" '
+        f'font-family="Helvetica, Arial, sans-serif">'),
+        ('<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" '
         'markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
-        f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{STROKE}"/></marker></defs>',
+        f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{STROKE}"/></marker></defs>'),
         f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-        f'<text x="{MARGIN}" y="26" font-size="15" font-weight="bold" '
-        f'fill="{TEXT}">{escape(title)}</text>',
+        (f'<text x="{MARGIN}" y="26" font-size="15" font-weight="bold" '
+        f'fill="{TEXT}">{escape(title)}</text>'),
     ]
     centres = {}
     for element, _kind in nodes:
@@ -490,16 +490,16 @@ def _traceability_csv(eng: Engagement) -> bytes:
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _NS = " ".join([
     f'xmlns:w="{_W}"',
-    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/'
-    'relationships"',
-    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/'
-    'wordprocessingDrawing"',
+    ('xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/'
+    'relationships"'),
+    ('xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/'
+    'wordprocessingDrawing"'),
     'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"',
     'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"',
-    'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/'
-    'wordprocessingGroup"',
-    'xmlns:wps="http://schemas.microsoft.com/office/word/2010/'
-    'wordprocessingShape"',
+    ('xmlns:wpg="http://schemas.microsoft.com/office/word/2010/'
+    'wordprocessingGroup"'),
+    ('xmlns:wps="http://schemas.microsoft.com/office/word/2010/'
+    'wordprocessingShape"'),
     'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"',
     'mc:Ignorable="wpg wps"',
 ])

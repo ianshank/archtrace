@@ -54,6 +54,7 @@ RULE_LABELS = {
     "G2": "citation",
     "G3": "coverage",
     "G4": "grounding",
+    "G14": "derivation soundness",
     "G5": "C4 form",
     "G5e": "external containers",
     "G6": "render freshness",
@@ -102,10 +103,10 @@ SCRIPT = [
     ("self", "AT", "normalise (NFKC + punctuation fold), sha256"),
     ("call", "AT", "GIT", "commit MANIFEST only — id, hash, owner, retention"),
     ("note", "SOR", "GIT",
-     "Recording content never enters git: a repository cannot satisfy a "
+     ("Recording content never enters git: a repository cannot satisfy a "
      "retention obligation, and deleting a file does not delete the blob. "
      "The repo holds claims about evidence; the content stays where its "
-     "lifecycle is enforced."),
+     "lifecycle is enforced.")),
     ("endband",),
 
     ("band", "interpret",
@@ -116,13 +117,13 @@ SCRIPT = [
     ("ret", "AT", "AG", "verifiable byte span"),
     ("ret", "AG", "AR", "proposed.json — spans, speakers, statements"),
     ("note", "AG", "AT",
-     "Single agent, no debate ensemble: naming consistency collapses\n"
-     "60.85 → 8.24 across three collaborative rounds."),
+     ("Single agent, no debate ensemble: naming consistency collapses\n"
+     "60.85 → 8.24 across three collaborative rounds.")),
     ("call", "AR", "AT", "promote REQ-014   (dry run)"),
     ("ret", "AT", "AR", "statement + quote + speaker + authority tier"),
     ("gate", "HUMAN GATE — does the quote actually SUPPORT the statement?",
-     "The only control for a plausible-but-wrong requirement carrying a real, "
-     "correctly attributed quote. No deterministic rule reaches it."),
+     ("The only control for a plausible-but-wrong requirement carrying a real, "
+     "correctly attributed quote. No deterministic rule reaches it.")),
     ("call", "AR", "AT", "promote REQ-014 --yes"),
     ("ret", "AG", "AR", "model.json diff — grounding kinds, not invented REQs"),
     ("call", "AR", "GIT", "signed commit behind CODEOWNERS"),
@@ -133,14 +134,14 @@ SCRIPT = [
     *(("self", "AT", line) for line in _gate_lines()),
     ("ret", "AT", "AR", "exit 1 + named rule and fix   /   exit 0"),
     ("note", "AT", "AT",
-     "`check` runs BEFORE `gate`, and that order is the control. `gate` is\n"
+     ("`check` runs BEFORE `gate`, and that order is the control. `gate` is\n"
      "fmt + render + check: it regenerates the renders, so by the time it\n"
      "checks them a hand edit has already been overwritten. Only `check`\n"
-     "can report one."),
+     "can report one.")),
     ("call", "AR", "AT", "make gate   (fmt · render · check)"),
     ("note", "AT", "AT",
-     '"Green" means grounded and internally consistent.\n'
-     "It never means correct. Correctness is still the architect's."),
+     ('"Green" means grounded and internally consistent.\n'
+     "It never means correct. Correctness is still the architect's.")),
     ("ret", "AG", "AR", "review/advisory.md — advisory only, always exit 0"),
     ("call", "AR", "AT", "release --approved-by … --role …"),
     ("self", "AT", "refuse if the gate blocks or the tree is dirty"),
@@ -150,8 +151,8 @@ SCRIPT = [
     ("self", "AT", "re-read render/ FROM DISK — never re-render"),
     ("ret", "AT", "AR", "MATCH (byte-identical)   /   DRIFT (names what changed)"),
     ("gate", "PUBLISH ONLY ON MATCH",
-     "Publishing a post-approval edit under an approved-looking provenance "
-     "trail is exactly the failure this catches."),
+     ("Publishing a post-approval edit under an approved-looking provenance "
+     "trail is exactly the failure this catches.")),
     ("call", "AR", "PUB", "publish"),
     ("endband",),
 ]
@@ -269,15 +270,15 @@ def build() -> str:
         y += ROW
 
     height = y + 20
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+    out = [(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
            f'height="{height}" viewBox="0 0 {width} {height}" '
-           f'font-family="Helvetica, Arial, sans-serif">',
+           f'font-family="Helvetica, Arial, sans-serif">'),
            f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-           f'<text x="{LEFT}" y="30" font-size="17" font-weight="bold" '
-           f'fill="{TEXT}">archtrace — operating model</text>',
-           f'<text x="{LEFT}" y="50" font-size="11.5" fill="{MUTED}">'
+           (f'<text x="{LEFT}" y="30" font-size="17" font-weight="bold" '
+           f'fill="{TEXT}">archtrace — operating model</text>'),
+           (f'<text x="{LEFT}" y="50" font-size="11.5" fill="{MUTED}">'
            'Three loops · two human gates · no LLM in the critical path    '
-           '|    solid = invocation, dashed = data returned</text>']
+           '|    solid = invocation, dashed = data returned</text>')]
 
     for top, bottom, key, label in bands:
         out.append(f'<rect x="{LEFT - 8}" y="{top}" width="{width - LEFT - RIGHT + 16}" '

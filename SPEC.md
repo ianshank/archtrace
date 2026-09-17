@@ -187,6 +187,7 @@ Treat as a presentation surface only; re-import each time. **Unverified and need
 | **G2** | *Citation integrity*: every provenance span is in bounds, `quote_cached` matches the span byte-for-byte, quote ≥ 8 words and ≥ 40 chars, not in the generic-phrase stoplist, and `speaker` ∈ that record's `participants` | block |
 | **G3** | Every confirmed REQ is grounded by ≥1 element, or in `out_of_scope` with rationale + decided_by + date. Retired ignored; superseded must name a successor | block |
 | **G4** | Every element and relationship carries ≥1 valid `grounding`; `derived` cites a real ADR; `assumption` cites an open question | block |
+| **G14** | *Derivation soundness*: a chain of `derived` groundings must bottom out in a reason that is not itself derived. Closed cycles and dead ends block | block |
 | **G5** | C4 well-formedness: containment, unique ids and uids, no dangling endpoints, integer layout | block |
 | **G6** | Committed renders match a fresh regeneration under **canonical comparison** | block |
 | **G7** | Every ADR `drivers` entry references a confirmed REQ | block |
@@ -225,6 +226,23 @@ a red build needs to know whether the *artifact* failed or the *invocation* did.
 
 The residual risk — a plausible-but-wrong requirement with a real, substantial, correctly-attributed quote — is caught **only by human confirmation**. That is why §4 promotion is a human commit and not an agent action, and why this paragraph exists instead of a claim that the gate makes output correct.
 
+### 7.1a G14 — a valid link at a time is not a valid chain
+[Certain — reproduced against the shipped example before the rule existed] G4 reads one grounding entry at a time. That is the right shape for four of the five kinds, because `satisfies`, `standard`, `existing` and `assumption` all terminate: they name a requirement, a document, an evidence record or an open question, and the question is answered. `derived` is the exception — it points at **another element** — so the reasons in a model form a directed graph, and a graph can be locally valid at every edge and globally empty.
+
+Rewire two containers in `example/` to cite each other as `derived`, each naming a real ADR, regenerate, and `archtrace check` reports `0 blocking, 0 warning` and prints *"model is grounded and internally consistent."* Every G4 predicate holds: the kind is known, `from` resolves to a real element, the ADR exists. Nothing underneath the pair is a stakeholder requirement, a standard, an incumbent system or a declared assumption. They are two boxes justifying each other.
+
+**This is the §5 failure reached without fabricating a quote.** §5 argues an ungrounded element is safer than a certified fabrication, because the first is visibly ungrounded and the second is invisible. A derivation cycle is a fabrication the gate certifies, and the architect never had to go looking for a real-but-loosely-related sentence to get it — the escape hatch §5 opened to relieve fabrication pressure turned out to have its own.
+
+G14 therefore asks the transitive question: does every chain of `derived` bottom out in a reason that is not itself derived? It blocks on the absence of a reason, never on the shape of the graph. A cycle in which one member *also* satisfies a confirmed requirement is odd modelling and passes, because a reason exists and the operator can point at it; a gate that enforces taste is one that gets switched off.
+
+Three measurements fall out of the same graph and are reported rather than gated, because each is a smell whose healthy value depends on the architecture:
+
+- **Derivation depth** — hops to the nearest real reason. A chain of six says the architecture is being justified by other architecture.
+- **Assumption taint** — elements where *every* route to ground passes through an `assumption`. These present in every render as `derived`, a consequence of a documented decision, while resting on a guess two hops down. The example ships one.
+- **ADR load** — how many groundings a single ADR holds up. G4 already forces every `derived` entry to cite an ADR, so "ADR coverage" is 100% on any model that passes and measures nothing; concentration is the number worth knowing, because if one load-bearing decision was wrong, so is everything hanging off it.
+
+**No solver, no ontology, no rule engine.** These are reachability and a least fixpoint over a graph of at most a few hundred nodes, computed by iteration in `tools/archtrace/grounding.py`. §13 records why the heavier formalisms were considered and refused.
+
 ### 7.2 G6 compares canonical content, not bytes
 [Certain — tested] Byte-identity is achievable but couples the gate to toolchain internals: `zipfile.writestr` stamps `time.localtime()` into every entry (fixed by explicit `ZipInfo(date_time=(1980,1,1,0,0,0))`), zlib output is not stable across builds so your laptop and `ubuntu-latest` can disagree (fixed by `ZIP_STORED` — a Word doc is a few KB, compression buys nothing and costs determinism), and `mxfile`'s conventional `modified="…Z"` attribute breaks it outright (omitted).
 
@@ -232,6 +250,32 @@ Even with all four fixed, byte-identity means a Python patch release fails the b
 
 ### 7.3 LLM-as-judge is advisory
 `archtrace review` writes `review/advisory.md` and always exits 0. Never gates.
+
+**This was a claim with nothing behind it until 0.6.0**, and it is worth saying so rather than quietly shipping the command. `review/advisory.md` was a path named in three diagrams, a heading in the RUNBOOK and a prompt pasted into `copilot` by hand. No subcommand wrote it, no schema described it, no test asserted anything about it, and neither shipped engagement had a `review/` directory. The half of this design that is *allowed* to be wrong had nowhere to put its output — a strange gap in a repository this careful about the half that is not, and the reason a reader could reasonably conclude the neural half had been deliberately left weak rather than simply left unbuilt.
+
+Two things arrive in the advisory, and keeping them apart is the design.
+
+**The worklist is deterministic.** Computed from `model.json` and the evidence manifest by code that runs offline, it is the adversarial reading the gate cannot express as a pass or a fail — ranked by how likely a record is to not mean what it claims, which is a different ordering from how badly it breaks a rule.
+
+| observation | what it says |
+|---|---|
+| `near-floor-citation` | Cleared the G2 floor by a word or two. §7.1 says the floor raises the cost of quoting trivia without eliminating it; these are where that strategy would show. |
+| `assumption-tainted` | Renders as `derived` — a consequence of a documented decision — while every route to ground passes through an `assumption`. Elements grounded *directly* on an assumption are excluded: the kind is visible in the model and the mix, and reporting it would be reporting the design working. |
+| `adr-concentration` | One ADR holds up a large share of the derived groundings. If it was wrong, so is everything under it, and each citation is individually valid. |
+| `deep-derivation` | Architecture justified by other architecture, several hops from anything a stakeholder would recognise. |
+| `evidence-concentration` | One recording carries most of the confirmed requirement set. G8 asks the opposite question — evidence nobody cited — and nothing asked this one. |
+
+**The neural half arrives as a file.** `--findings` takes JSON from something archtrace does not run: an NLI model scoring whether an evidence span entails the requirement drawn from it, a defeater generator reading an ADR for the reasons it might not hold, or a person. Six kinds are accepted — `unsupported-inference`, `contradiction`, `defeater`, `missing-requirement`, `authority`, `anomaly` — with the repository's own `certain`/`likely`/`guessing` confidence vocabulary. `docs/advisory-findings.example.json` is the shape.
+
+This is the same seam the code miner uses: **a file, not an import.** archtrace validates the shape, refuses a `schema_version` or a `kind` it does not know, and renders the result in its own section clearly labelled as not archtrace's. Nothing in the gate path imports it. That is what lets the producer be a 400 MB transformer stack while `archtrace check` stays standard-library-only on a runner with no setup step.
+
+Three properties are load-bearing:
+
+1. **Exit 0, always, on findings.** Not because the findings are unimportant but because an LLM judge in this role has never been benchmarked against a human baseline on this corpus, which `.github/agents/architecture-reviewer.agent.md` already says. A findings file the operator *named* and that cannot be read is a different thing: exit 2, the same answer `check` gives an unknown `--only` id. Degrading to "no external findings" would make a reviewer whose output silently stopped parsing look exactly like one that found nothing.
+2. **Untrusted text cannot forge structure.** A `detail` string is evidence-derived text copied into an artifact a human skims, so leading markdown is stripped, newlines are flattened and pipes are neutralised. A finding cannot emit `## Approved by archtrace`. There is no deterministic gate for prompt injection — §agents says so plainly — but there is no reason to render its output credulously either.
+3. **No timestamp.** The document carries a 12-character fingerprint of the canonical model instead, so it is byte-identical across runs and still tells you whether it describes the tree in front of you. A clock in a generated artifact is defect A1 this repository found in `archmine` and patched upstream; doing it here would be worse, because we knew.
+
+**What the advisory explicitly does not do is close the support gap.** It ranks where to look. Whether a real, substantial, correctly-attributed quote actually supports the requirement drawn from it is still decided by a human commit promoting `proposed` to `confirmed`, exactly as §4 and §7.1 say.
 
 ### 7.4 Consent and retention — decide before EV-001 exists
 1. **Consent**: does meeting-recording consent permit downstream automated processing? Per-meeting, not per-program.
@@ -287,7 +331,7 @@ Read-only is enforced by the harness: **`--deny-tool=write,shell`**. [Certain] v
 
 - **Gate**: offline, seconds, $0.
 - **Agents**: single-agent per chunk, ~40K-class per pass rather than the ~500K the multi-agent configuration burned. Chunk count scales with transcript length (§4).
-- **Agent confidently wrong**: G2 catches invented citations, G4 catches ungrounded elements, G3 catches dropped requirements, G6 catches edited diagrams, G9 catches unresolved contradictions. Plausible-but-wrong is caught only by human confirmation (§7.1).
+- **Agent confidently wrong**: G2 catches invented citations, G4 catches ungrounded elements, G14 catches elements grounded only in each other, G3 catches dropped requirements, G6 catches edited diagrams, G9 catches unresolved contradictions. Plausible-but-wrong is caught only by human confirmation (§7.1).
 - **Agent unavailable**: degrades to manual authoring of the same JSON. Gate, renders and traceability all still work. **Nothing in the critical path requires an LLM.** Deliberate.
 - **Schema outgrown**: expected. `schema_version` is checked and unknown versions are refused rather than guessed.
 
@@ -298,5 +342,118 @@ Read-only is enforced by the harness: **`--deny-tool=write,shell`**. [Certain] v
 - Does not orchestrate agents. Microsoft Agent Framework is an endpoint, not a starting point.
 - Does not automate Lucid polish.
 - Does not gate on any LLM judgment.
-- Does not put diagrams in the Word doc (§6).
+- Does not embed *raster or vector images* in the Word document (§6). It does emit the diagrams as native DrawingML shapes, which needs no rasteriser; this line said "does not put diagrams in the Word doc" and contradicted §6 from the moment `docx_shapes.py` landed.
+- Does not reason with an ontology, a solver or an interpreted rule engine (§13).
 - **Does not claim the gate makes output correct.** It makes output grounded and internally consistent. Correctness is still yours.
+
+---
+
+## 13. Neurosymbolic reasoning — what is taken and what is refused
+
+Written because the question keeps arriving with a reading list attached, and
+because an answer that is not recorded gets re-litigated every time.
+
+### 13.1 The structural read is right, with one correction
+
+archtrace is not a candidate *for* neurosymbolic reasoning. It is already the
+symbolic half of one: a deterministic gate that owns correctness, agents that
+cannot write, and an LLM whose output is barred from the exit code. That is
+generate-and-check — a neural proposer emits candidates, a deterministic
+backend accepts or rejects them, and the system is sound by construction
+regardless of how the candidate was produced. `archtrace quote` already plays
+the verifier's role: an agent proposes a requirement and a supporting span, the
+resolver checks the offset against normalised, hashed evidence, and G2 checks
+it again at the gate.
+
+The correction is that the neural half was **unbuilt, not deliberately weak**.
+Until 0.6.0 there was no `archtrace review`, no advisory schema and no
+`review/` directory anywhere in the repository — see §7.3. Reading the design
+from the outside, the advisory plane looked like a considered decision to keep
+the neural side small. It was an unimplemented line in this document. That
+distinction matters for anyone planning work here: the seam now exists, and it
+is the thing every neural proposal below has to attach to.
+
+### 13.2 Taken
+
+| | where |
+|---|---|
+| **Make the symbolic half *infer*, not merely validate.** The reasons in a model form a graph the moment `derived` points at another element, and nothing was reading it. | G14, §7.1a |
+| **A deterministic adversarial worklist.** Rank where the certified-verbatim record is least likely to mean what it claims, and hand a person a reading order. | §7.3 |
+| **NLI over (evidence span → requirement)** as an *external* producer. The support gap in §7.1 is textually the entailment task: does the span entail, contradict, or stay neutral toward the requirement drawn from it. | `--findings`, kind `unsupported-inference` / `contradiction` |
+| **Defeater generation over ADRs** as an *external* producer. `derived` + an ADR is a claim with a warrant; the least-verified grounding kind is the one with no machinery for recording why the decision might not hold. | `--findings`, kind `defeater` |
+| **Autoformalization** — transcript to proposed requirement plus byte span — which the pipeline has always supported, because `proposed` requires a human commit to become `confirmed`. | §4 |
+
+### 13.3 Refused, and why the reasons are not aesthetic
+
+**OWL and ontology reasoning.** Open-world semantics answer a question
+archtrace is not asking. `model.json`, `requirements.json` and
+`evidence/index.json` *are* the complete record: an element with no grounding
+is ungrounded, not merely unstated. That is closed-world validation, which is
+the side of the OWL/SHACL line this tool sits on. The operational objection is
+harder still: inference requires materialising inferred triples before
+validating them, which means a reasoner, which means a JVM or a heavy Python
+stack — against a build whose CI diffs `pip list` either side of the gate job
+and fails if anything was installed.
+
+**SMT and constraint solving over the model.** The invariants people reach for
+— every cross-boundary edge carries authentication, every highly-available
+container has a downstream fallback — are graph reachability and attribute
+predicates, not satisfiability problems. They are expressible against the
+structures in §5 without a solver. And the failure mode is wrong for this
+audience: an architect can act on "`c_worker` is three hops from any reason
+anyone stated" in thirty seconds, and cannot act on an UNSAT core at all. A
+gate that fails inexplicably gets disabled — §7.2 already made that argument
+about byte-identical renders and it applies with more force here.
+
+**An interpreted Datalog or ASP-lite rule layer inside the gate.** The most
+interesting of the three, and still refused. The attraction is declarative
+rules in a reviewable file; the costs are specific. G4's kinds are *already*
+table-driven (`GROUNDING_KINDS` maps each kind to the field it requires and the
+domain that field resolves against), so the declarative win is smaller than it
+looks. `docs/tech-debt.md` §2a records 29 gate-rule branches that had never
+fired in a test run, each now carrying a seeded-defect test verified by
+re-seeding; rewriting those bodies into a rule language discards that
+verification and replaces it with an interpreter whose own bugs are false
+BLOCKs and, worse, false passes. G14 needed a least fixpoint, a breadth-first
+search and Tarjan's algorithm — 120 lines of standard library, 100% covered,
+readable in one sitting. The formalism was not doing work the graph does not.
+
+Two of these could change. A rule layer becomes attractive when there are
+enough transitive rules that each new one is mostly boilerplate; there is
+currently one. None of them becomes attractive while §0.1 holds.
+
+### 13.4 The neural half never gates, and the numbers are the reason
+
+Published hybrid verification detects roughly four fifths of structured
+fabrications and rather less of semantic ones. Those are **screening numbers,
+not gating numbers**, and the difference is the whole design. A merge gate
+flipped on a semantic judgement that is wrong a quarter of the time does not
+mainly block bad requirements; it teaches architects to write quotes that
+please the classifier. That reproduces §5's certified fabrication exactly —
+a provenance record that satisfies every check and means nothing — with a
+model in the loop instead of a person hunting for a loosely-related sentence.
+The LLM proposes; it never adjudicates.
+
+This is also why `--findings` refuses an unknown `kind` rather than dropping
+it, and why an unreadable findings file is exit 2. A reviewer that silently
+stopped working must not be indistinguishable from a reviewer that found
+nothing.
+
+### 13.5 Sequencing, which is a real constraint and not a formality
+
+`NEXT-STEPS.md` opens by saying §9a has never been run on a real engagement and
+that every item below it assumes that it passed. G14 and the advisory plane are
+both *independent* of that: G14 fixes a defect demonstrated against the shipped
+example, and the advisory worklist is computed from artifacts that already
+exist. Anything that needs calibration is not.
+
+Specifically, **do not calibrate an NLI scorer on `example/` and
+`engagements/archtrace-self/`.** `example/` is a synthetic worked example
+authored to demonstrate the schema, and `archtrace-self` is this tool modelling
+itself; the requirements and the evidence in both were written together. §9a's
+own caveat applies with full force — scoring a model and an evidence set
+authored together measures your own consistency. Publishing a support-score
+distribution over those two would produce a number with the *form* of evidence
+and none of the content, which is the failure §9a exists to prevent. The 60%
+traceability threshold was disproved by running the instrument on real output;
+an NLI threshold deserves the same and cannot have it yet.

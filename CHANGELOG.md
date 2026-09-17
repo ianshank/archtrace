@@ -5,6 +5,140 @@ Versioning is semantic, with one project-specific rule: **a new blocking gate
 rule is a MINOR bump, never a PATCH.** A rule that starts failing builds is a
 behaviour change however small the diff.
 
+## [0.6.0] — 2026-09-17
+
+The gate certified a model in which two boxes justified each other and nothing
+else. A MINOR bump rather than a PATCH, per the rule at the top of this file: a
+new blocking rule is a behaviour change however small the diff.
+
+### Added
+
+- **G14 — derivation soundness.** A chain of `derived` groundings must bottom
+  out in a reason that is not itself derived. Found by asking what G4 does
+  *not* check and then reproducing it: rewire two containers in `example/` to
+  cite each other as `derived`, each naming a real ADR, regenerate, and
+  `archtrace check` printed `0 blocking, 0 warning` and *"model is grounded and
+  internally consistent."* Every G4 predicate held — the kind is known, `from`
+  resolves, the ADR exists — because G4 reads one grounding entry at a time and
+  `derived` is the one kind that points at another element. The reasons in a
+  model form a graph, and a graph can be locally valid at every edge and
+  globally empty.
+
+  This is the SPEC §5 failure without a fabricated quote. §5 argues a certified
+  fabrication is worse than a visible gap; a derivation cycle is a fabrication
+  the gate certifies, and the escape hatch §5 opened to relieve fabrication
+  pressure turned out to have one of its own. Written up as SPEC §7.1a.
+
+  G14 blocks on the absence of a reason, never on the shape of the graph: a
+  cycle in which one member also satisfies a confirmed requirement is odd
+  modelling and passes, because a reason exists and the operator can point at
+  it. A gate that enforces taste is one that gets switched off.
+- **`tools/archtrace/grounding.py`** — the derivation graph as a module, so the
+  transitive questions are asked once and answered the same way by the gate and
+  the report. Foundedness is a least fixpoint, depth is a breadth-first search,
+  cycles are strongly connected components via iterative Tarjan. Iterative
+  rather than recursive on purpose: the pathological model is exactly the input
+  this code exists to describe, and a rule that crashes on the defect it is
+  hunting reports nothing at all.
+- **Three transitive numbers in `archtrace report`**, reported and deliberately
+  not gated, because each is a smell whose healthy value depends on the
+  architecture: **derivation depth** (hops to the nearest real reason),
+  **assumption taint** (elements where *every* route to ground passes through a
+  guess — they render as `derived`, a consequence of a documented decision,
+  while resting on an open question two hops down), and **ADR load** (how many
+  groundings one decision holds up). Not "ADR coverage": G4 already forces
+  every `derived` entry to cite an ADR, so coverage is 100% on any model that
+  passes and measures nothing. Concentration is the number worth knowing.
+
+- **`archtrace review` exists.** SPEC §7.3 has promised it since v2 and
+  nothing implemented it: `review/advisory.md` was a path in three diagrams, a
+  heading in the RUNBOOK and a prompt an operator pasted into `copilot` by
+  hand. No subcommand wrote it, no schema described it, no test asserted
+  anything about it, and neither shipped engagement had a `review/` directory.
+  The half of this design that is *allowed* to be wrong had nowhere to put its
+  output — which is how a careful reader concludes the neural half was left
+  deliberately weak when it was only left unbuilt.
+
+  Two things arrive in the advisory and stay apart. The **worklist** is
+  computed offline from `model.json` and the evidence manifest, ranked by how
+  likely a record is to not mean what it claims: `near-floor-citation`,
+  `assumption-tainted`, `adr-concentration`, `deep-derivation`,
+  `evidence-concentration`. The **neural half arrives as a file** —
+  `--findings` takes JSON from an NLI support scorer, a defeater generator or
+  a person, in six kinds with this repository's own `certain`/`likely`/
+  `guessing` vocabulary. `docs/advisory-findings.example.json` is the shape.
+
+  A file, not an import — the same seam `docs/archmine-integration.md` §3
+  draws for the miner, and what lets the producer be a 400 MB transformer
+  stack while `check` stays stdlib-only on a bare runner.
+
+- **Elements grounded directly on an `assumption` are excluded from the
+  tainted list**, deliberately. The kind is already visible in the model, in
+  every render and in the grounding mix, and the open-question register names
+  what is unknown; reporting it would be reporting the design working. The
+  finding is the element two hops down that reads as `derived` while
+  everything underneath it is a guess.
+
+- **Evidence concentration is one observation, not one per requirement.** Most
+  requirements are said once, so the per-requirement version fires on nearly
+  everything and buries the tiers above it. The agent definitions' "do not
+  pad" applies to this document too.
+
+### Changed
+
+- **No solver, no ontology, no rule engine**, and that is now a recorded
+  decision rather than an omission — see the new SPEC §13. The questions G14
+  asks are reachability and a least fixpoint over a few hundred nodes; an
+  interpreted rule layer in the blocking path would be new untested code whose
+  bugs are false BLOCKs and, worse, false passes.
+- **`archtrace review` is not part of `make gate`.** A target that can only
+  exit 0 has no business in a pipeline whose job is to refuse things.
+
+### Fixed
+
+- **SPEC §12 contradicted §6** on whether the Word document carries diagrams.
+  Stale since `docx_shapes.py` landed, and reachable only by reading the two
+  sections together. §6 was right: no rasteriser, native DrawingML shapes, and
+  what §12 meant to exclude was raster or vector *images*.
+
+### Security
+
+- **An external finding cannot forge document structure.** `detail` and
+  `where` are evidence-derived text rendered into an artifact a human skims,
+  so leading markdown is stripped, newlines flattened and pipes neutralised: a
+  reviewer cannot emit `## Approved by archtrace`. There is no deterministic
+  gate for prompt injection and the agent definitions say so; that is not a
+  reason to render its output credulously.
+- **The advisory carries a model fingerprint, never a timestamp.** Byte-
+  identical across runs, and still able to tell you whether it describes the
+  tree in front of you. A clock in a generated artifact is defect A1 this
+  repository found in `archmine`'s own drift gate and patched upstream.
+
+### Tests
+
+- **56 tests** (305 → 361). Six seeded-defect cases for G14, sixteen for the
+  graph underneath it, thirty-two for the advisory plane, two for the report.
+
+  Each was verified by re-seeding the branch it guards. For G14: emptying the
+  unfounded set kills four, suppressing the cycle lookup kills three, dropping
+  relationships from the traversal kills one, treating `derived` as solid
+  ground kills four. For the advisory: removing the markdown strip, the pipe
+  escape, the kind allowlist, the direct-assumption filter and the
+  concentration threshold each kill at least one.
+
+  Two of those started as survivors and are recorded because the reason
+  generalises. `test_a_finding_cannot_forge_a_heading` asserted the injected
+  heading did not start a line — true with the strip deleted, because
+  flattening the newline alone was enough. `..._is_one_row_not_one_per_requirement`
+  asserted the only reported record was `EV-001` — true with the threshold
+  deleted, because `EV-001` is the only record the example cites. Both were
+  passing on a property of the fixture rather than of the code.
+
+  `test_g14_two_elements_deriving_from_each_other` asserts that **G4 stays
+  silent**, not merely that G14 fires. The point of the rule is that
+  entry-at-a-time validation misses this; a test that passed because G4 also
+  caught it would be proving the opposite of what it claims.
+
 ## [0.5.0] — 2026-09-16
 
 Both controls that were supposed to refuse a hand-edited artifact could not see

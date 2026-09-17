@@ -123,6 +123,29 @@ class Verbs(CliCase):
         self.assertIn("non-functional coverage", out)
         self.assertIn("open questions", out)
 
+    def test_report_prints_the_transitive_derivation_numbers(self):
+        """SPEC §7.1a. Nothing here exits non-zero, so a wrong number is
+        silent -- which is the argument for asserting on the output at all."""
+        code, out, _err = self.run_cli("report")
+        self.assertEqual(code, 0)
+        self.assertIn("derivation (transitive", out)
+        self.assertIn("c_prefetch", out,
+                      "the example's one assumption-grounded element is not "
+                      "listed as tainted")
+        self.assertIn("ADR load", out)
+
+    def test_report_omits_the_derivation_block_when_there_is_nothing_to_say(self):
+        """A scaffolded engagement has no derivations. Printing a heading and
+        three zeroes trains people to skip the section that matters when it is
+        not empty."""
+        code, out, _err = self.run_cli("init", "Empty", "--client", "Acme",
+                                       root=os.path.join(self.tmp, "fresh"))
+        self.assertEqual(code, 0)
+        code, out, _err = self.run_cli("report",
+                                       root=os.path.join(self.tmp, "fresh"))
+        self.assertEqual(code, 0)
+        self.assertNotIn("derivation (transitive", out)
+
     def test_config_prints_effective_values(self):
         code, out, _err = self.run_cli("config")
         self.assertEqual(code, 0)
