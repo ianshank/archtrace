@@ -163,8 +163,8 @@ def _blank_worksheet(args) -> int:
         writer = _csv.writer(fh)
         writer.writerow(["element", "quotable_statement (yes/no)", "quote",
                          "speaker", "source",
-                         "if no: standard / existing / derived / assumption / "
-                         "UNEXPLAINED"])
+                         ("if no: standard / existing / derived / assumption / "
+                         "UNEXPLAINED")])
         for name in names:
             writer.writerow([name, "", "", "", "", ""])
     print(f"wrote {target} — {len(names)} elements")
