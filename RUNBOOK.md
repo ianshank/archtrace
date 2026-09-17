@@ -275,10 +275,35 @@ merging them is the same mistake as folding this into planlint.
 Advisory review, when you want a second opinion — never a gate:
 
 ```bash
-copilot --agent architecture-reviewer --deny-tool=write,shell --allow-tool=read \
-  -p "Write review/advisory.md. Focus on unsupported inference: cases where the
-      quote is real but does not support the requirement drawn from it."
+make review ROOT=engagements/aurora
 ```
+
+That writes `review/advisory.md` with no LLM anywhere: a ranked worklist of the
+places the certified-verbatim record is least likely to mean what it claims —
+citations that cleared the G2 floor by a word, elements that read as `derived`
+while resting on a guess two hops down, one ADR holding up most of the model,
+one recording carrying most of the requirement set. It always exits 0 and is
+deliberately not part of `make gate`.
+
+For the semantic half — does the quote actually *support* the requirement — you
+need something that reads text. Either read them yourself, or have an agent do
+it and hand the result back as a file:
+
+```bash
+copilot --agent architecture-reviewer --deny-tool=write,shell --allow-tool=read \
+  -p "Focus on unsupported inference: cases where the quote is real but does
+      not support the requirement drawn from it. Emit JSON shaped like
+      docs/advisory-findings.example.json to /tmp/findings.json."
+
+make review ROOT=engagements/aurora FINDINGS=/tmp/findings.json
+```
+
+archtrace validates the shape, refuses a version or a finding kind it does not
+know, and renders the result in its own clearly-labelled section. It never
+imports or runs whatever produced the file. Exit code is still 0 whatever the
+findings say — a file you named and it could not read is exit 2, because a
+reviewer that silently stopped parsing must not look like one that found
+nothing. `SPEC.md` §7.3 and §13 are the argument.
 
 ---
 

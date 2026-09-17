@@ -20,6 +20,7 @@ rather than evaluate it.
 ```bash
 make help              # every target, grouped by whether it needs dependencies
 make check             # the gates, against the bytes AS COMMITTED
+make review            # the advisory worklist; never gates, always exits 0
 make freshness         # G6 for every engagement discovered in the repo
 make engagements       # list what freshness discovered
 make gate              # fmt + render + check, the pre-publish loop
@@ -90,6 +91,16 @@ So grounding has a kind: `satisfies`, `derived` (+ADR), `standard`, `existing`,
 `archtrace report` prints it. **A model that is 100% `satisfies` is the
 suspicious one.**
 
+The escape hatch has its own escape hatch, and that took a rule to close.
+`derived` points at *another element*, so the reasons form a graph — and two
+containers citing each other, each naming a real ADR, satisfied every check
+one entry at a time. The gate printed *"model is grounded and internally
+consistent"* over two boxes justifying each other with nothing underneath.
+**G14** asks the transitive question instead: does the chain bottom out in a
+reason anyone stated? Same graph, three more instruments in `report` —
+derivation depth, assumption taint, and how much of the model one ADR holds
+up.
+
 **2. Citation integrity is not hallucination detection, and this repo says so
 out loud.**
 
@@ -129,7 +140,13 @@ nearly every requirement and gets switched off in week two.
 - **Any LLM in the critical path.** If every agent is unavailable, you author the
   same JSON by hand and the gate, the renders and the traceability all still
   work.
-- **An LLM gate.** `review/advisory.md` is advisory and always exits 0.
+- **An LLM gate.** `archtrace review` writes `review/advisory.md`, always exits
+  0, and is not part of `make gate`. It ranks where to look; it never decides.
+  A neural reviewer — an NLI model scoring whether a span actually supports the
+  requirement drawn from it, a defeater generator reading an ADR — plugs in as
+  a **file**, via `--findings`, never as an import. That is what lets it be a
+  400 MB transformer stack while the gate stays stdlib-only. `SPEC.md` §13 says
+  what else was considered and refused.
 
 ## Known limits
 

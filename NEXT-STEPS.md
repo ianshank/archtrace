@@ -129,6 +129,17 @@ would be embarrassing to repeat without checking. The backlog, in order:
    G1 tests truthiness only, so a retention obligation the repository claims to
    record can be an arbitrary string.
 
+**2c. Calibrate the advisory thresholds on a real engagement — after §9a, not
+before.** `near_floor_margin_words`, `deep_derivation_hops`,
+`adr_load_share_pct` and `evidence_share_pct` are judgements printed by
+`archtrace config`, and every one of them is currently a guess. They cannot be
+calibrated here: `example/` is synthetic and `archtrace-self` is this tool
+modelling itself, so both were authored with their evidence in one sitting.
+Scoring them measures consistency, not grounding — §9a's own caveat. The same
+bar blocks an NLI support-scorer distribution, and for the same reason; see
+SPEC §13.5. The 60% traceability threshold was disproved by running the
+instrument on real output, and these deserve no less.
+
 **3. Lucid round-trip is unverified.** Thirty-minute spike. Lucid's docs
 conflict on whether a hand-assembled `mxfile` imports at all, and it states it
 prioritises functional over visual fidelity — meaning it may discard the

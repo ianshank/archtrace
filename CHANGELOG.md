@@ -94,6 +94,13 @@ new blocking rule is a behaviour change however small the diff.
 - **`archtrace review` is not part of `make gate`.** A target that can only
   exit 0 has no business in a pipeline whose job is to refuse things.
 
+### Fixed
+
+- **SPEC §12 contradicted §6** on whether the Word document carries diagrams.
+  Stale since `docx_shapes.py` landed, and reachable only by reading the two
+  sections together. §6 was right: no rasteriser, native DrawingML shapes, and
+  what §12 meant to exclude was raster or vector *images*.
+
 ### Security
 
 - **An external finding cannot forge document structure.** `detail` and
