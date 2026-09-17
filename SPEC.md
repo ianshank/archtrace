@@ -187,6 +187,7 @@ Treat as a presentation surface only; re-import each time. **Unverified and need
 | **G2** | *Citation integrity*: every provenance span is in bounds, `quote_cached` matches the span byte-for-byte, quote ≥ 8 words and ≥ 40 chars, not in the generic-phrase stoplist, and `speaker` ∈ that record's `participants` | block |
 | **G3** | Every confirmed REQ is grounded by ≥1 element, or in `out_of_scope` with rationale + decided_by + date. Retired ignored; superseded must name a successor | block |
 | **G4** | Every element and relationship carries ≥1 valid `grounding`; `derived` cites a real ADR; `assumption` cites an open question | block |
+| **G14** | *Derivation soundness*: a chain of `derived` groundings must bottom out in a reason that is not itself derived. Closed cycles and dead ends block | block |
 | **G5** | C4 well-formedness: containment, unique ids and uids, no dangling endpoints, integer layout | block |
 | **G6** | Committed renders match a fresh regeneration under **canonical comparison** | block |
 | **G7** | Every ADR `drivers` entry references a confirmed REQ | block |
@@ -224,6 +225,23 @@ a red build needs to know whether the *artifact* failed or the *invocation* did.
 **G2 is a citation-integrity check, not an anti-hallucination control.** [Certain] It proves the quote was not invented. It proves nothing about whether the quote *supports* the inference drawn from it, whether the speaker had authority, or whether the next sentence retracted it. Without the length floor and stoplist, an agent optimizing to pass G2 learns to quote short, high-frequency, trivially-safe fragments — `"data loss"`, `"Correct."` — and every one passes. The floor raises the cost of that strategy; it does not eliminate it.
 
 The residual risk — a plausible-but-wrong requirement with a real, substantial, correctly-attributed quote — is caught **only by human confirmation**. That is why §4 promotion is a human commit and not an agent action, and why this paragraph exists instead of a claim that the gate makes output correct.
+
+### 7.1a G14 — a valid link at a time is not a valid chain
+[Certain — reproduced against the shipped example before the rule existed] G4 reads one grounding entry at a time. That is the right shape for four of the five kinds, because `satisfies`, `standard`, `existing` and `assumption` all terminate: they name a requirement, a document, an evidence record or an open question, and the question is answered. `derived` is the exception — it points at **another element** — so the reasons in a model form a directed graph, and a graph can be locally valid at every edge and globally empty.
+
+Rewire two containers in `example/` to cite each other as `derived`, each naming a real ADR, regenerate, and `archtrace check` reports `0 blocking, 0 warning` and prints *"model is grounded and internally consistent."* Every G4 predicate holds: the kind is known, `from` resolves to a real element, the ADR exists. Nothing underneath the pair is a stakeholder requirement, a standard, an incumbent system or a declared assumption. They are two boxes justifying each other.
+
+**This is the §5 failure reached without fabricating a quote.** §5 argues an ungrounded element is safer than a certified fabrication, because the first is visibly ungrounded and the second is invisible. A derivation cycle is a fabrication the gate certifies, and the architect never had to go looking for a real-but-loosely-related sentence to get it — the escape hatch §5 opened to relieve fabrication pressure turned out to have its own.
+
+G14 therefore asks the transitive question: does every chain of `derived` bottom out in a reason that is not itself derived? It blocks on the absence of a reason, never on the shape of the graph. A cycle in which one member *also* satisfies a confirmed requirement is odd modelling and passes, because a reason exists and the operator can point at it; a gate that enforces taste is one that gets switched off.
+
+Three measurements fall out of the same graph and are reported rather than gated, because each is a smell whose healthy value depends on the architecture:
+
+- **Derivation depth** — hops to the nearest real reason. A chain of six says the architecture is being justified by other architecture.
+- **Assumption taint** — elements where *every* route to ground passes through an `assumption`. These present in every render as `derived`, a consequence of a documented decision, while resting on a guess two hops down. The example ships one.
+- **ADR load** — how many groundings a single ADR holds up. G4 already forces every `derived` entry to cite an ADR, so "ADR coverage" is 100% on any model that passes and measures nothing; concentration is the number worth knowing, because if one load-bearing decision was wrong, so is everything hanging off it.
+
+**No solver, no ontology, no rule engine.** These are reachability and a least fixpoint over a graph of at most a few hundred nodes, computed by iteration in `tools/archtrace/grounding.py`. §13 records why the heavier formalisms were considered and refused.
 
 ### 7.2 G6 compares canonical content, not bytes
 [Certain — tested] Byte-identity is achievable but couples the gate to toolchain internals: `zipfile.writestr` stamps `time.localtime()` into every entry (fixed by explicit `ZipInfo(date_time=(1980,1,1,0,0,0))`), zlib output is not stable across builds so your laptop and `ubuntu-latest` can disagree (fixed by `ZIP_STORED` — a Word doc is a few KB, compression buys nothing and costs determinism), and `mxfile`'s conventional `modified="…Z"` attribute breaks it outright (omitted).
@@ -287,7 +305,7 @@ Read-only is enforced by the harness: **`--deny-tool=write,shell`**. [Certain] v
 
 - **Gate**: offline, seconds, $0.
 - **Agents**: single-agent per chunk, ~40K-class per pass rather than the ~500K the multi-agent configuration burned. Chunk count scales with transcript length (§4).
-- **Agent confidently wrong**: G2 catches invented citations, G4 catches ungrounded elements, G3 catches dropped requirements, G6 catches edited diagrams, G9 catches unresolved contradictions. Plausible-but-wrong is caught only by human confirmation (§7.1).
+- **Agent confidently wrong**: G2 catches invented citations, G4 catches ungrounded elements, G14 catches elements grounded only in each other, G3 catches dropped requirements, G6 catches edited diagrams, G9 catches unresolved contradictions. Plausible-but-wrong is caught only by human confirmation (§7.1).
 - **Agent unavailable**: degrades to manual authoring of the same JSON. Gate, renders and traceability all still work. **Nothing in the critical path requires an LLM.** Deliberate.
 - **Schema outgrown**: expected. `schema_version` is checked and unknown versions are refused rather than guessed.
 

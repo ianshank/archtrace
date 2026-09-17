@@ -232,6 +232,102 @@ class SeededDefect(unittest.TestCase):
         _rules, code, _f = self._rules()
         self.assertEqual(code, 0)
 
+    # -- G14 --------------------------------------------------------------
+
+    def _derive(self, doc, element, parent, adr="ADR-001"):
+        """Replace an element's reasons with a single `derived` pointer."""
+        containers = doc["systems"][0]["containers"]
+        self._find(containers, element)["grounding"] = [
+            {"kind": "derived", "from": parent, "adr": adr}]
+
+    def test_g14_two_elements_deriving_from_each_other(self):
+        """The defect that prompted this rule, and the reason it is not G4's.
+
+        Reproduced against the shipped example before the rule existed: rewire
+        two containers to cite each other, re-render, and `check` printed
+        "model is grounded and internally consistent" with zero findings. Each
+        link names a real element and a real ADR, so every G4 predicate is
+        satisfied -- which is why the assertion below insists G4 stays SILENT.
+        If G4 ever starts catching this, this test is passing for a reason it
+        was not written to prove.
+        """
+        def mutate(doc):
+            self._derive(doc, "c_api", "c_edge")
+            self._derive(doc, "c_edge", "c_api")
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G14", "c_api", message="c_api -> c_edge -> c_api")
+        self.assertFires("G14", "c_edge")
+        rules, _code, _f = self._rules()
+        self.assertNotIn("G4", rules,
+                         "G4 caught the cycle, so this test no longer shows "
+                         "that entry-at-a-time validation misses it")
+
+    def test_g14_an_element_deriving_from_itself(self):
+        def mutate(doc):
+            self._derive(doc, "c_worker", "c_worker")
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G14", "c_worker", message="closes on itself")
+
+    def test_g14_a_chain_that_hangs_off_a_cycle_without_being_in_it(self):
+        """Unfounded but not looping: a different defect and a different fix.
+
+        `c_worker` hangs off a cycle it is not part of. Naming the loop would
+        be wrong -- there is no loop through `c_worker` to break -- so the
+        message must be the dead-end one instead.
+        """
+        def mutate(doc):
+            self._derive(doc, "c_api", "c_queue")
+            self._derive(doc, "c_queue", "c_api")
+            self._derive(doc, "c_worker", "c_queue")
+        self._patch(("model", "model.json"), mutate)
+        self.assertFires("G14", "c_worker",
+                         message="nothing the chain reaches is grounded")
+        self.assertFires("G14", "c_api", message="closes on itself")
+
+    def test_g14_a_relationship_derived_only_from_an_unfounded_element(self):
+        """Relationships carry grounding too, and G4 checks them, so G14 must.
+
+        Half the example's citations are on relationships; the suite once had
+        both relationship loops replaceable with `for rel in []` while staying
+        green (`docs/tech-debt.md` §2a).
+        """
+        def mutate(doc):
+            self._derive(doc, "c_api", "c_edge")
+            self._derive(doc, "c_edge", "c_api")
+            doc["relationships"][0]["grounding"] = [
+                {"kind": "derived", "from": "c_api", "adr": "ADR-001"}]
+        self._patch(("model", "model.json"), mutate)
+        rel = self._rules()[2]
+        where = {f.where for f in rel if f.rule == "G14"}
+        self.assertTrue(any("->" in w for w in where),
+                        f"G14 reported no relationship; got {sorted(where)}")
+
+    def test_g14_is_quiet_when_the_chain_reaches_a_requirement(self):
+        """The example ships `c_worker` derived from `c_queue`, which satisfies
+        REQ-001. A one-hop derivation onto solid ground is the normal case and
+        must not cost anyone a blocking finding."""
+        rules, code, _f = self._rules()
+        self.assertNotIn("G14", rules)
+        self.assertEqual(code, 0)
+
+    def test_g14_allows_a_cycle_that_is_anchored(self):
+        """A recorded decision, not an oversight.
+
+        Two elements citing each other where one ALSO satisfies a confirmed
+        requirement is odd modelling, but a reason does exist and the operator
+        can point at it. G14 blocks the absence of a reason, not the shape of
+        the graph; blocking here would make the rule a style opinion, and a
+        gate that enforces taste is the kind that gets switched off.
+        """
+        def mutate(doc):
+            containers = doc["systems"][0]["containers"]
+            self._find(containers, "c_api")["grounding"].append(
+                {"kind": "derived", "from": "c_queue", "adr": "ADR-001"})
+            self._derive(doc, "c_queue", "c_api")
+        self._patch(("model", "model.json"), mutate)
+        rules, _code, _f = self._rules()
+        self.assertNotIn("G14", rules)
+
     # -- G5 ---------------------------------------------------------------
 
     def test_g5_float_layout_coordinate(self):

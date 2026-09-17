@@ -54,6 +54,7 @@ RULE_LABELS = {
     "G2": "citation",
     "G3": "coverage",
     "G4": "grounding",
+    "G14": "derivation soundness",
     "G5": "C4 form",
     "G5e": "external containers",
     "G6": "render freshness",

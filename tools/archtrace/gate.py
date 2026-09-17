@@ -325,6 +325,46 @@ def g4_element_grounding(eng: Engagement) -> Iterator[Finding]:
         yield from _check_grounding(eng, where, rel.get("grounding", []))
 
 
+# --- G14 derivation soundness ----------------------------------------------
+
+@rule("G14", BLOCK)
+def g14_derivation_soundness(eng: Engagement) -> Iterator[Finding]:
+    """A chain of `derived` groundings must bottom out in a reason.
+
+    G4 reads one grounding entry at a time, which is why it passes two
+    containers that cite each other: each entry names a real element and a real
+    ADR, so each entry is valid. Nothing was asking what the chain adds up to.
+    Measured on the worked example -- rewire two containers to derive from each
+    other, re-render, and the gate prints "model is grounded and internally
+    consistent" with zero findings.
+
+    That is the SPEC §5 failure by another route. The spec argues an ungrounded
+    element is safer than a certified fabrication because the first is visibly
+    ungrounded; a derivation cycle is a fabrication the gate certifies, and no
+    quote had to be invented to get it.
+    """
+    from .grounding import analyse  # local import keeps the graph out of G4
+
+    analysis = analyse(eng)
+    for where in analysis.unfounded:
+        cycle = analysis.cycle_containing(where)
+        if cycle:
+            loop = " -> ".join((*cycle, cycle[0]))
+            yield Finding("G14", BLOCK, where,
+                          "every reason given for this is `derived`, and the "
+                          f"chain closes on itself: {loop}. These elements "
+                          "justify each other and nothing underneath them is a "
+                          "requirement, a standard, an incumbent system or a "
+                          "declared assumption. G4 passes each link because "
+                          "each link is individually valid.")
+            continue
+        yield Finding("G14", BLOCK, where,
+                      "every reason given for this is `derived`, and nothing "
+                      "the chain reaches is grounded either. A derivation has "
+                      "to end somewhere a stakeholder, a standard, an existing "
+                      "system or an open question can be pointed at.")
+
+
 # --- G5 C4 well-formedness -------------------------------------------------
 
 @rule("G5", BLOCK)

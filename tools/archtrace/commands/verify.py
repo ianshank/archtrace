@@ -176,6 +176,40 @@ def _blank_worksheet(args) -> int:
     print("standard, it goes to zero and you have measured nothing.")
     return EXIT_OK
 
+def _print_derivation(eng) -> None:
+    """The transitive half of the grounding mix (SPEC §7.1a).
+
+    The mix above counts grounding entries one at a time, which says how a
+    model is justified but not what the justification adds up to. `derived`
+    points at another element, so these three numbers are the ones that read
+    the chain: how far an element sits from a real reason, whether every route
+    to ground runs through a guess, and how much of the model one ADR is
+    holding up.
+
+    Reported, never gated. Each is a smell whose healthy value depends on the
+    architecture -- unlike G14's question, which has one right answer.
+    """
+    from ..grounding import analyse
+
+    analysis = analyse(eng)
+    if not analysis.adr_load and not analysis.tainted \
+            and not analysis.max_depth:
+        return
+    print("\nderivation (transitive — see SPEC §7.1a)")
+    print(f"  deepest chain to a real reason   {analysis.max_depth} hop(s)")
+    deep = sorted((d, e) for e, d in analysis.depth.items() if d)
+    for depth, element in reversed(deep[-3:]):
+        print(f"      {element:<22} {depth}")
+    print(f"  assumption-tainted elements      {len(analysis.tainted)}")
+    for element in analysis.tainted:
+        print(f"      {element:<22} every route to ground is a guess")
+    if analysis.adr_load:
+        print("  ADR load (groundings held up by one decision)")
+        for adr, count in sorted(analysis.adr_load.items(),
+                                 key=lambda kv: (-kv[1], kv[0])):
+            print(f"      {adr:<22} {count}")
+
+
 def cmd_report(args) -> int:
     eng = _engagement(args)
     mix = eng.grounding_mix()
@@ -192,6 +226,7 @@ def cmd_report(args) -> int:
         count = mix["by_kind"][kind]
         bar = "#" * (30 * count // total)
         print(f"  {kind:<11} {count:>3}  {100 * count // total:>3}%  {bar}")
+    _print_derivation(eng)
     coverage = eng.nfr_coverage
     by_req = {c for r in eng.confirmed_requirements
               for c in r.get("nfr_categories", [])}
