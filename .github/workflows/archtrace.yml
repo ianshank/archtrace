@@ -31,7 +31,7 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Fetch evidence content
         # Evidence CONTENT is never in git (see SPEC 0.4): the repository holds

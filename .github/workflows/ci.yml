@@ -26,8 +26,8 @@ jobs:
       matrix:
         python-version: ["3.9", "3.11", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Prove nothing is installed
@@ -81,10 +81,10 @@ jobs:
       # this job rather than widened at the workflow level.
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0          # gitleaks scans history, not just the tip
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
@@ -97,7 +97,7 @@ jobs:
         run: ruff --version && mypy --version
       - run: make lint
       - run: make types
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           # Pinned. The action defaults to whatever gitleaks version it ships
           # with, while .pre-commit-config.yaml pins v8.21.2 -- so CI and the
@@ -115,6 +115,6 @@ jobs:
     name: image builds and the CLI runs in it
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -t archtrace:ci .
       - run: docker run --rm archtrace:ci --help
