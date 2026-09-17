@@ -7,7 +7,7 @@ thousand-line switchboard.
 
 from __future__ import annotations
 
-from . import build, evidence, release, requirements, setup, verify
+from . import build, evidence, release, requirements, review, setup, verify
 from ._shared import EXIT_BLOCKED, EXIT_OK, EXIT_USAGE, engagement
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
            "evidence",
            "release",
            "requirements",
+           "review",
            "setup",
            "verify",
 ]

@@ -49,8 +49,8 @@ class ConfigDefaults(unittest.TestCase):
     def test_describe_covers_every_section(self):
         rows = config.load(root=self.tmp, env={}).describe()
         sections = {section for section, _key, _value in rows}
-        self.assertEqual(sections, {"citation", "baseline", "render", "mining",
-                                    "coverage"})
+        self.assertEqual(sections, {"citation", "baseline", "advisory",
+                                    "render", "mining", "coverage"})
         self.assertTrue(all(isinstance(key, str) for _s, key, _v in rows))
 
     def test_config_is_frozen(self):

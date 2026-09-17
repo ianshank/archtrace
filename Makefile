@@ -46,6 +46,7 @@ help:
 	@echo "  make evidence-guard  no recording content is committed"
 	@echo "  make fmt        canonicalise JSON, refresh derived fields"
 	@echo "  make report     grounding mix and NFR coverage"
+	@echo "  make review     advisory worklist; never gates, always exits 0"
 	@echo "  make baseline   SPEC 9a — run this BEFORE anything else"
 	@echo "  make agents     deterministic validation of agent definitions"
 	@echo "  make config     print the thresholds this build enforces"
@@ -68,12 +69,15 @@ help:
 
 # --- deterministic, dependency-free ----------------------------------------
 
-.PHONY: check render fmt report baseline agents config gate test coverage \
+.PHONY: check render fmt report review baseline agents config gate test coverage \
         freshness engagements evidence-guard
 check:    ; @$(ARCHTRACE) check
 render:   ; @$(ARCHTRACE) render
 fmt:      ; @$(ARCHTRACE) fmt
 report:   ; @$(ARCHTRACE) report
+# Advisory, and deliberately NOT part of `gate`. A target that can only exit 0
+# has no business in a pipeline whose job is to refuse things.
+review:   ; @$(ARCHTRACE) review $(if $(FINDINGS),--findings $(FINDINGS),)
 baseline: ; @$(ARCHTRACE) baseline
 config:   ; @$(ARCHTRACE) config
 agents:   ; @ARCHTRACE_PYTHON=$(PY) ./archtrace agents --directory "$(AGENT_DIR)"

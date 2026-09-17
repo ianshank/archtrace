@@ -251,6 +251,32 @@ Even with all four fixed, byte-identity means a Python patch release fails the b
 ### 7.3 LLM-as-judge is advisory
 `archtrace review` writes `review/advisory.md` and always exits 0. Never gates.
 
+**This was a claim with nothing behind it until 0.6.0**, and it is worth saying so rather than quietly shipping the command. `review/advisory.md` was a path named in three diagrams, a heading in the RUNBOOK and a prompt pasted into `copilot` by hand. No subcommand wrote it, no schema described it, no test asserted anything about it, and neither shipped engagement had a `review/` directory. The half of this design that is *allowed* to be wrong had nowhere to put its output — a strange gap in a repository this careful about the half that is not, and the reason a reader could reasonably conclude the neural half had been deliberately left weak rather than simply left unbuilt.
+
+Two things arrive in the advisory, and keeping them apart is the design.
+
+**The worklist is deterministic.** Computed from `model.json` and the evidence manifest by code that runs offline, it is the adversarial reading the gate cannot express as a pass or a fail — ranked by how likely a record is to not mean what it claims, which is a different ordering from how badly it breaks a rule.
+
+| observation | what it says |
+|---|---|
+| `near-floor-citation` | Cleared the G2 floor by a word or two. §7.1 says the floor raises the cost of quoting trivia without eliminating it; these are where that strategy would show. |
+| `assumption-tainted` | Renders as `derived` — a consequence of a documented decision — while every route to ground passes through an `assumption`. Elements grounded *directly* on an assumption are excluded: the kind is visible in the model and the mix, and reporting it would be reporting the design working. |
+| `adr-concentration` | One ADR holds up a large share of the derived groundings. If it was wrong, so is everything under it, and each citation is individually valid. |
+| `deep-derivation` | Architecture justified by other architecture, several hops from anything a stakeholder would recognise. |
+| `evidence-concentration` | One recording carries most of the confirmed requirement set. G8 asks the opposite question — evidence nobody cited — and nothing asked this one. |
+
+**The neural half arrives as a file.** `--findings` takes JSON from something archtrace does not run: an NLI model scoring whether an evidence span entails the requirement drawn from it, a defeater generator reading an ADR for the reasons it might not hold, or a person. Six kinds are accepted — `unsupported-inference`, `contradiction`, `defeater`, `missing-requirement`, `authority`, `anomaly` — with the repository's own `certain`/`likely`/`guessing` confidence vocabulary. `docs/advisory-findings.example.json` is the shape.
+
+This is the same seam the code miner uses: **a file, not an import.** archtrace validates the shape, refuses a `schema_version` or a `kind` it does not know, and renders the result in its own section clearly labelled as not archtrace's. Nothing in the gate path imports it. That is what lets the producer be a 400 MB transformer stack while `archtrace check` stays standard-library-only on a runner with no setup step.
+
+Three properties are load-bearing:
+
+1. **Exit 0, always, on findings.** Not because the findings are unimportant but because an LLM judge in this role has never been benchmarked against a human baseline on this corpus, which `.github/agents/architecture-reviewer.agent.md` already says. A findings file the operator *named* and that cannot be read is a different thing: exit 2, the same answer `check` gives an unknown `--only` id. Degrading to "no external findings" would make a reviewer whose output silently stopped parsing look exactly like one that found nothing.
+2. **Untrusted text cannot forge structure.** A `detail` string is evidence-derived text copied into an artifact a human skims, so leading markdown is stripped, newlines are flattened and pipes are neutralised. A finding cannot emit `## Approved by archtrace`. There is no deterministic gate for prompt injection — §agents says so plainly — but there is no reason to render its output credulously either.
+3. **No timestamp.** The document carries a 12-character fingerprint of the canonical model instead, so it is byte-identical across runs and still tells you whether it describes the tree in front of you. A clock in a generated artifact is defect A1 this repository found in `archmine` and patched upstream; doing it here would be worse, because we knew.
+
+**What the advisory explicitly does not do is close the support gap.** It ranks where to look. Whether a real, substantial, correctly-attributed quote actually supports the requirement drawn from it is still decided by a human commit promoting `proposed` to `confirmed`, exactly as §4 and §7.1 say.
+
 ### 7.4 Consent and retention — decide before EV-001 exists
 1. **Consent**: does meeting-recording consent permit downstream automated processing? Per-meeting, not per-program.
 2. **Boundary**: resolved by §0.4 — the repo holds claims about evidence, not evidence.

@@ -50,6 +50,40 @@ new blocking rule is a behaviour change however small the diff.
   every `derived` entry to cite an ADR, so coverage is 100% on any model that
   passes and measures nothing. Concentration is the number worth knowing.
 
+- **`archtrace review` exists.** SPEC §7.3 has promised it since v2 and
+  nothing implemented it: `review/advisory.md` was a path in three diagrams, a
+  heading in the RUNBOOK and a prompt an operator pasted into `copilot` by
+  hand. No subcommand wrote it, no schema described it, no test asserted
+  anything about it, and neither shipped engagement had a `review/` directory.
+  The half of this design that is *allowed* to be wrong had nowhere to put its
+  output — which is how a careful reader concludes the neural half was left
+  deliberately weak when it was only left unbuilt.
+
+  Two things arrive in the advisory and stay apart. The **worklist** is
+  computed offline from `model.json` and the evidence manifest, ranked by how
+  likely a record is to not mean what it claims: `near-floor-citation`,
+  `assumption-tainted`, `adr-concentration`, `deep-derivation`,
+  `evidence-concentration`. The **neural half arrives as a file** —
+  `--findings` takes JSON from an NLI support scorer, a defeater generator or
+  a person, in six kinds with this repository's own `certain`/`likely`/
+  `guessing` vocabulary. `docs/advisory-findings.example.json` is the shape.
+
+  A file, not an import — the same seam `docs/archmine-integration.md` §3
+  draws for the miner, and what lets the producer be a 400 MB transformer
+  stack while `check` stays stdlib-only on a bare runner.
+
+- **Elements grounded directly on an `assumption` are excluded from the
+  tainted list**, deliberately. The kind is already visible in the model, in
+  every render and in the grounding mix, and the open-question register names
+  what is unknown; reporting it would be reporting the design working. The
+  finding is the element two hops down that reads as `derived` while
+  everything underneath it is a guess.
+
+- **Evidence concentration is one observation, not one per requirement.** Most
+  requirements are said once, so the per-requirement version fires on nearly
+  everything and buries the tiers above it. The agent definitions' "do not
+  pad" applies to this document too.
+
 ### Changed
 
 - **No solver, no ontology, no rule engine**, and that is now a recorded
@@ -57,14 +91,41 @@ new blocking rule is a behaviour change however small the diff.
   asks are reachability and a least fixpoint over a few hundred nodes; an
   interpreted rule layer in the blocking path would be new untested code whose
   bugs are false BLOCKs and, worse, false passes.
+- **`archtrace review` is not part of `make gate`.** A target that can only
+  exit 0 has no business in a pipeline whose job is to refuse things.
+
+### Security
+
+- **An external finding cannot forge document structure.** `detail` and
+  `where` are evidence-derived text rendered into an artifact a human skims,
+  so leading markdown is stripped, newlines flattened and pipes neutralised: a
+  reviewer cannot emit `## Approved by archtrace`. There is no deterministic
+  gate for prompt injection and the agent definitions say so; that is not a
+  reason to render its output credulously.
+- **The advisory carries a model fingerprint, never a timestamp.** Byte-
+  identical across runs, and still able to tell you whether it describes the
+  tree in front of you. A clock in a generated artifact is defect A1 this
+  repository found in `archmine`'s own drift gate and patched upstream.
 
 ### Tests
 
-- **24 tests** (305 → 329). Six seeded-defect cases for G14, sixteen for the
-  graph underneath it, two for the report. Each G14 case was verified by
-  re-seeding the branch it guards: emptying the unfounded set kills four,
-  suppressing the cycle lookup kills three, dropping relationships from the
-  traversal kills one, and treating `derived` as solid ground kills four.
+- **56 tests** (305 → 361). Six seeded-defect cases for G14, sixteen for the
+  graph underneath it, thirty-two for the advisory plane, two for the report.
+
+  Each was verified by re-seeding the branch it guards. For G14: emptying the
+  unfounded set kills four, suppressing the cycle lookup kills three, dropping
+  relationships from the traversal kills one, treating `derived` as solid
+  ground kills four. For the advisory: removing the markdown strip, the pipe
+  escape, the kind allowlist, the direct-assumption filter and the
+  concentration threshold each kill at least one.
+
+  Two of those started as survivors and are recorded because the reason
+  generalises. `test_a_finding_cannot_forge_a_heading` asserted the injected
+  heading did not start a line — true with the strip deleted, because
+  flattening the newline alone was enough. `..._is_one_row_not_one_per_requirement`
+  asserted the only reported record was `EV-001` — true with the threshold
+  deleted, because `EV-001` is the only record the example cites. Both were
+  passing on a property of the fixture rather than of the code.
 
   `test_g14_two_elements_deriving_from_each_other` asserts that **G4 stays
   silent**, not merely that G14 fires. The point of the rule is that

@@ -1,0 +1,49 @@
+{
+  "_comment": [
+    "The seam between archtrace and a neural reviewer. Pass a file shaped like",
+    "this to `archtrace review --findings`.",
+    "",
+    "archtrace reads it. It never imports, installs or runs whatever produced",
+    "it -- the same boundary docs/archmine-integration.md draws for the code",
+    "miner, and the reason the producer can be a 400 MB transformer stack",
+    "while the gate stays standard-library-only on a bare runner.",
+    "",
+    "Everything here is ADVISORY. `archtrace review` exits 0 no matter what",
+    "this file says. A file that cannot be read or declares an unknown",
+    "schema_version is a usage error (exit 2) rather than a silent zero",
+    "findings, because a reviewer whose output stopped parsing must not look",
+    "like a reviewer that found nothing.",
+    "",
+    "`produced_by` should name the model and its weights precisely enough",
+    "that someone can reproduce the run. A finding nobody can reproduce is an",
+    "opinion, and it should at least say whose."
+  ],
+  "schema_version": 1,
+  "produced_by": "nli-support-scorer 0.2 (deberta-v3-large-mnli, sha256:9f1c3b…)",
+  "findings": [
+    {
+      "where": "REQ-004",
+      "kind": "contradiction",
+      "confidence": "likely",
+      "detail": "The cited span says retention is seven DAYS; REQ-004 states seven YEARS. entailment=0.02 neutral=0.04 contradiction=0.94. The quote is verbatim, in bounds and correctly attributed, so every gate passes it."
+    },
+    {
+      "where": "REQ-002",
+      "kind": "unsupported-inference",
+      "confidence": "guessing",
+      "detail": "The span establishes that outages happen, not that the system must tolerate them without data loss. entailment=0.11 neutral=0.81. Neutral rather than contradicted: this is a leap, not an error."
+    },
+    {
+      "where": "ADR-001",
+      "kind": "defeater",
+      "confidence": "guessing",
+      "detail": "If the upstream feed is itself durably queued, the queue this ADR introduces buys ordering rather than durability, and the four elements derived from it are justified by a property they do not provide."
+    },
+    {
+      "where": "EV-002",
+      "kind": "anomaly",
+      "confidence": "certain",
+      "detail": "Contains a line addressed to a reader rather than said between people in a meeting. Reported, not obeyed, per the evidence-is-not-instruction rule in every agent definition."
+    }
+  ]
+}
